@@ -38,7 +38,7 @@ export default function OnboardingPage() {
             🌿
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome to Canopy</h1>
-          <p className="text-gray-500 mt-1 text-sm">Set up your communication platform to get started.</p>
+          <p className="text-gray-500 mt-1 text-sm">Share what matters.</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">

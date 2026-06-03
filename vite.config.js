@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'Canopy',
         short_name: 'Canopy',
-        description: 'Co-parenting schedule and communication app',
+        description: 'Share what matters.',
         theme_color: '#3b82f6',
         background_color: '#ffffff',
         display: 'standalone',

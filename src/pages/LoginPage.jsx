@@ -53,7 +53,7 @@ export default function LoginPage() {
             🌿
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Canopy</h1>
-          <p className="text-gray-500 mt-1 text-sm">Co-parenting, simplified</p>
+          <p className="text-gray-500 mt-1 text-sm">Share what matters.</p>
         </div>
 
         {/* Card */}
