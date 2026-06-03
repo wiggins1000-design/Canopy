@@ -254,8 +254,13 @@ Rules:
   const newEventLines: string[]     = []
   const updatedEventLines: string[] = []
 
+  const oneMonthAgo = new Date()
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+  const cutoff = oneMonthAgo.toISOString().split('T')[0]
+
   for (const ev of events) {
     if (!ev.title || !ev.date) continue
+    if (ev.date < cutoff) continue  // skip events more than 1 month in the past
 
     if (ev.existing_id) {
       // Duplicate detected by Claude
