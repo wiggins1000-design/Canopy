@@ -11,6 +11,7 @@ export default function InvitePage() {
   const [inviteRole, setInviteRole] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
 
   const hasParentB = !!parentB
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
@@ -22,6 +23,16 @@ export default function InvitePage() {
       setInviteCode(data.code)
       setInviteRole(role)
       setCopied(false)
+
+      if (inviteEmail.trim()) {
+        const link = `${window.location.origin}/join/${data.code}`
+        const roleLabel = role === 'parent_b' ? 'the other parent' : 'a family member'
+        const subject = encodeURIComponent("You've been invited to join Canopy")
+        const body = encodeURIComponent(
+          `Hi,\n\nYou've been invited to join Canopy as ${roleLabel}.\n\nTap the link below to get started:\n${link}\n\nIf asked, you can also enter this code manually: ${data.code}\n\nThis invite expires in 7 days.\n\nCanopy — co-parenting, simplified`
+        )
+        window.location.href = `mailto:${inviteEmail.trim()}?subject=${subject}&body=${body}`
+      }
     }
     setGenerating(false)
   }
@@ -81,14 +92,28 @@ export default function InvitePage() {
             </div>
           )}
 
+          <div className="space-y-1.5">
+            <label className="text-xs text-gray-500 block">
+              Their email address <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="e.g. sarah@email.com"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-400">If entered, your email app will open with the invite ready to send.</p>
+          </div>
+
           <div className="flex gap-2">
             {!hasParentB && (
               <Button variant="secondary" className="flex-1 text-xs" loading={generating} onClick={() => handleGenerateInvite('parent_b')}>
-                Invite Parent B
+                {inviteEmail.trim() ? 'Email invite to Parent B' : 'Invite Parent B'}
               </Button>
             )}
             <Button variant="secondary" className="flex-1 text-xs" loading={generating} onClick={() => handleGenerateInvite('third_party')}>
-              Invite read-only
+              {inviteEmail.trim() ? 'Email read-only invite' : 'Invite read-only'}
             </Button>
           </div>
 
