@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
+import PasswordField from '../components/ui/PasswordField'
 
 export default function LoginPage() {
   const { session, signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth()
@@ -96,7 +97,7 @@ export default function LoginPage() {
                   <Field label="Your name" type="text" value={name} onChange={setName} placeholder="e.g. Sarah" required />
                 )}
                 <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
-                <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
+                <PasswordField label="Password" value={password} onChange={setPassword} placeholder="••••••••" required />
 
                 {error && <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-700">{error}</div>}
                 {success && <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-sm text-green-700">{success}</div>}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Button from '../components/ui/Button'
+import PasswordField from '../components/ui/PasswordField'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -47,8 +48,8 @@ export default function ResetPasswordPage() {
             <p className="text-sm text-gray-500 text-center py-4">Verifying reset link…</p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Field label="New password" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
-              <Field label="Confirm password" type="password" value={confirm} onChange={setConfirm} placeholder="••••••••" required />
+              <PasswordField label="New password" value={password} onChange={setPassword} placeholder="••••••••" required />
+              <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} placeholder="••••••••" required />
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-700">{error}</div>
               )}

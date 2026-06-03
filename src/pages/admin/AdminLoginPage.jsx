@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
+import PasswordField from '../../components/ui/PasswordField'
 
 export default function AdminLoginPage() {
   const { session, signInWithEmail, signOut } = useAuth()
@@ -59,18 +60,14 @@ export default function AdminLoginPage() {
                 className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide block mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              placeholder="••••••••"
+              required
+              dark
+            />
 
             {error && (
               <div className="bg-red-900/40 border border-red-700 rounded-xl px-3 py-2.5 text-sm text-red-300">

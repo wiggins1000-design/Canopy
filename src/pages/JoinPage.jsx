@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFamily } from '../context/FamilyContext'
 import Button from '../components/ui/Button'
+import PasswordField from '../components/ui/PasswordField'
 
 export default function JoinPage() {
   const { code } = useParams()
@@ -122,7 +123,7 @@ export default function JoinPage() {
               <Field label="Your name" type="text" value={name} onChange={setName} placeholder="e.g. Sarah" required />
             )}
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
-            <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
+            <PasswordField label="Password" value={password} onChange={setPassword} placeholder="••••••••" required />
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-700">{error}</div>
             )}
