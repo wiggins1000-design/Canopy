@@ -28,6 +28,11 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
+      rollupOptions: {
+        output: {
+          minify: false,
+        },
+      },
     }),
   ],
 })
