@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables — never commit these
+.env
+.env.local
+.env.*.local
+
+# Supabase local
+.supabase/
+supabase/.temp/
+
+# Build artifacts
+dev-dist/
+
+# Sensitive files
+Passwords.txt
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebaserc
+
+# Vite
+vite.config.js.timestamp-*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
