@@ -6,7 +6,7 @@ import { useFamily } from '../context/FamilyContext'
 import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../lib/scheduleEngine'
 import Button from '../components/ui/Button'
 
-const PATTERNS = ['alternating_weeks', '2_2_5_5', 'custom']
+const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
   const { schedule, saveSchedule, updateFamilyConfig, family, member, parentA, parentB, isParent, reload } = useFamily()
