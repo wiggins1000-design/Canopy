@@ -7,7 +7,7 @@ import Badge from '../components/ui/Badge'
 
 export default function InvitePage() {
   const { family, members, userRole, isParent, parentA, parentB, generateInvite } = useFamily()
-  const { signOut } = useAuth()
+  const { signOut, user } = useAuth()
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteRole, setInviteRole] = useState(null)
   const [generating, setGenerating] = useState(false)
@@ -114,7 +114,7 @@ export default function InvitePage() {
               placeholder="e.g. sarah@email.com"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <p className="text-xs text-gray-400">If entered, your email app will open with the invite ready to send.</p>
+            <p className="text-xs text-gray-400">If entered, Canopy will send them an invite email directly.</p>
           </div>
 
           <div className="flex gap-2">
