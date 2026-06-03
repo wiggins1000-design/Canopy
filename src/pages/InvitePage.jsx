@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 
@@ -12,12 +13,17 @@ export default function InvitePage() {
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailError, setEmailError] = useState(null)
 
   const hasParentB = !!parentB
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
+  const senderName = user?.user_metadata?.display_name ?? 'Someone'
 
   async function handleGenerateInvite(role) {
     setGenerating(true)
+    setEmailSent(false)
+    setEmailError(null)
     const { data, error } = await generateInvite(role)
     if (!error && data) {
       setInviteCode(data.code)
@@ -26,12 +32,17 @@ export default function InvitePage() {
 
       if (inviteEmail.trim()) {
         const link = `${window.location.origin}/join/${data.code}`
-        const roleLabel = role === 'parent_b' ? 'the other parent' : 'a family member'
-        const subject = encodeURIComponent("You've been invited to join Canopy")
-        const body = encodeURIComponent(
-          `Hi,\n\nYou've been invited to join Canopy as ${roleLabel}.\n\nTap the link below to get started:\n${link}\n\nIf asked, you can also enter this code manually: ${data.code}\n\nThis invite expires in 7 days.\n\nCanopy — co-parenting, simplified`
-        )
-        window.location.href = `mailto:${inviteEmail.trim()}?subject=${subject}&body=${body}`
+        const { error: emailErr } = await supabase.functions.invoke('send-invite-email', {
+          body: {
+            recipientEmail: inviteEmail.trim(),
+            inviteCode:     data.code,
+            inviteLink:     link,
+            role,
+            senderName,
+          },
+        })
+        if (emailErr) setEmailError('Invite generated but email failed to send. Share the link below instead.')
+        else setEmailSent(true)
       }
     }
     setGenerating(false)
@@ -116,6 +127,17 @@ export default function InvitePage() {
               {inviteEmail.trim() ? 'Email read-only invite' : 'Invite read-only'}
             </Button>
           </div>
+
+          {emailSent && (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
+              Invite email sent to {inviteEmail}
+            </div>
+          )}
+          {emailError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+              {emailError}
+            </div>
+          )}
 
           {inviteCode && (
             <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-4 space-y-3">
