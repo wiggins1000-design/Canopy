@@ -337,7 +337,7 @@ export default function ConfigPage() {
           <div>
             <label className="text-sm font-semibold text-gray-700 block">Family email address</label>
             <p className="text-xs text-gray-400 mt-0.5">
-              Email anything to this address — school letters, appointment confirmations, links — and Canopy will automatically add events to your calendar.
+              Email anything to this address — school letters, appointment confirmations, links — and Canopy will automatically add events to your calendar. Events more than one month in the past are ignored.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
