@@ -10,7 +10,7 @@ export default function InvitePage() {
   const { signOut, user } = useAuth()
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteRole, setInviteRole] = useState(null)
-  const [generating, setGenerating] = useState(false)
+  const [generating, setGenerating] = useState(null) // 'parent_b' | 'third_party' | null
   const [copied, setCopied] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [emailSent, setEmailSent] = useState(false)
@@ -21,7 +21,7 @@ export default function InvitePage() {
   const senderName = user?.user_metadata?.display_name ?? 'Someone'
 
   async function handleGenerateInvite(role) {
-    setGenerating(true)
+    setGenerating(role)
     setEmailSent(false)
     setEmailError(null)
     const { data, error } = await generateInvite(role)
@@ -45,7 +45,7 @@ export default function InvitePage() {
         else setEmailSent(true)
       }
     }
-    setGenerating(false)
+    setGenerating(null)
   }
 
   function copyLink() {
@@ -119,11 +119,11 @@ export default function InvitePage() {
 
           <div className="flex gap-2">
             {!hasParentB && (
-              <Button variant="secondary" className="flex-1 text-xs" loading={generating} onClick={() => handleGenerateInvite('parent_b')}>
+              <Button variant="secondary" className="flex-1 text-xs" loading={generating === 'parent_b'} onClick={() => handleGenerateInvite('parent_b')}>
                 {inviteEmail.trim() ? 'Email invite to Parent B' : 'Invite Parent B'}
               </Button>
             )}
-            <Button variant="secondary" className="flex-1 text-xs" loading={generating} onClick={() => handleGenerateInvite('third_party')}>
+            <Button variant="secondary" className="flex-1 text-xs" loading={generating === 'third_party'} onClick={() => handleGenerateInvite('third_party')}>
               {inviteEmail.trim() ? 'Email read-only invite' : 'Invite read-only'}
             </Button>
           </div>
