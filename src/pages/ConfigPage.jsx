@@ -3,13 +3,16 @@ import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase, registerPushSubscription, unregisterPushSubscription } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
+import { useAuth } from '../context/AuthContext'
 import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../lib/scheduleEngine'
 import Button from '../components/ui/Button'
+import PasswordField from '../components/ui/PasswordField'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
   const { schedule, saveSchedule, updateFamilyConfig, family, member, parentA, parentB, isParent, reload } = useFamily()
+  const { user } = useAuth()
   const emailDomain = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
   const familyEmail = family?.email_key ? `${family.email_key}@${emailDomain}` : null
   const navigate = useNavigate()
@@ -37,6 +40,13 @@ export default function ConfigPage() {
   const [pushLoading, setPushLoading]   = useState(false)
   const [pushSupported, setPushSupported] = useState(true)
   const [pushBlocked, setPushBlocked]   = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword]         = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving]   = useState(false)
+  const [passwordSaved, setPasswordSaved]     = useState(false)
+  const [passwordError, setPasswordError]     = useState(null)
 
   useEffect(() => {
     if (!schedule) return
@@ -169,6 +179,23 @@ export default function ConfigPage() {
     setTimeout(() => setChildrenSaved(false), 2500)
   }
 
+  async function changePassword() {
+    if (newPassword !== confirmPassword) { setPasswordError('Passwords do not match.'); return }
+    if (newPassword.length < 6) { setPasswordError('Password must be at least 6 characters.'); return }
+    setPasswordSaving(true)
+    setPasswordError(null)
+    const { error: authError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+    if (authError) { setPasswordError('Current password is incorrect.'); setPasswordSaving(false); return }
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) { setPasswordError(error.message); setPasswordSaving(false); return }
+    setPasswordSaved(true)
+    setPasswordSaving(false)
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setTimeout(() => setPasswordSaved(false), 2500)
+  }
+
   const pa = parentA?.display_name ?? 'Parent A'
   const pb = parentB?.display_name ?? 'Parent B'
 
@@ -183,7 +210,8 @@ export default function ConfigPage() {
 
   return (
     <div className="px-4 py-5 space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">Parenting Schedule</h1>
+      <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mt-4 mb-2">Parenting Schedule</h2>
 
       {/* Pattern picker */}
       <section className="space-y-2">
@@ -457,6 +485,20 @@ export default function ConfigPage() {
             </div>
           </button>
         )}
+      </section>
+
+      {/* Change password */}
+      <section className="space-y-3 pt-2">
+        <div>
+          <label className="text-sm font-semibold text-gray-700 block">Change password</label>
+        </div>
+        <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" required />
+        <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="••••••••" required />
+        <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
+        {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+        <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
+          {passwordSaved ? '✓ Password updated' : 'Update password'}
+        </Button>
       </section>
     </div>
   )

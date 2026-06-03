@@ -1,20 +1,45 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { startOfWeek, startOfMonth, subMonths } from 'date-fns'
 import { useNoticeboard } from '../hooks/useNoticeboard'
 import { useFamily } from '../context/FamilyContext'
 import PostCard from '../components/noticeboard/PostCard'
 import NewPostSheet from '../components/noticeboard/NewPostSheet'
 import { NOTICE_TAGS } from '../lib/noticeTags'
 
+const DATE_PRESETS = [
+  { id: '',        label: 'All time' },
+  { id: 'week',    label: 'This week' },
+  { id: 'month',   label: 'This month' },
+  { id: '3months', label: 'Last 3 months' },
+]
+
+function getDateCutoff(preset) {
+  const now = new Date()
+  if (preset === 'week')    return startOfWeek(now, { weekStartsOn: 1 })
+  if (preset === 'month')   return startOfMonth(now)
+  if (preset === '3months') return subMonths(now, 3)
+  return null
+}
+
 export default function NoticeBoardPage() {
   const navigate = useNavigate()
   const { pinnedPosts, feedPosts, loading } = useNoticeboard()
   const { isParent } = useFamily()
   const [showNewPost, setShowNewPost] = useState(false)
-  const [activeTag, setActiveTag] = useState(null)
+  const [activeTag, setActiveTag]     = useState(null)
+  const [datePreset, setDatePreset]   = useState('')
 
-  const filteredPinned = activeTag ? pinnedPosts.filter((p) => p.tag === activeTag) : pinnedPosts
-  const filteredFeed   = activeTag ? feedPosts.filter((p) => p.tag === activeTag)   : feedPosts
+  function applyFilters(posts) {
+    let out = posts
+    if (activeTag) out = out.filter((p) => p.tag === activeTag)
+    const cutoff = getDateCutoff(datePreset)
+    if (cutoff) out = out.filter((p) => new Date(p.created_at) >= cutoff)
+    return out
+  }
+
+  const filteredPinned = applyFilters(pinnedPosts)
+  const filteredFeed   = applyFilters(feedPosts)
 
   return (
     <div className="px-4 pt-5 pb-6">
@@ -62,6 +87,22 @@ export default function NoticeBoardPage() {
             {t.label}
           </button>
         ))}
+      </div>
+
+      {/* Date filter */}
+      <div className="relative mb-4">
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value)}
+          className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {DATE_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+        <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
 
       {loading ? (
