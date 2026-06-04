@@ -230,9 +230,48 @@ export default function ConfigPage() {
 
   if (!isParent) {
     return (
-      <div className="px-5 py-8 text-center text-gray-500">
-        <p className="font-medium">View-only access</p>
-        <p className="text-sm mt-1">Only parents can edit the schedule.</p>
+      <div className="px-4 py-5 space-y-6">
+        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+
+        {/* Push notifications toggle */}
+        <section className="space-y-2 pt-2">
+          <div>
+            <label className="text-sm font-semibold text-gray-700 block">Push notifications</label>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Receive alerts on this device when parents post or make changes.
+            </p>
+          </div>
+          {!pushSupported ? (
+            <p className="text-sm text-gray-400">Push notifications are not supported on this device or browser.</p>
+          ) : pushBlocked ? (
+            <p className="text-sm text-red-500">Notifications are blocked in your browser settings. Enable them in your browser and reload.</p>
+          ) : (
+            <button
+              onClick={togglePush}
+              disabled={pushLoading}
+              className="flex items-center justify-between w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
+            >
+              <span className="text-sm font-medium text-gray-700">
+                {pushEnabled ? 'Notifications on' : 'Notifications off'}
+              </span>
+              <div className={`relative w-11 h-6 rounded-full transition-colors ${pushEnabled ? 'bg-blue-600' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              </div>
+            </button>
+          )}
+        </section>
+
+        {/* Change password */}
+        <section className="space-y-3 pt-2">
+          <label className="text-sm font-semibold text-gray-700 block">Change password</label>
+          <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" required />
+          <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="••••••••" required />
+          <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
+          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
+          <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
+            {passwordSaved ? '✓ Password updated' : 'Update password'}
+          </Button>
+        </section>
       </div>
     )
   }
