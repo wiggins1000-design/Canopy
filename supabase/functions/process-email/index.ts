@@ -46,6 +46,11 @@ Deno.serve(async (req) => {
 
   const payload = await req.json()
 
+  // Temporary: log payload keys and body field previews to diagnose HTML email parsing
+  console.log('Payload keys:', Object.keys(payload))
+  console.log('TextBody preview:', String(payload.TextBody || payload.textBody || '').slice(0, 200))
+  console.log('HtmlBody preview:', String(payload.HtmlBody || payload.htmlBody || payload.html_body || '').slice(0, 200))
+
   // ── Extract family from To: address ──────────────────────────────────────
   // e.g. "abc123def456@canopy.app" → email_key = "abc123def456"
   const toRaw: string = payload.To || payload.to || ''
