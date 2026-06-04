@@ -116,7 +116,7 @@ export default function VaultSection({ childName }) {
       const categoryLabel = CATEGORIES.find((c) => c.id === uploadCat)?.label ?? uploadCat
       const childLabel    = childName === 'Family' ? 'family documents' : childName
       const uploaderName  = member?.display_name ?? 'A parent'
-      await supabase.rpc('create_notice_post', {
+      const { error: noticeErr } = await supabase.rpc('create_notice_post', {
         p_family_id: family.id,
         p_content:   `📎 ${uploaderName} added a document to the vault\n${uploadTitle.trim()} · ${categoryLabel} · ${childLabel}`,
         p_image_url: null,
@@ -124,6 +124,7 @@ export default function VaultSection({ childName }) {
         p_file_name: null,
         p_tag:       null,
       })
+      if (noticeErr) console.error('Vault notice post error:', noticeErr)
       const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
       const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
       if (recipientMember) {
