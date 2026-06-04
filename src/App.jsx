@@ -16,6 +16,7 @@ import MediaPage from './pages/MediaPage'
 import ConfigPage from './pages/ConfigPage'
 import InvitePage from './pages/InvitePage'
 import RequestsPage from './pages/RequestsPage'
+import InfoBankPage from './pages/InfoBankPage'
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/config" element={<ConfigPage />} />
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/requests" element={<RequestsPage />} />
+            <Route path="/info" element={<InfoBankPage />} />
           </Route>
         </Routes>
       </FamilyProvider>
