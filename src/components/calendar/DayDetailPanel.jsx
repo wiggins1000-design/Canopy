@@ -132,11 +132,6 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
           <span className="font-semibold">Note: </span>{change.note}
         </p>
       )}
-      {offer?.note && (
-        <p className="text-xs text-gray-600 mt-2 bg-white/60 rounded-lg px-3 py-2">
-          <span className="font-semibold">Offer note: </span>{offer.note}
-        </p>
-      )}
 
       {/* Family events for this day */}
       {dayEvents.length > 0 && (
