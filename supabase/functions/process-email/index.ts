@@ -76,13 +76,13 @@ Deno.serve(async (req) => {
   let authorId: string | null = null
   let isExternalSender = false
   if (fromEmail) {
-    const { data: senderAuth } = await supabase.auth.admin.getUserByEmail(fromEmail)
-    if (senderAuth?.user) {
+    const { data: senderUserId } = await supabase.rpc('get_user_id_by_email', { p_email: fromEmail })
+    if (senderUserId) {
       const { data: senderMember } = await supabase
         .from('family_members')
         .select('user_id')
         .eq('family_id', family.id)
-        .eq('user_id', senderAuth.user.id)
+        .eq('user_id', senderUserId)
         .single()
       if (senderMember) authorId = senderMember.user_id
     }
