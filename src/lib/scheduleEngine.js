@@ -118,6 +118,22 @@ export function getDayState(dateStr, { schedule, changes = [], offers = [] }) {
     }
   }
 
+  // Declined FROR offer — show on the day for record
+  const declinedOffer = offers.find(
+    (o) => o.status === 'declined' && Array.isArray(o.dates) && o.dates.includes(dateStr),
+  )
+  if (declinedOffer) {
+    return { owner: baselineOwner, type: 'offer_declined', change: pendingChange ?? null, offer: declinedOffer }
+  }
+
+  // Declined change request — show on the day for record
+  const declinedChange = changes.find(
+    (c) => c.status === 'declined' && c.start_date <= dateStr && dateStr <= c.end_date,
+  )
+  if (declinedChange) {
+    return { owner: baselineOwner, type: 'change_declined', change: declinedChange, offer: null }
+  }
+
   return {
     owner: baselineOwner,
     type: pendingChange ? 'change_pending' : 'baseline',

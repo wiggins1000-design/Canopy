@@ -15,6 +15,7 @@ import NoticeBoardPage from './pages/NoticeBoardPage'
 import MediaPage from './pages/MediaPage'
 import ConfigPage from './pages/ConfigPage'
 import InvitePage from './pages/InvitePage'
+import RequestsPage from './pages/RequestsPage'
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="/board/media" element={<MediaPage />} />
             <Route path="/config" element={<ConfigPage />} />
             <Route path="/invite" element={<InvitePage />} />
+            <Route path="/requests" element={<RequestsPage />} />
           </Route>
         </Routes>
       </FamilyProvider>

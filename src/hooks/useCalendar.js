@@ -32,8 +32,7 @@ export function useCalendar() {
         .from('fror_offers')
         .select('*')
         .eq('family_id', family.id)
-        .neq('status', 'expired')
-        .neq('status', 'declined'),
+        .neq('status', 'expired'),
     ])
 
     setChanges(changesData ?? [])

@@ -44,10 +44,12 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
 
       {/* Status badges */}
       <div className="flex flex-wrap gap-1.5 mt-2">
-        {type === 'change_pending'  && <Badge label="Change requested" type="change_pending" />}
+        {type === 'change_pending'  && <Badge label="Change requested"  type="change_pending" />}
         {type === 'change_accepted' && <Badge label="Schedule changed"  type="change_accepted" />}
+        {type === 'change_declined' && <Badge label="Change declined"   type="change_declined" />}
         {type === 'offered'         && <Badge label="FROR offered"      type="offered" />}
         {type === 'offer_accepted'  && <Badge label="FROR accepted"     type="offer_accepted" />}
+        {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
       </div>
 
       {/* Changeover info */}
