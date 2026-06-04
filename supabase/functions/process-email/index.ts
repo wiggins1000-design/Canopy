@@ -137,10 +137,13 @@ Deno.serve(async (req) => {
     : ''
 
   const subject: string    = payload.Subject || '(no subject)'
-  const rawBody: string    = payload.TextBody || payload.StrippedTextReply || ''
+  const rawText: string    = payload.TextBody || payload.StrippedTextReply || ''
+  const rawHtml: string    = payload.HtmlBody || payload.html_body || ''
   const attachments: any[] = payload.Attachments || []
 
   // Strip base64 blobs and truncate to keep well within Claude's token limit
+  // Fall back to stripped HTML if no plain-text body
+  const rawBody = rawText || rawHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
   const textBody = rawBody
     .replace(/base64,[A-Za-z0-9+/=\s]{100,}/g, '[attachment removed]')
     .replace(/Content-Transfer-Encoding: base64[\s\S]{0,50000}/gi, '[encoded content removed]')
@@ -177,9 +180,13 @@ Deno.serve(async (req) => {
   }
 
   // ── Fetch content from URLs in the email body ────────────────────────────
-  // Sway pages are JS-rendered so we route them through Jina AI reader which
-  // renders and returns clean markdown. Other URLs get a simple HTML strip.
-  const urls = (textBody.match(/https?:\/\/[^\s)>\]]+/g) ?? []).slice(0, 2)
+  // Sway pages are JS-rendered so we route them through Jina AI reader.
+  // Extract URLs from plain text AND from HTML href attributes (Sway links
+  // are often only in the HTML body, not the plain-text version).
+  const textUrls  = textBody.match(/https?:\/\/[^\s)>\]"]+/g) ?? []
+  const hrefUrls  = (rawHtml.match(/href="(https?:\/\/[^"]+)"/gi) ?? [])
+    .map((m: string) => m.slice(6, -1))  // strip href=" and "
+  const urls = [...new Set([...textUrls, ...hrefUrls])].slice(0, 2)
   let linkContent = ''
 
   console.log(`URLs found in email body: ${urls.length}`, urls)
