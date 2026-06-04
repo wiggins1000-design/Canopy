@@ -3,12 +3,14 @@ import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
 import Button from '../components/ui/Button'
+import VaultSection from '../components/infobank/VaultSection'
 
 const SECTIONS = [
   { id: 'medical',   label: 'Medical'   },
   { id: 'school',    label: 'School'    },
   { id: 'contacts',  label: 'Contacts'  },
   { id: 'personal',  label: 'Personal'  },
+  { id: 'docs',      label: 'Docs'      },
 ]
 
 export default function InfoBankPage() {
@@ -97,7 +99,7 @@ export default function InfoBankPage() {
 
       {/* Section tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-        {(activeTab === 'Family' ? [{ id: 'contacts', label: 'Contacts' }] : SECTIONS).map((s) => (
+        {(activeTab === 'Family' ? [{ id: 'contacts', label: 'Contacts' }, { id: 'docs', label: 'Docs' }] : SECTIONS).map((s) => (
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
@@ -135,6 +137,8 @@ export default function InfoBankPage() {
           isParent={isParent}
           onSave={(data) => saveSection(activeTab, 'contacts', data)}
         />
+      ) : activeSection === 'docs' ? (
+        <VaultSection childName={activeTab} />
       ) : (
         <PersonalSection
           data={sectionData}
