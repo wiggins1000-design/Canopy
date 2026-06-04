@@ -78,6 +78,19 @@ export default function ConfigPage() {
     setSaving(true)
     setError(null)
 
+    if (!startDate) {
+      setError('Enter the date this schedule takes effect from.')
+      setSaving(false)
+      return
+    }
+
+    const today = formatDate(new Date())
+    if (schedule && startDate < today) {
+      setError('The effective date must be today or in the future.')
+      setSaving(false)
+      return
+    }
+
     let patternData
     if (patternType === 'custom') {
       if (customCycle.length === 0) {
@@ -90,22 +103,27 @@ export default function ConfigPage() {
       patternData = buildPresetPattern(patternType, startingParent)
     }
 
-    const { error: err } = await saveSchedule({
-      pattern_type:    patternType,
-      pattern_data:    patternData,
-      start_date:      startDate,
-      starting_parent: startingParent,
-    })
+    try {
+      const { error: err } = await saveSchedule({
+        pattern_type:    patternType,
+        pattern_data:    patternData,
+        start_date:      startDate,
+        starting_parent: startingParent,
+      })
 
-    if (err) { setError(err.message); setSaving(false); return }
+      if (err) { setError(err.message); setSaving(false); return }
 
-    await updateFamilyConfig({
-      changeover_time: changeoverTime || null,
-      changeover_location: changeoverLocation.trim() || null,
-    })
+      await updateFamilyConfig({
+        changeover_time: changeoverTime || null,
+        changeover_location: changeoverLocation.trim() || null,
+      })
 
-    setSaved(true)
-    setTimeout(() => navigate('/calendar'), 1200)
+      setSaved(true)
+      setTimeout(() => navigate('/calendar'), 1200)
+    } catch (e) {
+      setError('Failed to save — check your connection and try again.')
+      setSaving(false)
+    }
   }
 
   // Check current push subscription state
@@ -372,15 +390,20 @@ export default function ConfigPage() {
 
       {/* Start date */}
       <section className="space-y-2">
-        <label className="text-sm font-semibold text-gray-700 block">Schedule start date</label>
+        <label className="text-sm font-semibold text-gray-700 block">
+          {schedule ? 'Change takes effect from' : 'Schedule start date'}
+        </label>
         <input
           type="date"
           value={startDate}
+          min={schedule ? formatDate(new Date()) : undefined}
           onChange={(e) => setStartDate(e.target.value)}
           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <p className="text-xs text-gray-400">
-          The pattern repeats from this date indefinitely. Changing it will recalculate the entire calendar.
+          {schedule
+            ? 'The new pattern will apply from this date. Must be today or in the future.'
+            : 'The pattern repeats from this date indefinitely.'}
         </p>
       </section>
 
