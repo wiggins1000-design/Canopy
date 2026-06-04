@@ -47,7 +47,6 @@ Deno.serve(async (req) => {
 
   const payload = await req.json()
 
-  console.log('Payload keys:', Object.keys(payload))
 
   // ── Extract family from To: address ──────────────────────────────────────
   // e.g. "abc123def456@canopy.app" → email_key = "abc123def456"
@@ -205,24 +204,20 @@ Deno.serve(async (req) => {
   const urls = [...new Set([...textUrls, ...hrefUrls])].slice(0, 2)
   let linkContent = ''
 
-  console.log(`URLs found in email body: ${urls.length}`, urls)
 
   for (const url of urls) {
     try {
       const isSway = /sway\.(cloud\.microsoft|office\.com)\//i.test(url)
-      console.log(`Fetching URL (isSway=${isSway}): ${url}`)
       const fetchUrl = isSway ? `https://r.jina.ai/${url}` : url
       const res = await fetch(fetchUrl, {
         headers: { 'User-Agent': 'Canopy-EmailBot/1.0' },
         signal: AbortSignal.timeout(isSway ? 20000 : 5000),
       })
-      console.log(`URL fetch result: ${res.status} ${res.statusText}`)
       if (res.ok) {
         const raw = await res.text()
         const text = isSway
           ? raw.slice(0, 12000)
           : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000)
-        console.log(`Content fetched (${text.length} chars): ${text.slice(0, 200)}`)
         linkContent += `\n\nPage content from ${url}:\n${text}`
       }
     } catch (e) {
@@ -304,8 +299,6 @@ Rules:
 
   const aiData  = await aiRes.json()
   const aiText: string = aiData.content?.[0]?.text ?? '{}'
-
-  console.log('Claude response:', aiText.slice(0, 800))
 
   let parsed: { events?: any[], notice_post?: string | null } = {}
   try {
