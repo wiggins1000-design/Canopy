@@ -48,13 +48,13 @@ export async function unregisterPushSubscription(userId) {
   }
 }
 
-export async function sendSmsNotification({ familyId, recipientRole, authorName, contentPreview }) {
+export async function sendSmsNotification({ familyId, recipientRole, authorName }) {
   await supabase.functions.invoke('send-sms', {
     body: {
-      family_id:       familyId,
-      recipient_role:  recipientRole,
-      author_name:     authorName,
-      content_preview: contentPreview,
+      family_id:      familyId,
+      recipient_role: recipientRole,
+      author_name:    authorName,
+      app_url:        `${window.location.origin}/board`,
     },
   })
 }

@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: CORS })
   }
 
-  const { family_id, recipient_role, author_name, content_preview } = await req.json()
+  const { family_id, recipient_role, author_name, app_url } = await req.json()
 
   if (!family_id || !recipient_role) {
     return new Response(JSON.stringify({ error: 'missing params' }), { status: 400, headers: CORS })
@@ -53,8 +53,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'SMS not configured' }), { status: 500, headers: CORS })
   }
 
-  const preview = content_preview?.slice(0, 80) ?? ''
-  const text = `URGENT – ${author_name} posted an urgent notice on Canopy:\n"${preview}"\n\nOpen the app to read it.`
+  const text = `${author_name} has posted an urgent notice on Canopy. Open the app to read it: ${app_url ?? 'https://canopy-production-4239.up.railway.app/board'}`
 
   const res = await fetch('https://api.telnyx.com/v2/messages', {
     method: 'POST',

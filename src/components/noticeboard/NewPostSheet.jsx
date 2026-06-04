@@ -98,10 +98,9 @@ export default function NewPostSheet({ open, onClose }) {
 
       if (tag === 'urgent') {
         await sendSmsNotification({
-          familyId:       family.id,
+          familyId:     family.id,
           recipientRole,
-          authorName:     member?.display_name ?? 'Your co-parent',
-          contentPreview: content.trim(),
+          authorName:   member?.display_name ?? 'Your co-parent',
         })
       }
     }
