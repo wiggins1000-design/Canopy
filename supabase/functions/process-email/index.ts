@@ -70,8 +70,11 @@ Deno.serve(async (req) => {
   // Identify the sender — try to match the From address to a family member
   const fromRaw: string = payload.From || payload.from || ''
   const fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
+  // Extract display name for external senders e.g. "St Mary's School <admin@school.com>" → "St Mary's School"
+  const fromDisplayName = fromRaw.match(/^([^<]+)</) ? fromRaw.match(/^([^<]+)</)?.[1].trim() : fromEmail
 
   let authorId: string | null = null
+  let isExternalSender = false
   if (fromEmail) {
     const { data: senderAuth } = await supabase.auth.admin.getUserByEmail(fromEmail)
     if (senderAuth?.user) {
@@ -103,17 +106,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Final fallback — external email (e.g. school newsletter), attribute to parent_a
+  // Final fallback — external email (e.g. school newsletter), no family member identified
   if (!authorId) {
-    const { data: fallbackMember } = await supabase
-      .from('family_members')
-      .select('user_id')
-      .eq('family_id', family.id)
-      .in('role', ['parent_a', 'parent_b'])
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single()
-    authorId = fallbackMember?.user_id ?? null
+    isExternalSender = true
+    // authorId stays null — post will show as "External" in the UI
   }
 
   // ── Fetch existing events for duplicate detection ─────────────────────────
@@ -355,7 +351,8 @@ Rules:
     if (eventsUpdated > 0) {
       parts.push(`✏️ ${eventsUpdated} existing event${eventsUpdated > 1 ? 's' : ''} updated with new details:\n${updatedEventLines.join('\n')}`)
     }
-    const content = `${parts.join('\n\n')}\n\n_From email: "${subject}"_`
+    const senderLine = isExternalSender ? `From: ${fromDisplayName ?? fromEmail}\n` : ''
+    const content = `${senderLine}${parts.join('\n\n')}\n\n_From email: "${subject}"_`
 
     const { error: noticeErr1 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
@@ -371,7 +368,7 @@ Rules:
   } else if (parsed.notice_post) {
     const { error: noticeErr2 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
-      p_content:   `📧 ${parsed.notice_post}\n\n_From email: "${subject}"_`,
+      p_content:   `${isExternalSender ? `From: ${fromDisplayName ?? fromEmail}\n` : ''}${parsed.notice_post}\n\n_From email: "${subject}"_`,
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,

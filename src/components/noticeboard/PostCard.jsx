@@ -50,7 +50,7 @@ export default function PostCard({ post }) {
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${styles.dot}`} />
           <span className={`text-sm font-semibold ${styles.name}`}>
-            {author?.display_name ?? 'Unknown'}
+            {author?.display_name ?? 'External'}
           </span>
           <span className="text-xs text-gray-400">
             {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
