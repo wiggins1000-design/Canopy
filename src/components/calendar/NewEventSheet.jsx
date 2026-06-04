@@ -42,7 +42,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     const rangeStr = endDate && endDate !== date ? ` – ${endDate}` : ''
     const notesStr = notes.trim() ? `\n${notes.trim()}` : ''
 
-    await supabase.rpc('create_notice_post', {
+    const { error: noticeErr } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
       p_content:   `📅 ${member?.display_name ?? 'A parent'} added an event: ${title.trim()}\n${date}${rangeStr}${timeStr}${notesStr}`,
       p_image_url: null,
@@ -50,6 +50,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
       p_file_name: null,
       p_tag:       null,
     })
+    if (noticeErr) console.error('Notice post error:', noticeErr)
 
     if (recipientMember) {
       await sendPushNotification({

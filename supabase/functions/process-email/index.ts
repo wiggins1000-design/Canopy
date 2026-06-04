@@ -62,18 +62,58 @@ Deno.serve(async (req) => {
     .eq('email_key', emailKey)
     .single()
 
-  // Look up a parent to use as the author for notice posts created by the AI
-  const { data: parentMember } = await supabase
-    .from('family_members')
-    .select('user_id')
-    .eq('family_id', family?.id)
-    .in('role', ['parent_a', 'parent_b'])
-    .limit(1)
-    .single()
-
   if (!family) {
     console.log('No family found for email_key:', emailKey)
     return new Response(JSON.stringify({ skipped: 'unknown family' }), { status: 200, headers: CORS })
+  }
+
+  // Identify the sender — try to match the From address to a family member
+  const fromRaw: string = payload.From || payload.from || ''
+  const fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
+
+  let authorId: string | null = null
+  if (fromEmail) {
+    const { data: senderAuth } = await supabase.auth.admin.getUserByEmail(fromEmail)
+    if (senderAuth?.user) {
+      const { data: senderMember } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', family.id)
+        .eq('user_id', senderAuth.user.id)
+        .single()
+      if (senderMember) authorId = senderMember.user_id
+    }
+  }
+
+  // Secondary check — look up additional forwarding emails only if primary didn't match
+  if (!authorId && fromEmail) {
+    const { data: additionalEmail } = await supabase
+      .from('member_additional_emails')
+      .select('user_id')
+      .eq('email', fromEmail)
+      .single()
+    if (additionalEmail) {
+      const { data: senderMember } = await supabase
+        .from('family_members')
+        .select('user_id')
+        .eq('family_id', family.id)
+        .eq('user_id', additionalEmail.user_id)
+        .single()
+      if (senderMember) authorId = senderMember.user_id
+    }
+  }
+
+  // Final fallback — external email (e.g. school newsletter), attribute to parent_a
+  if (!authorId) {
+    const { data: fallbackMember } = await supabase
+      .from('family_members')
+      .select('user_id')
+      .eq('family_id', family.id)
+      .in('role', ['parent_a', 'parent_b'])
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+    authorId = fallbackMember?.user_id ?? null
   }
 
   // ── Fetch existing events for duplicate detection ─────────────────────────
@@ -134,7 +174,7 @@ Deno.serve(async (req) => {
         p_file_url:  isImage ? null : path,
         p_file_name: isImage ? null : att.Name,
         p_tag:       null,
-        p_author_id: parentMember?.user_id ?? null,
+        p_author_id: authorId,
       })
       docsSaved++
     }
@@ -317,27 +357,29 @@ Rules:
     }
     const content = `${parts.join('\n\n')}\n\n_From email: "${subject}"_`
 
-    await supabase.rpc('create_notice_post', {
+    const { error: noticeErr1 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
       p_content:   content,
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
       p_tag:       null,
-      p_author_id: parentMember?.user_id ?? null,
+      p_author_id: authorId,
     })
-    noticeCreated = true
+    if (noticeErr1) console.error('Notice post error (events):', noticeErr1)
+    else noticeCreated = true
   } else if (parsed.notice_post) {
-    await supabase.rpc('create_notice_post', {
+    const { error: noticeErr2 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
       p_content:   `📧 ${parsed.notice_post}\n\n_From email: "${subject}"_`,
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
       p_tag:       null,
-      p_author_id: parentMember?.user_id ?? null,
+      p_author_id: authorId,
     })
-    noticeCreated = true
+    if (noticeErr2) console.error('Notice post error (notice_post):', noticeErr2)
+    else noticeCreated = true
   }
 
   console.log(`Processed email for family ${family.id}: ${eventsCreated} created, ${eventsUpdated} updated, ${docsSaved} docs, notice=${noticeCreated}`)

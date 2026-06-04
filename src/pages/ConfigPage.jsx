@@ -41,6 +41,11 @@ export default function ConfigPage() {
   const [pushSupported, setPushSupported] = useState(true)
   const [pushBlocked, setPushBlocked]   = useState(false)
 
+  const [additionalEmails, setAdditionalEmails] = useState([])
+  const [newEmail, setNewEmail]               = useState('')
+  const [emailAdding, setEmailAdding]         = useState(false)
+  const [emailError, setEmailError]           = useState(null)
+
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -157,6 +162,30 @@ export default function ConfigPage() {
     setPhoneSaved(true)
     setPhoneSaving(false)
     setTimeout(() => setPhoneSaved(false), 2500)
+  }
+
+  useEffect(() => {
+    if (!user) return
+    supabase.from('member_additional_emails').select('id, email').eq('user_id', user.id).order('created_at')
+      .then(({ data }) => setAdditionalEmails(data ?? []))
+  }, [user])
+
+  async function addEmail() {
+    const trimmed = newEmail.trim().toLowerCase()
+    if (!trimmed) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setEmailError('Enter a valid email address.'); return }
+    setEmailAdding(true)
+    setEmailError(null)
+    const { error: err } = await supabase.from('member_additional_emails').insert({ user_id: user.id, email: trimmed })
+    if (err) { setEmailError(err.code === '23505' ? 'That email is already registered.' : err.message); setEmailAdding(false); return }
+    setAdditionalEmails((prev) => [...prev, { id: crypto.randomUUID(), email: trimmed }])
+    setNewEmail('')
+    setEmailAdding(false)
+  }
+
+  async function removeEmail(id) {
+    await supabase.from('member_additional_emails').delete().eq('id', id)
+    setAdditionalEmails((prev) => prev.filter((e) => e.id !== id))
   }
 
   function addChild() {
@@ -379,6 +408,34 @@ export default function ConfigPage() {
           </div>
         </section>
       )}
+
+      {/* Additional forwarding emails */}
+      <section className="space-y-3 pt-2">
+        <div>
+          <label className="text-sm font-semibold text-gray-700 block">Forwarding email addresses</label>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Add other email addresses you forward from. Canopy will attribute forwarded emails to you correctly.
+          </p>
+        </div>
+        {additionalEmails.map((e) => (
+          <div key={e.id} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+            <span className="text-sm text-gray-800 flex-1 font-mono truncate">{e.email}</span>
+            <button onClick={() => removeEmail(e.id)} className="text-xs text-red-500 hover:underline shrink-0">Remove</button>
+          </div>
+        ))}
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
+            onKeyDown={(e) => e.key === 'Enter' && addEmail()}
+            placeholder="e.g. chris@work.com"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
+        </div>
+        {emailError && <p className="text-sm text-red-600">{emailError}</p>}
+      </section>
 
       {/* Children */}
       <section className="space-y-3 pt-2">
