@@ -46,7 +46,6 @@ export default function VaultSection({ childName }) {
   const [pendingFile, setPendingFile] = useState(null)
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadCat, setUploadCat]     = useState('other')
-  const [notifyBoard, setNotifyBoard] = useState(true)
   const [uploading, setUploading]     = useState(false)
   const [uploadError, setUploadError] = useState(null)
 
@@ -78,7 +77,6 @@ export default function VaultSection({ childName }) {
     }
     setUploadTitle(file.name.replace(/\.[^.]+$/, ''))
     setUploadCat('other')
-    setNotifyBoard(true)
     setUploadError(null)
     setPendingFile(file)
     e.target.value = ''
@@ -112,7 +110,7 @@ export default function VaultSection({ childName }) {
     })
     if (dbErr) { setUploadError(dbErr.message); setUploading(false); return }
 
-    if (notifyBoard) {
+    {
       const categoryLabel = CATEGORIES.find((c) => c.id === uploadCat)?.label ?? uploadCat
       const childLabel    = childName === 'Family' ? 'family documents' : childName
       const uploaderName  = member?.display_name ?? 'A parent'
@@ -276,19 +274,7 @@ export default function VaultSection({ childName }) {
               ))}
             </div>
           </div>
-          {/* Notify toggle */}
-          <button
-            onClick={() => setNotifyBoard((v) => !v)}
-            className="flex items-center justify-between w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-          >
-            <div>
-              <p className="text-sm font-medium text-gray-700 text-left">Notify on notice board</p>
-              <p className="text-xs text-gray-400 text-left mt-0.5">Posts a notice so the other parent is informed</p>
-            </div>
-            <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${notifyBoard ? 'bg-blue-600' : 'bg-gray-300'}`}>
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifyBoard ? 'translate-x-5' : 'translate-x-0'}`} />
-            </div>
-          </button>
+          <p className="text-xs text-gray-400">A notice will be posted on the notice board to let the other parent know.</p>
 
           {pendingFile && (
             <p className="text-xs text-gray-400">{pendingFile.name} · {formatBytes(pendingFile.size)}</p>
