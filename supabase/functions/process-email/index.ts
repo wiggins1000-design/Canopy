@@ -291,7 +291,7 @@ Rules:
     },
     body: JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
+      max_tokens: 8192,
       messages:   [{ role: 'user', content: prompt }],
     }),
   })
@@ -309,7 +309,9 @@ Rules:
 
   let parsed: { events?: any[], notice_post?: string | null } = {}
   try {
-    const match = aiText.match(/\{[\s\S]*\}/)
+    // Strip markdown code fences if Claude wrapped the response
+    const stripped = aiText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    const match = stripped.match(/\{[\s\S]*\}/)
     if (match) parsed = JSON.parse(match[0])
   } catch {
     console.error('Failed to parse AI JSON:', aiText)
