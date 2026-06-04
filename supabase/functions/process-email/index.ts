@@ -19,6 +19,7 @@
 //   npx supabase functions deploy process-email --no-verify-jwt --project-ref <ref>
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import PostalMime from 'https://esm.sh/postal-mime@2.2.8'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -46,10 +47,7 @@ Deno.serve(async (req) => {
 
   const payload = await req.json()
 
-  // Temporary: log payload keys and body field previews to diagnose HTML email parsing
   console.log('Payload keys:', Object.keys(payload))
-  console.log('TextBody preview:', String(payload.TextBody || payload.textBody || '').slice(0, 200))
-  console.log('HtmlBody preview:', String(payload.HtmlBody || payload.htmlBody || payload.html_body || '').slice(0, 200))
 
   // ── Extract family from To: address ──────────────────────────────────────
   // e.g. "abc123def456@canopy.app" → email_key = "abc123def456"
@@ -142,9 +140,22 @@ Deno.serve(async (req) => {
     : ''
 
   const subject: string    = payload.Subject || '(no subject)'
-  const rawText: string    = payload.TextBody || payload.StrippedTextReply || ''
-  const rawHtml: string    = payload.HtmlBody || payload.html_body || ''
   const attachments: any[] = payload.Attachments || []
+
+  // Detect raw MIME emails (Cloudflare Worker forwards the full raw email as TextBody)
+  let rawText: string = payload.TextBody || payload.StrippedTextReply || ''
+  let rawHtml: string = payload.HtmlBody || payload.html_body || ''
+  const looksLikeMime = /^(Received:|MIME-Version:|Content-Type:|Return-Path:)/m.test(rawText)
+  if (looksLikeMime) {
+    try {
+      const parsed = await (PostalMime as any).parse(rawText)
+      rawText = parsed.text || ''
+      rawHtml = parsed.html || ''
+      console.log(`MIME parsed — text: ${rawText.length} chars, html: ${rawHtml.length} chars`)
+    } catch (e) {
+      console.error('MIME parse error:', e)
+    }
+  }
 
   // Strip base64 blobs and truncate to keep well within Claude's token limit
   // Fall back to stripped HTML if no plain-text body
