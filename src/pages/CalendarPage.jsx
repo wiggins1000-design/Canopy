@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { useCalendar } from '../hooks/useCalendar'
@@ -73,8 +73,26 @@ export default function CalendarPage() {
   const pb = parentB?.display_name ?? 'Parent B'
   const navigate = useNavigate()
 
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    touchStartX.current = null
+    touchStartY.current = null
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+    dx < 0 ? nextMonth() : prevMonth()
+  }
+
   return (
-    <div className="px-3 pt-4">
+    <div className="px-3 pt-4" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100" aria-label="Previous month">
