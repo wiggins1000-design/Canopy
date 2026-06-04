@@ -181,6 +181,23 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
         <RespondToChange change={change} />
       )}
 
+      {/* FROR offer details */}
+      {offer && (type === 'offered' || type === 'offer_accepted') && (
+        <div className="mt-2 bg-white/60 rounded-xl px-3 py-2 space-y-1">
+          {(offer.start_time || offer.end_time) && (
+            <p className="text-xs text-gray-700">
+              <span className="font-semibold">Time: </span>
+              {offer.start_time ?? '—'} – {offer.end_time ?? '—'}
+            </p>
+          )}
+          {offer.note && (
+            <p className="text-xs text-gray-600">
+              <span className="font-semibold">Note: </span>{offer.note}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Respond to FROR offer (shown to the receiving parent) */}
       {offer && type === 'offered' && isParent && userRole !== offer.offered_by_role && (
         <RespondToOffer offer={offer} />

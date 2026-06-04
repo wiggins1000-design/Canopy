@@ -23,9 +23,11 @@ import Badge from '../ui/Badge'
 export default function FirstRefusalPanel({ open, onClose, calendarDays, selectedDates, onToggleDate }) {
   const { family, userRole, parentA, parentB } = useFamily()
   const { user } = useAuth()
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime]     = useState('')
+  const [note, setNote]           = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [error, setError]         = useState(null)
 
   const recipientRole = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
   const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
@@ -38,10 +40,10 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
   )
 
   async function submit() {
-    if (selectedDates.length === 0) {
-      setError('Select at least one day to offer.')
-      return
-    }
+    if (selectedDates.length === 0) { setError('Select at least one day to offer.'); return }
+    if (!startTime)                 { setError('Enter the start time.'); return }
+    if (!endTime)                   { setError('Enter the end time.'); return }
+    if (endTime <= startTime)       { setError('End time must be after start time.'); return }
 
     setSaving(true)
     setError(null)
@@ -53,6 +55,8 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
       offered_by:      user.id,
       offered_by_role: userRole,
       dates:           [...selectedDates].sort(),
+      start_time:      startTime,
+      end_time:        endTime,
       note:            note.trim() || null,
       status:          'pending',
       expires_at:      expiresAt,
@@ -69,7 +73,7 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
       familyId:      family.id,
       recipientRole,
       title:         'First Right of Refusal',
-      body:          `${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''} offered — expires in ${expiryHours}h`,
+      body:          `${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''} offered (${startTime}–${endTime}) — expires in ${expiryHours}h`,
       url:           '/calendar',
     })
 
@@ -79,6 +83,8 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
   }
 
   function handleClose() {
+    setStartTime('')
+    setEndTime('')
     setNote('')
     setError(null)
     onClose()
@@ -134,6 +140,28 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
             ))}
           </div>
         )}
+
+        {/* Times */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Start time</label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">End time</label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
         {/* Optional note */}
         <div>
