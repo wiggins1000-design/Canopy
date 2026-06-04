@@ -120,7 +120,7 @@ export default function VaultSection({ childName }) {
         p_image_url: null,
         p_file_url:  null,
         p_file_name: null,
-        p_tag:       null,
+        p_tag:       'notification',
       })
       if (noticeErr) console.error('Vault notice post error:', noticeErr)
       const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'

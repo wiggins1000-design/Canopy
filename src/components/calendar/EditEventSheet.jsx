@@ -60,7 +60,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
-      p_tag:       null,
+      p_tag:       'notification',
     })
     if (noticeErr) console.error('Delete notice post error:', noticeErr)
 

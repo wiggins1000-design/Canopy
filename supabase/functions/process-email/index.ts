@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
         p_image_url: isImage ? path : null,
         p_file_url:  isImage ? null : path,
         p_file_name: isImage ? null : att.Name,
-        p_tag:       null,
+        p_tag:       'notification',
         p_author_id: authorId,
       })
       docsSaved++

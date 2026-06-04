@@ -9,6 +9,7 @@ export const NOTICE_TAGS = [
   { id: 'wellbeing',    label: 'Wellbeing',    chip: 'bg-pink-100 text-pink-700',   active: 'bg-pink-600 text-white' },
   { id: 'achievements', label: 'Achievements', chip: 'bg-amber-100 text-amber-700', active: 'bg-amber-500 text-white' },
   { id: 'urgent',       label: 'Urgent',       chip: 'bg-rose-100 text-rose-700',   active: 'bg-rose-600 text-white' },
+  { id: 'notification', label: 'Notification', chip: 'bg-gray-100 text-gray-600',   active: 'bg-gray-600 text-white' },
 ]
 
 export function tagById(id) {

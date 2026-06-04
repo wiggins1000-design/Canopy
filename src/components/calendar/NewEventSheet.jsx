@@ -48,7 +48,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
-      p_tag:       null,
+      p_tag:       'notification',
     })
     if (noticeErr) console.error('Notice post error:', noticeErr)
 
