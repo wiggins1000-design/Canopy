@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
+import EditEventSheet from './EditEventSheet'
 
 const OWNER_COLORS = {
   parent_a: 'text-pa-700 bg-pa-50 border-pa-200',
@@ -17,6 +18,7 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
   const [draftTime, setDraftTime] = useState('')
   const [draftLocation, setDraftLocation] = useState('')
   const [savingChangeover, setSavingChangeover] = useState(false)
+  const [editingEvent, setEditingEvent] = useState(null)
 
   if (!day) return null
 
@@ -153,6 +155,17 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
                     <p className="text-[10px] text-teal-500 mt-0.5">From email: "{ev.source_subject}"</p>
                   )}
                 </div>
+                {isParent && (
+                  <button
+                    onClick={() => setEditingEvent(ev)}
+                    className="shrink-0 p-1 rounded-lg hover:bg-teal-100 text-teal-600 transition-colors"
+                    aria-label="Edit event"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -199,6 +212,12 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
       {offer && type === 'offered' && isParent && userRole !== offer.offered_by_role && (
         <RespondToOffer offer={offer} />
       )}
+
+      <EditEventSheet
+        event={editingEvent}
+        open={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+      />
     </div>
   )
 }
