@@ -268,7 +268,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- Extract EVERY date mentioned (school events, appointments, trips, deadlines)
+- Extract dates for: whole-school events, events for all pupils, parent events (coffee mornings, BBQs, open days), community events, and appointments with no year group specified
+- If an event names a specific year group or class, only include it if it matches one of the children's year group or class — skip it otherwise
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
 - If the email mentions a specific year group or class that matches one of the children above, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day")
