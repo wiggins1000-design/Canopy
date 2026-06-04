@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       if (res.ok) {
         const raw = await res.text()
         const text = isSway
-          ? raw.slice(0, 5000)
+          ? raw.slice(0, 12000)
           : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000)
         console.log(`Content fetched (${text.length} chars): ${text.slice(0, 200)}`)
         linkContent += `\n\nPage content from ${url}:\n${text}`
@@ -304,6 +304,8 @@ Rules:
 
   const aiData  = await aiRes.json()
   const aiText: string = aiData.content?.[0]?.text ?? '{}'
+
+  console.log('Claude response:', aiText.slice(0, 800))
 
   let parsed: { events?: any[], notice_post?: string | null } = {}
   try {
