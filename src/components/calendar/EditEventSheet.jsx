@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, sendPushNotification } from '../../lib/supabase'
+import { useFamily } from '../../context/FamilyContext'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
 
 export default function EditEventSheet({ event, open, onClose, onRefetch }) {
+  const { family, member, userRole, parentA, parentB } = useFamily()
   const [title, setTitle]       = useState('')
   const [date, setDate]         = useState('')
   const [endDate, setEndDate]   = useState('')
@@ -50,6 +52,30 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
   async function deleteEvent() {
     setDeleting(true)
     await supabase.from('family_events').delete().eq('id', event.id)
+
+    const authorName = member?.display_name ?? 'A parent'
+    const { error: noticeErr } = await supabase.rpc('create_notice_post', {
+      p_family_id: family.id,
+      p_content:   `🗑 ${authorName} removed an event: ${event.title}`,
+      p_image_url: null,
+      p_file_url:  null,
+      p_file_name: null,
+      p_tag:       null,
+    })
+    if (noticeErr) console.error('Delete notice post error:', noticeErr)
+
+    const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
+    const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
+    if (recipientMember) {
+      await sendPushNotification({
+        familyId:     family.id,
+        recipientRole,
+        title:        'Calendar event removed',
+        body:         `${authorName} removed "${event.title}"`,
+        url:          '/calendar',
+      })
+    }
+
     setDeleting(false)
     onRefetch?.()
     onClose()
