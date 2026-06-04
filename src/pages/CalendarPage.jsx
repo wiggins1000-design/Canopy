@@ -15,7 +15,7 @@ import SetupChecklist from '../components/calendar/SetupChecklist'
 export default function CalendarPage() {
   const { calendarDays, viewDate, prevMonth, nextMonth, loading } = useCalendar()
   const { parentA, parentB, schedule, isParent } = useFamily()
-  const { events, eventDates } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
+  const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
 
   const [selectedDateStr, setSelectedDateStr] = useState(null)
   const selectedDay = selectedDateStr ? (calendarDays.find((d) => d.dateStr === selectedDateStr) ?? null) : null
@@ -157,6 +157,7 @@ export default function CalendarPage() {
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}
+              onRefetchEvents={refetchEvents}
             />
           )}
         </>

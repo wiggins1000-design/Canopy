@@ -12,7 +12,7 @@ const OWNER_COLORS = {
   parent_b: 'text-pb-700 bg-pb-50 border-pb-200',
 }
 
-export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, onOfferFROR, onClose }) {
+export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
@@ -217,6 +217,7 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
         event={editingEvent}
         open={!!editingEvent}
         onClose={() => setEditingEvent(null)}
+        onRefetch={onRefetchEvents}
       />
     </div>
   )

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
 
-export default function EditEventSheet({ event, open, onClose }) {
+export default function EditEventSheet({ event, open, onClose, onRefetch }) {
   const [title, setTitle]       = useState('')
   const [date, setDate]         = useState('')
   const [endDate, setEndDate]   = useState('')
@@ -43,6 +43,7 @@ export default function EditEventSheet({ event, open, onClose }) {
       .eq('id', event.id)
     if (err) { setError(err.message); setSaving(false); return }
     setSaving(false)
+    onRefetch?.()
     onClose()
   }
 
@@ -50,6 +51,7 @@ export default function EditEventSheet({ event, open, onClose }) {
     setDeleting(true)
     await supabase.from('family_events').delete().eq('id', event.id)
     setDeleting(false)
+    onRefetch?.()
     onClose()
   }
 
