@@ -387,22 +387,19 @@ function findDocumentLinks(content: string, pageUrl: string): string[] {
 
 async function extractTermDates(content: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const today = new Date().toISOString().split('T')[0]
-  const cutoffDate = new Date()
-  cutoffDate.setMonth(cutoffDate.getMonth() - 1)
-  const cutoff = cutoffDate.toISOString().split('T')[0]
 
   const res = await callClaude(
-    `Extract all UK school term dates from this content. Today is ${today}. Ignore dates before ${cutoff}.
+    `Extract all UK school term dates from this content. Today is ${today}.
 
 The content may come from a webpage, PDF, or Word document. Dates may be in tables, lists, or paragraphs.
-Common formats: "Monday 4 September", "4th September 2024", "04/09/2024", "September 4".
+Common formats: "Monday 4 September", "4th September 2025", "04/09/2025", "September 4".
 
 Return ONLY valid JSON — no markdown, no explanation:
 {
   "school_name": "name of the school or null",
   "events": [
     {
-      "title": "clear title e.g. Autumn Term Starts / Half Term Holiday / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day / Term Ends",
+      "title": "clear title e.g. Autumn Term Starts / Half Term / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day / Term Ends",
       "date": "YYYY-MM-DD",
       "end_date": "YYYY-MM-DD or null (use for multi-day holidays and half terms)"
     }
@@ -410,16 +407,19 @@ Return ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- Include: term start/end dates, half-term holidays, all school holidays, INSET days
-- For holiday periods always include end_date
-- Include dates up to 18 months from today, using the document's year context to resolve ambiguous years
-- If a table has columns like "Term | Start | End", create two events: "X Term Starts" and "X Term Ends"
-- INSET days: schools are closed, parents should know
+- Include ALL term dates found — past, present and future — for all academic years shown
+- Include: term start/end dates, half-term holidays, school holidays, INSET days, bank holidays
+- For multi-day holiday periods always set end_date
+- Use the academic year context to determine the correct year for each date
+- If a table has columns like "Term | Start | End", create two events per term: "X Term Starts" and "X Term Ends"
 
 Content:
 ${content}`,
     2048
   )
+
+  console.log('extractTermDates content preview:', content.slice(0, 300))
+  console.log('Claude raw response:', res)
 
   if (!res) return { termDates: [], schoolName: null }
 
@@ -428,6 +428,7 @@ ${content}`,
     return { termDates: json.events ?? [], schoolName: json.school_name ?? null }
   } catch (e) {
     console.error('Failed to parse Claude term dates response:', e)
+    console.error('Raw response was:', res)
     return { termDates: [], schoolName: null }
   }
 }
@@ -443,9 +444,14 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
 
   const existingKeys = new Set((existing ?? []).map((e: any) => `${e.title}||${e.event_date}`))
 
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - 1)
+  const cutoffStr = cutoff.toISOString().split('T')[0]
+
   let added = 0
   for (const event of termDates) {
     if (!event.date || !event.title) continue
+    if (event.date < cutoffStr) continue   // skip events more than 1 month in the past
     const key = `${event.title}||${event.date}`
     if (existingKeys.has(key)) continue
 
