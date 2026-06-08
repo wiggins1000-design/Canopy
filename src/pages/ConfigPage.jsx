@@ -31,6 +31,10 @@ export default function ConfigPage() {
   const [childrenSaving, setChildrenSaving] = useState(false)
   const [childrenSaved, setChildrenSaved] = useState(false)
 
+  const [pets, setPets] = useState([])
+  const [petsSaving, setPetsSaving] = useState(false)
+  const [petsSaved, setPetsSaved] = useState(false)
+
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneSaving, setPhoneSaving] = useState(false)
   const [phoneSaved, setPhoneSaved] = useState(false)
@@ -68,6 +72,7 @@ export default function ConfigPage() {
     setChangeoverTime(family.config.changeover_time ?? '')
     setChangeoverLocation(family.config.changeover_location ?? '')
     setChildren(family.config.children ?? [])
+    setPets(family.config.pets ?? [])
   }, [family?.config])
 
   useEffect(() => {
@@ -224,6 +229,26 @@ export default function ConfigPage() {
     setChildrenSaved(true)
     setChildrenSaving(false)
     setTimeout(() => setChildrenSaved(false), 2500)
+  }
+
+  function addPet() {
+    setPets((prev) => [...prev, { id: crypto.randomUUID(), name: '', type: '' }])
+  }
+
+  function updatePet(id, field, value) {
+    setPets((prev) => prev.map((p) => p.id === id ? { ...p, [field]: value } : p))
+  }
+
+  function removePet(id) {
+    setPets((prev) => prev.filter((p) => p.id !== id))
+  }
+
+  async function savePets() {
+    setPetsSaving(true)
+    await updateFamilyConfig({ pets })
+    setPetsSaved(true)
+    setPetsSaving(false)
+    setTimeout(() => setPetsSaved(false), 2500)
   }
 
   async function changePassword() {
@@ -533,6 +558,52 @@ export default function ConfigPage() {
 
         <Button className="w-full py-3" loading={childrenSaving} onClick={saveChildren}>
           {childrenSaved ? '✓ Saved' : 'Save children'}
+        </Button>
+      </section>
+
+      {/* Pets */}
+      <section className="space-y-3 pt-2">
+        <div>
+          <label className="text-sm font-semibold text-gray-700 block">Pets</label>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Add each pet's name and type. Vet and medical details can be stored in the Info Bank.
+          </p>
+        </div>
+
+        {pets.map((pet, index) => (
+          <div key={pet.id} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pet {index + 1}</span>
+              <button onClick={() => removePet(pet.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={pet.name}
+                onChange={(e) => updatePet(pet.id, 'name', e.target.value)}
+                placeholder="Name"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <input
+                type="text"
+                value={pet.type}
+                onChange={(e) => updatePet(pet.id, 'type', e.target.value)}
+                placeholder="e.g. Dog, Cat, Rabbit"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+          </div>
+        ))}
+
+        <button
+          onClick={addPet}
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+        >
+          + Add pet
+        </button>
+
+        <Button className="w-full py-3" loading={petsSaving} onClick={savePets}>
+          {petsSaved ? '✓ Saved' : 'Save pets'}
         </Button>
       </section>
 

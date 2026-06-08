@@ -142,8 +142,15 @@ export default function VaultSection({ childName }) {
   }
 
   async function download(doc) {
-    const { data } = await supabase.storage.from('vault').createSignedUrl(doc.file_path, 3600)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    const { data } = await supabase.storage
+      .from('vault')
+      .createSignedUrl(doc.file_path, 3600, { download: doc.file_name || doc.title })
+    if (!data?.signedUrl) return
+    const a = document.createElement('a')
+    a.href = data.signedUrl
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   async function deleteDoc(doc) {

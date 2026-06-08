@@ -17,8 +17,10 @@ export default function InfoBankPage() {
   const { family, isParent } = useFamily()
   const navigate = useNavigate()
   const children = (family?.config?.children ?? []).filter((c) => c.name)
+  const pets     = (family?.config?.pets ?? []).filter((p) => p.name)
 
-  const tabs = [...children.map((c) => c.name), 'Family']
+  const petNames = new Set(pets.map((p) => p.name))
+  const tabs = [...children.map((c) => c.name), ...pets.map((p) => p.name), 'Family']
   const [activeTab, setActiveTab]       = useState(null)
   const [activeSection, setActiveSection] = useState('medical')
   const [allData, setAllData]           = useState({})
@@ -64,11 +66,11 @@ export default function InfoBankPage() {
     )
   }
 
-  if (children.length === 0) {
+  if (children.length === 0 && pets.length === 0) {
     return (
       <div className="px-4 py-8 text-center space-y-3">
         <h1 className="text-xl font-bold text-gray-900">Info Bank</h1>
-        <p className="text-sm text-gray-500">Add children in Settings first to start filling in the info bank.</p>
+        <p className="text-sm text-gray-500">Add children or pets in Settings to start filling in the info bank.</p>
         <Button variant="secondary" className="mx-auto" onClick={() => navigate('/config')}>
           Go to Settings
         </Button>
@@ -76,18 +78,28 @@ export default function InfoBankPage() {
     )
   }
 
+  const isPetTab = petNames.has(activeTab)
+  const petSections = [{ id: 'vet', label: 'Vet' }, { id: 'medical', label: 'Medical' }, { id: 'docs', label: 'Docs' }]
+  const activeSections = activeTab === 'Family'
+    ? [{ id: 'contacts', label: 'Contacts' }, { id: 'docs', label: 'Docs' }]
+    : isPetTab ? petSections : SECTIONS
+
   const sectionData = getData(activeTab, activeSection)
 
   return (
     <div className="px-4 py-5 space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Info Bank</h1>
 
-      {/* Child / Family tabs */}
+      {/* Child / Pet / Family tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {tabs.map((tab) => (
           <button
             key={tab}
-            onClick={() => { setActiveTab(tab); setActiveSection('medical') }}
+            onClick={() => {
+              const defaultSection = petNames.has(tab) ? 'vet' : tab === 'Family' ? 'contacts' : 'medical'
+              setActiveTab(tab)
+              setActiveSection(defaultSection)
+            }}
             className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors shrink-0 ${
               activeTab === tab ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
             }`}
@@ -99,7 +111,7 @@ export default function InfoBankPage() {
 
       {/* Section tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-        {(activeTab === 'Family' ? [{ id: 'contacts', label: 'Contacts' }, { id: 'docs', label: 'Docs' }] : SECTIONS).map((s) => (
+        {activeSections.map((s) => (
           <button
             key={s.id}
             onClick={() => setActiveSection(s.id)}
@@ -119,6 +131,22 @@ export default function InfoBankPage() {
           isParent={isParent}
           onSave={(data) => saveSection('Family', 'contacts', data)}
         />
+      ) : isPetTab ? (
+        activeSection === 'vet' ? (
+          <VetSection
+            data={sectionData}
+            isParent={isParent}
+            onSave={(data) => saveSection(activeTab, 'vet', data)}
+          />
+        ) : activeSection === 'medical' ? (
+          <PetMedicalSection
+            data={sectionData}
+            isParent={isParent}
+            onSave={(data) => saveSection(activeTab, 'medical', data)}
+          />
+        ) : (
+          <VaultSection childName={activeTab} />
+        )
       ) : activeSection === 'medical' ? (
         <MedicalSection
           data={sectionData}
@@ -333,6 +361,73 @@ function ContactsSection({ data, isParent, onSave }) {
         </Button>
       )}
     </div>
+  )
+}
+
+// ── Vet ───────────────────────────────────────────────────────
+
+function VetSection({ data, isParent, onSave }) {
+  const [d, setD] = useState({ vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { setD({ vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data }) }, [JSON.stringify(data)])
+
+  const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
+
+  async function save() {
+    const { error } = await onSave(d)
+    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  }
+
+  return (
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Vet</p>
+      <Field label="Practice name" placeholder="Riverside Vets" {...f('vet_name')} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('vet_phone')} />
+      </div>
+      <Field label="Address" placeholder="1 High Street, London" {...f('vet_address')} />
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Emergency vet</p>
+      <Field label="Practice name" placeholder="24hr Animal Hospital" {...f('emergency_vet_name')} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('emergency_vet_phone')} />
+      </div>
+      <Field label="Address" placeholder="2 High Street, London" {...f('emergency_vet_address')} />
+      <TextArea label="Notes" placeholder="e.g. Preferred appointment day, parking notes…" rows={3} {...f('notes')} />
+    </SectionWrapper>
+  )
+}
+
+// ── Pet Medical ───────────────────────────────────────────────
+
+function PetMedicalSection({ data, isParent, onSave }) {
+  const [d, setD] = useState({ microchip: '', insurance_provider: '', insurance_policy: '', vaccinations: '', medications: '', conditions: '', notes: '', ...data })
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { setD({ microchip: '', insurance_provider: '', insurance_policy: '', vaccinations: '', medications: '', conditions: '', notes: '', ...data }) }, [JSON.stringify(data)])
+
+  const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
+
+  async function save() {
+    const { error } = await onSave(d)
+    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  }
+
+  return (
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Identity</p>
+      <Field label="Microchip number" placeholder="123456789012345" {...f('microchip')} />
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Insurance</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Provider" placeholder="Petplan" {...f('insurance_provider')} />
+        <Field label="Policy number" placeholder="PP-123456" {...f('insurance_policy')} />
+      </div>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Health</p>
+      <TextArea label="Vaccinations" placeholder="e.g. Annual booster due March" {...f('vaccinations')} />
+      <TextArea label="Medications" placeholder="e.g. Flea treatment monthly" {...f('medications')} />
+      <TextArea label="Conditions" placeholder="e.g. Hip dysplasia" {...f('conditions')} />
+      <TextArea label="Notes" placeholder="Any other health notes…" rows={3} {...f('notes')} />
+    </SectionWrapper>
   )
 }
 

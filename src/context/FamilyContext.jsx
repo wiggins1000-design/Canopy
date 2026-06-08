@@ -4,6 +4,11 @@ import { useAuth } from './AuthContext'
 
 const FamilyContext = createContext(null)
 
+function firstNameOnly(name) {
+  if (!name) return name
+  return name.trim().split(/\s+/)[0]
+}
+
 export function FamilyProvider({ children }) {
   const { user } = useAuth()
   const [family, setFamily] = useState(null)
@@ -28,7 +33,7 @@ export function FamilyProvider({ children }) {
       return
     }
 
-    setMember(memberRow)
+    setMember({ ...memberRow, display_name: firstNameOnly(memberRow.display_name) })
 
     const [
       { data: familyRow },
@@ -41,7 +46,7 @@ export function FamilyProvider({ children }) {
     ])
 
     setFamily(familyRow)
-    setMembers(allMembers ?? [])
+    setMembers((allMembers ?? []).map(m => ({ ...m, display_name: firstNameOnly(m.display_name) })))
     setSchedule(scheduleRow ?? null)
     setLoading(false)
   }, [user])

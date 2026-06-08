@@ -31,6 +31,21 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+function deriveKeyStage(yearGroup: string | undefined): string | null {
+  if (!yearGroup) return null
+  const lower = yearGroup.toLowerCase().trim()
+  if (/nursery|reception|eyfs|\bfs\b|\bfs1\b|\bfs2\b/.test(lower)) return 'EYFS'
+  if (/sixth.?form|year\s*1[23]|y1[23]/.test(lower)) return 'KS5'
+  const m = lower.match(/year\s*(\d+)|^y(\d+)$/)
+  if (!m) return null
+  const y = parseInt(m[1] ?? m[2])
+  if (y <= 2) return 'KS1'
+  if (y <= 6) return 'KS2'
+  if (y <= 9) return 'KS3'
+  if (y <= 11) return 'KS4'
+  return 'KS5'
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS })
@@ -250,6 +265,8 @@ Deno.serve(async (req) => {
           const className = school.class_name || c.class_name
           const parts = [c.name]
           if (yearGroup) parts.push(yearGroup)
+          const ks = deriveKeyStage(yearGroup)
+          if (ks) parts.push(ks)
           if (className) parts.push(`${className} class`)
           return `- ${parts.join(', ')}`
         })
@@ -285,10 +302,11 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 Rules:
 - ALWAYS include events that are whole-school, all-students, all-pupils, all-year-groups, or where no specific year group or class is mentioned — these apply to everyone
 - ALWAYS include parent-facing events: coffee mornings, BBQs, open days, parents evening, school fairs, community events
-- If an event explicitly names a specific year group or class, only include it if it matches one of the children's year group or class name — skip it otherwise
+- ALWAYS include events where parents are expected to attend or be aware of regardless of year group — sports days, class assemblies, performances, non-uniform days, charity days, school photos
+- If an event explicitly names a specific year group, key stage (KS1/KS2/KS3/KS4/KS5/EYFS), or class, only include it if it matches one of the children's year group, key stage, or class name — skip it otherwise
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
-- If the email mentions a specific year group or class that matches one of the children above, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day")
+- If the email mentions a specific year group, key stage, or class that matches one of the children above, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
 - Compare each extracted event against the existing calendar events list. If an event matches (same or very similar title on the same date), set existing_id to its id
 - If it matches and the email adds genuinely new detail not already in the existing notes, set additional_notes to only that new information
 - If it matches but adds nothing new, set existing_id and leave additional_notes as null (pure duplicate — will be silently skipped)
