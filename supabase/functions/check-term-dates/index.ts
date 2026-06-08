@@ -226,6 +226,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   if (contentHash === existingHash) return { unchanged: true }
 
   // Run HTML extraction and document link search in parallel
+  console.log('Starting parallel Claude extraction...')
   const [htmlResult, docLinks] = await Promise.all([
     extractTermDates(termDatesContent),
     findDocumentLinksViaClaude(termDatesContent, termDatesUrl),
@@ -585,24 +586,33 @@ async function hashContent(content: string): Promise<string> {
 }
 
 async function callClaude(prompt: string, maxTokens: number): Promise<string | null> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key':         Deno.env.get('ANTHROPIC_API_KEY')!,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
-    signal: AbortSignal.timeout(25000),
-    body: JSON.stringify({
-      model:    'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
-  if (!res.ok) {
-    console.error('Claude error:', await res.text())
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) { console.error('ANTHROPIC_API_KEY not set'); return null }
+  console.log(`callClaude: ${maxTokens} tokens, prompt ${prompt.length} chars`)
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      signal: AbortSignal.timeout(25000),
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: maxTokens,
+        messages:   [{ role: 'user', content: prompt }],
+      }),
+    })
+    console.log(`callClaude: response status ${res.status}`)
+    if (!res.ok) {
+      console.error('Claude error:', await res.text())
+      return null
+    }
+    const data = await res.json()
+    return data.content?.[0]?.text ?? null
+  } catch (e: any) {
+    console.error('callClaude fetch threw:', e?.name, e?.message)
     return null
   }
-  const data = await res.json()
-  return data.content?.[0]?.text ?? null
 }
