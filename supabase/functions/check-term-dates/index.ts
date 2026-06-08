@@ -83,15 +83,17 @@ Deno.serve(async (req) => {
     })
   }
 
-  // ── Process each unique school ────────────────────────────────────────────
+  // ── Process all schools in parallel ──────────────────────────────────────
   const forceRefresh = !!targetFamilyId
-  const results: any[] = []
 
-  for (const [homepageUrl, familyIds] of Object.entries(urlToFamilies)) {
-    console.log(`Processing school: ${homepageUrl} (${familyIds.size} families)`)
-    const result = await processSchool(homepageUrl, [...familyIds], forceRefresh)
-    results.push({ homepageUrl, ...result })
-  }
+  const results = await Promise.all(
+    Object.entries(urlToFamilies).map(async ([homepageUrl, familyIds]) => {
+      console.log(`Processing school: ${homepageUrl} (${familyIds.size} families)`)
+      const result = await processSchool(homepageUrl, [...familyIds], forceRefresh)
+        .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
+      return { homepageUrl, ...result }
+    })
+  )
 
   return new Response(JSON.stringify({ ok: true, results }), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -122,7 +124,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
         await supabase.from('school_calendars')
           .update({ last_fetched_at: new Date().toISOString() })
           .eq('homepage_url', homepageUrl)
-        return { status: 'unchanged' }
+        // Fall through — still apply cached termDates to this family in case they're missing
       }
 
       if (scraped.error) {
@@ -150,7 +152,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       totalAdded += await applyTermDatesToFamily(familyId, termDates)
     }
 
-    return { status: 'ok', eventsAdded: totalAdded }
+    return { status: 'ok', eventsAdded: totalAdded, totalDates: termDates.length }
   } catch (e: any) {
     console.error('processSchool error:', e)
     return { status: 'error', error: e.message }
