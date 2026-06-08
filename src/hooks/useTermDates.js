@@ -42,7 +42,8 @@ export function useTermDates(year) {
 
           const cur = new Date(start)
           while (cur <= end) {
-            const ds = cur.toISOString().split('T')[0]
+            // Use local date parts to avoid UTC timezone shift (midnight BST → previous day UTC)
+            const ds = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
             if (!map.has(ds) || priority(type) > priority(map.get(ds))) {
               map.set(ds, type)
             }

@@ -118,7 +118,9 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     let termDates: any[] = (cached as any)?.term_dates ?? []
 
     if (!cached || isStale || forceRefresh) {
-      const scraped = await scrapeTermDates(homepageUrl, (cached as any)?.content_hash ?? null)
+      // On manual refresh, ignore the cached hash so PDFs are always re-fetched
+      const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
+      const scraped = await scrapeTermDates(homepageUrl, existingHash)
 
       if (scraped.unchanged) {
         await supabase.from('school_calendars')
