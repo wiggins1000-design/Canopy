@@ -42,8 +42,13 @@ Deno.serve(async (req) => {
   if (incomingToken && webhookToken && incomingToken === webhookToken) {
     // Cron mode — process all families
   } else if (authHeader?.startsWith('Bearer ')) {
-    // Manual trigger — process just the calling user's family
-    const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+    // Manual trigger — use user's JWT to verify identity (correct Supabase edge function pattern)
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    )
+    const { data: { user } } = await userClient.auth.getUser()
     if (!user) return new Response('Unauthorized', { status: 401, headers: CORS })
     const { data: memberRow } = await supabase
       .from('family_members').select('family_id').eq('user_id', user.id).single()
@@ -162,31 +167,48 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
   console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-  // First try: ask Claude to find the link from the homepage content
-  let termDatesUrl = await findTermDatesUrl(homepageContent, origin)
+  // First try: get all links from homepage via Jina link summary, scan for term dates URL
+  const homepageLinks = await fetchJinaLinks(homepageUrl)
+  console.log(`Homepage links found: ${homepageLinks.length}`, homepageLinks.slice(0, 20))
+  let termDatesUrl = findTermDatesLinkByPattern(homepageLinks)
 
-  // Second try: if Claude couldn't find it, try common UK school website URL patterns
+  // Second try: ask Claude to pick from the full link list
+  if (!termDatesUrl && homepageLinks.length > 0) {
+    console.log('Pattern match failed, asking Claude to pick from link list…')
+    termDatesUrl = await pickTermDatesLink(homepageLinks, origin)
+  }
+
+  // Third try: ask Claude to find a URL from the page content
+  if (!termDatesUrl && homepageContent) {
+    console.log('Link list approach failed, trying content-based search…')
+    termDatesUrl = await findTermDatesUrl(homepageContent, origin)
+  }
+
+  // Fourth try: common UK school website URL patterns
   if (!termDatesUrl) {
-    console.log('Claude could not find link, trying common URL patterns…')
+    console.log('Trying common URL patterns…')
     termDatesUrl = await tryCommonPaths(origin)
   }
 
-  // Third try: if the homepage itself looks like it contains term dates, use it directly
+  // Fifth try: homepage itself might contain term dates
   if (!termDatesUrl) {
     const lc = homepageContent.toLowerCase()
-    if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer') || lc.includes('half-term') || lc.includes('half term'))) {
-      console.log('Term dates appear to be on the homepage itself, using directly…')
+    if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
+      console.log('Using homepage directly…')
       termDatesUrl = homepageUrl
     }
   }
 
   if (!termDatesUrl) return { error: 'Could not find term dates page. Try entering the direct URL of the term dates page instead of the homepage.' }
 
-  console.log(`Term dates page: ${termDatesUrl}`)
+  console.log(`Term dates URL found: ${termDatesUrl}`)
 
   const termDatesContent = termDatesUrl === homepageUrl
     ? homepageContent
     : await fetchViaJina(termDatesUrl)
+
+  console.log(`Term dates content length: ${termDatesContent?.length ?? 0}`)
+  console.log(`Term dates content preview: ${termDatesContent?.slice(0, 500) ?? 'EMPTY'}`)
 
   if (!termDatesContent) return { error: 'Failed to fetch term dates page' }
 
@@ -317,11 +339,41 @@ Rules:
 
   if (!res) return null
   const url = res.trim().replace(/^["']|["']$/g, '') // strip any accidental quotes
-  if (!url || url === 'null' || url.length > 500) return null
+  // Reject if it looks like a sentence rather than a URL (has spaces, too long, or starts with "I ")
+  if (!url || url === 'null' || url.includes(' ') || url.length > 300) return null
 
   if (url.startsWith('http')) return url
   if (url.startsWith('/')) return `${origin}${url}`
 
+  try { return new URL(url, origin).href } catch { return null }
+}
+
+// Scan a list of links for obvious term dates URL patterns
+function findTermDatesLinkByPattern(links: string[]): string | null {
+  const patterns = [/term.?dates/i, /term.?times/i, /school.?calendar/i, /key.?dates/i, /holiday.?dates/i, /school.?dates/i, /academic.?calendar/i, /dates.?deadlines/i]
+  for (const link of links) {
+    for (const p of patterns) {
+      if (p.test(link)) return link
+    }
+  }
+  return null
+}
+
+// Ask Claude to pick the most likely term dates link from a list of real URLs
+async function pickTermDatesLink(links: string[], origin: string): Promise<string | null> {
+  const res = await callClaude(
+    `From this list of URLs from a UK school website (${origin}), return the single URL most likely to be the term dates or school calendar page.
+Return ONLY the URL — nothing else. If none are relevant, return: null
+
+URLs:
+${links.slice(0, 40).join('\n')}`,
+    128
+  )
+  if (!res) return null
+  const url = res.trim().replace(/^["']|["']$/g, '')
+  if (!url || url === 'null' || url.includes(' ') || url.length > 300) return null
+  if (url.startsWith('http')) return url
+  if (url.startsWith('/')) return `${origin}${url}`
   try { return new URL(url, origin).href } catch { return null }
 }
 
