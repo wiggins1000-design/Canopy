@@ -312,10 +312,18 @@ function SchoolSection({ data, isParent, onSave }) {
       setCheckResult({ type: 'error', message: 'Could not connect to the service. Try again.' })
       return
     }
-    const r = res?.results?.[0]
-    if (!r) {
+    const results = res?.results ?? []
+    if (results.length === 0) {
       setCheckResult({ type: 'error', message: 'Save the school website URL first, then try again.' })
-    } else if (r.status === 'error') {
+      return
+    }
+    // Pick the best result: success > unchanged > no_dates > error
+    const priority = { ok: 4, unchanged: 3, no_dates: 2, error: 1 }
+    const r = results.reduce((best, cur) =>
+      (priority[cur.status] ?? 0) > (priority[best.status] ?? 0) ? cur : best
+    , results[0])
+
+    if (r.status === 'error') {
       setCheckResult({ type: 'error', message: r.error ?? 'Something went wrong. Check the URL is a valid school website.' })
     } else if (r.status === 'unchanged') {
       setCheckResult({ type: 'info', message: 'School website checked — no changes found.' })
