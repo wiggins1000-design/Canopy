@@ -225,48 +225,38 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
-  // Try extracting dates from the HTML page first
+  // Extract dates from the HTML page
   let { termDates, schoolName } = await extractTermDates(termDatesContent)
-  let usedUrl = termDatesUrl
+  console.log(`Extracted ${termDates.length} events from HTML`)
 
-  // If no dates found, look for document/download links on the page
-  if (!termDates.length) {
-    const allLinks = await fetchJinaLinks(termDatesUrl)
-    const cleanedAllLinks = allLinks.map(l => l.replace(/[)>\s]+$/, ''))
+  // Always look for document links — there may be PDFs with additional years
+  const docLinks = await findDocumentLinksViaClaude(termDatesContent, termDatesUrl)
+  console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
 
-    // Only pass links that look like documents (pdf/doc/download) to the document finder
-    const likelyDocLinks = cleanedAllLinks.filter(l =>
-      /\.(pdf|docx?|xlsx?)(\?|$)/i.test(l) ||
-      /\/(download|attachment|file|upload|document|asset)/i.test(l) ||
-      /drive\.google|sharepoint|onedrive|1drv\.ms/i.test(l)
-    )
-
-    const docLinks = likelyDocLinks.length > 0
-      ? await findDocumentLinkFromList(likelyDocLinks, termDatesUrl)
-      : findDocumentLinks(termDatesContent, termDatesUrl)
-
-    console.log(`Likely document links: ${JSON.stringify(likelyDocLinks)}`)
-    console.log(`Document links to try: ${JSON.stringify(docLinks)}`)
-
-    for (const docUrl of docLinks) {
-      const docContent = await fetchViaJina(docUrl)
-      if (!docContent) continue
-      const result = await extractTermDates(docContent)
-      if (result.termDates.length > 0) {
-        termDates = result.termDates
-        if (result.schoolName) schoolName = result.schoolName
-        usedUrl = docUrl
-        console.log(`Extracted ${termDates.length} events from document: ${docUrl}`)
-        break
+  // Fetch each document and merge any new dates (deduped by title+date)
+  const seenKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+  for (const docUrl of docLinks) {
+    const docContent = await fetchViaJina(docUrl)
+    if (!docContent) continue
+    const result = await extractTermDates(docContent)
+    if (!schoolName && result.schoolName) schoolName = result.schoolName
+    let added = 0
+    for (const event of result.termDates) {
+      const key = `${event.title}||${event.date}`
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key)
+        termDates.push(event)
+        added++
       }
     }
+    console.log(`Merged ${added} new events from ${docUrl}`)
   }
 
   console.log(`Total extracted: ${termDates.length} term date events`)
 
   if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.' }
 
-  return { termDatesUrl: usedUrl, termDates, contentHash, schoolName }
+  return { termDatesUrl, termDates, contentHash, schoolName }
 }
 
 async function fetchViaJina(url: string): Promise<string | null> {
@@ -421,6 +411,33 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
     } catch { /* ignore */ }
   }
   return null
+}
+
+// Ask Claude to find all document download links from the page content
+async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
+  const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
+  const res = await callClaude(
+    `Find all links to downloadable files (PDFs, Word documents, spreadsheets) on this school webpage.
+Look for patterns like "Download", "Click here", attachment links, file links, or any URLs ending in .pdf/.doc/.docx.
+Also look for links to Google Drive, OneDrive, or SharePoint.
+
+Base URL: ${pageUrl}
+
+Return ONLY a JSON array of complete URLs. For relative URLs (starting with /), prefix with ${origin}.
+Return [] if none found. No explanation.
+
+Page content:
+${content.slice(0, 8000)}`,
+    512
+  )
+  if (!res) return []
+  try {
+    const parsed = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((u: any) => typeof u === 'string' && u.startsWith('http') && !u.includes(' '))
+      .slice(0, 5)
+  } catch { return [] }
 }
 
 // Extract PDF, .doc, .docx links from Jina markdown output or raw HTML
