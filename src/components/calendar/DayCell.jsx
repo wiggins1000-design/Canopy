@@ -16,7 +16,13 @@ const OWNER_RING = {
 /**
  * Single day cell in the calendar grid.
  */
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents }) {
+const TERM_STRIP = {
+  holiday: 'bg-purple-400',
+  inset:   'bg-amber-400',
+  term:    'bg-green-400',
+}
+
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termType }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -39,6 +45,10 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
       ].filter(Boolean).join(' ')}
       aria-label={dateStr}
     >
+      {termType && (
+        <span className={`absolute top-0 inset-x-0 h-[3px] rounded-t-xl ${TERM_STRIP[termType]}`} />
+      )}
+
       {date.getDate()}
 
       {isTransition && changeoverTime && (

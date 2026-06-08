@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCalendar } from '../hooks/useCalendar'
 import { useFamily } from '../context/FamilyContext'
 import { useFamilyEvents } from '../hooks/useFamilyEvents'
+import { useTermDates } from '../hooks/useTermDates'
 import { formatDate } from '../lib/scheduleEngine'
 import CalendarGrid from '../components/calendar/CalendarGrid'
 import DayDetailPanel from '../components/calendar/DayDetailPanel'
@@ -16,6 +17,10 @@ export default function CalendarPage() {
   const { calendarDays, viewDate, prevMonth, nextMonth, loading } = useCalendar()
   const { parentA, parentB, schedule, isParent } = useFamily()
   const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
+  const termDays = useTermDates(viewDate.getFullYear())
+  const [showSchoolDates, setShowSchoolDates] = useState(
+    () => localStorage.getItem('canopy-show-school-dates') !== '0'
+  )
 
   const [selectedDateStr, setSelectedDateStr] = useState(null)
   const selectedDay = selectedDateStr ? (calendarDays.find((d) => d.dateStr === selectedDateStr) ?? null) : null
@@ -113,6 +118,19 @@ export default function CalendarPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
             </svg>
           </button>
+          {termDays.size > 0 && (
+            <button
+              onClick={() => {
+                const next = !showSchoolDates
+                setShowSchoolDates(next)
+                localStorage.setItem('canopy-show-school-dates', next ? '1' : '0')
+              }}
+              title={showSchoolDates ? 'Hide school dates' : 'Show school dates'}
+              className={`relative p-2 rounded-xl hover:bg-gray-100 transition-colors ${showSchoolDates ? 'text-purple-500' : 'text-gray-300'}`}
+            >
+              <GradCapIcon className="w-5 h-5" />
+            </button>
+          )}
           {isParent && (
             <button
               onClick={() => setShowNewEvent(true)}
@@ -135,10 +153,17 @@ export default function CalendarPage() {
       <SetupChecklist />
 
       {/* Legend */}
-      <div className="flex gap-4 mb-3 px-1">
+      <div className="flex gap-4 mb-3 px-1 flex-wrap">
         <LegendDot color="bg-pa-400" label={pa} />
         <LegendDot color="bg-pb-400" label={pb} />
         <LegendDot color="bg-teal-400" label="Events" />
+        {showSchoolDates && termDays.size > 0 && (
+          <>
+            <LegendStrip color="bg-purple-400" label="Holiday" />
+            <LegendStrip color="bg-amber-400"  label="INSET"   />
+            <LegendStrip color="bg-green-400"  label="Term"    />
+          </>
+        )}
         {!schedule && (
           <p className="text-xs text-yellow-700 bg-yellow-50 rounded-lg px-2 py-1 ml-auto">
             No schedule set — go to Schedule tab
@@ -165,6 +190,7 @@ export default function CalendarPage() {
             onSelectDay={handleSelectDay}
             selectingEndDate={selectingEndDate}
             eventDates={eventDates}
+            termDays={showSchoolDates ? termDays : null}
           />
 
           {/* Inline day detail */}
@@ -218,5 +244,22 @@ function LegendDot({ color, label }) {
       <span className={`w-3 h-3 rounded-full ${color}`} />
       <span className="text-xs text-gray-600">{label}</span>
     </div>
+  )
+}
+
+function LegendStrip({ color, label }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`w-4 h-[3px] rounded-full ${color}`} />
+      <span className="text-xs text-gray-600">{label}</span>
+    </div>
+  )
+}
+
+function GradCapIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 3 2 8.5l10 5.5 10-5.5L12 3zm0 13.5L4 12v4.5c0 1.93 3.58 3.5 8 3.5s8-1.57 8-3.5V12l-8 4.5z" />
+    </svg>
   )
 }

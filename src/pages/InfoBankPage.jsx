@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
+import { formatDistanceToNow } from 'date-fns'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
 
@@ -268,16 +269,60 @@ function MedicalSection({ data, isParent, onSave }) {
 // ── School ────────────────────────────────────────────────────
 
 function SchoolSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data })
+  const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
+  const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
+  const [lastFetched, setLastFetched] = useState(null)
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState(null)
 
-  useEffect(() => { setD({ year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ ...defaults, ...data }); setCheckResult(null) }, [JSON.stringify(data)])
+
+  useEffect(() => {
+    if (!d.school_url) { setLastFetched(null); return }
+    const url = d.school_url.replace(/\/$/, '').toLowerCase()
+    supabase.from('school_calendars').select('last_fetched_at, school_name')
+      .eq('homepage_url', url.startsWith('http') ? new URL(url).origin : `https://${url}`)
+      .maybeSingle()
+      .then(({ data }) => setLastFetched(data))
+  }, [d.school_url])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
   async function save() {
     const { error } = await onSave(d)
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  }
+
+  async function checkTermDates() {
+    setChecking(true)
+    setCheckResult(null)
+    const { data: res, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
+    setChecking(false)
+    if (error) {
+      setCheckResult({ type: 'error', message: 'Could not connect to the service. Try again.' })
+      return
+    }
+    const r = res?.results?.[0]
+    if (!r || r.status === 'error') {
+      setCheckResult({ type: 'error', message: r?.error ?? 'Something went wrong.' })
+    } else if (r.status === 'unchanged') {
+      setCheckResult({ type: 'info', message: 'School website checked — no changes found.' })
+    } else if (r.status === 'no_dates') {
+      setCheckResult({ type: 'info', message: "Couldn't find upcoming term dates on the page. Check the URL is correct." })
+    } else if (r.eventsAdded > 0) {
+      setCheckResult({ type: 'success', message: `${r.eventsAdded} term date event${r.eventsAdded === 1 ? '' : 's'} added to your calendar.` })
+    } else {
+      setCheckResult({ type: 'info', message: 'Calendar is already up to date.' })
+    }
+    // Refresh last fetched
+    if (d.school_url) {
+      try {
+        const origin = new URL(d.school_url.startsWith('http') ? d.school_url : `https://${d.school_url}`).origin
+        const { data: cal } = await supabase.from('school_calendars').select('last_fetched_at, school_name').eq('homepage_url', origin).maybeSingle()
+        setLastFetched(cal)
+      } catch {}
+    }
   }
 
   return (
@@ -297,6 +342,31 @@ function SchoolSection({ data, isParent, onSave }) {
         <Field label="Head teacher" placeholder="Mr Brown" {...f('head_teacher')} />
       </div>
       <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
+
+      <div className="pt-1 border-t border-gray-100 space-y-2">
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block pt-1">Term Dates</label>
+        <Field label="School website" placeholder="https://stmarys.sch.uk" {...f('school_url')} />
+        {lastFetched?.last_fetched_at && (
+          <p className="text-xs text-gray-400">
+            Last checked {formatDistanceToNow(new Date(lastFetched.last_fetched_at), { addSuffix: true })}
+            {lastFetched.school_name ? ` · ${lastFetched.school_name}` : ''}
+          </p>
+        )}
+        {checkResult && (
+          <p className={`text-xs font-medium ${checkResult.type === 'error' ? 'text-red-600' : checkResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
+            {checkResult.message}
+          </p>
+        )}
+        {isParent && d.school_url && (
+          <button
+            onClick={checkTermDates}
+            disabled={checking}
+            className="w-full border border-blue-200 bg-blue-50 text-blue-700 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            {checking ? 'Checking website…' : 'Check term dates now'}
+          </button>
+        )}
+      </div>
     </SectionWrapper>
   )
 }
