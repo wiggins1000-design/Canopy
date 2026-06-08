@@ -240,10 +240,10 @@ function MedicalSection({ data, isParent, onSave }) {
 // ── School ────────────────────────────────────────────────────
 
 function SchoolSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data })
+  const [d, setD] = useState({ year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -254,6 +254,10 @@ function SchoolSection({ data, isParent, onSave }) {
 
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Year group" placeholder="e.g. Year 4" {...f('year_group')} />
+        <Field label="Class" placeholder="e.g. Maple" {...f('class_name')} />
+      </div>
       <Field label="School name" placeholder="St Mary's Primary School" {...f('school_name')} />
       <Field label="Address" placeholder="3 School Lane, London" {...f('school_address')} />
       <div className="grid grid-cols-2 gap-3">

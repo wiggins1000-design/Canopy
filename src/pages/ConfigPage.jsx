@@ -207,7 +207,7 @@ export default function ConfigPage() {
   }
 
   function addChild() {
-    setChildren((prev) => [...prev, { id: crypto.randomUUID(), name: '', year_group: '', class_name: '' }])
+    setChildren((prev) => [...prev, { id: crypto.randomUUID(), name: '' }])
   }
 
   function updateChild(id, field, value) {
@@ -450,13 +450,13 @@ export default function ConfigPage() {
         {saved ? '✓ Saved' : 'Save schedule'}
       </Button>
 
-      {/* Family email address */}
+      {/* FamilyFeed */}
       {familyEmail && (
         <section className="space-y-2 pt-2">
           <div>
-            <label className="text-sm font-semibold text-gray-700 block">Family email address</label>
+            <label className="text-sm font-semibold text-gray-700 block">FamilyFeed</label>
             <p className="text-xs text-gray-400 mt-0.5">
-              Email anything to this address — school letters, appointment confirmations, links — and Canopy will automatically add events to your calendar. Events more than one month in the past are ignored.
+              Forward school newsletters, appointment confirmations, or any email to your FamilyFeed address and Canopy will automatically pull out events and add them to your calendar.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
@@ -504,7 +504,7 @@ export default function ConfigPage() {
         <div>
           <label className="text-sm font-semibold text-gray-700 block">Children</label>
           <p className="text-xs text-gray-400 mt-0.5">
-            Add each child's school details so Canopy can better interpret emails from school.
+            Add each child's name. To improve the results of FamilyFeed, add their school details in the Info Bank.
           </p>
         </div>
 
@@ -521,22 +521,6 @@ export default function ConfigPage() {
               placeholder="Name"
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="text"
-                value={child.year_group}
-                onChange={(e) => updateChild(child.id, 'year_group', e.target.value)}
-                placeholder="Year group (e.g. Year 4)"
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              />
-              <input
-                type="text"
-                value={child.class_name}
-                onChange={(e) => updateChild(child.id, 'class_name', e.target.value)}
-                placeholder="Class (e.g. Maple)"
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              />
-            </div>
           </div>
         ))}
 

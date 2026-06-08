@@ -228,14 +228,29 @@ Deno.serve(async (req) => {
   // ── Call Claude Haiku ─────────────────────────────────────────────────────
   const today = new Date().toISOString().split('T')[0]
 
-  const familyChildren: any[] = family.config?.children ?? []
+  const familyChildren: any[] = (family.config?.children ?? []).filter((c: any) => c.name)
+
+  // Fetch year group / class from info_bank school section (source of truth)
+  const { data: schoolRows } = await supabase
+    .from('info_bank')
+    .select('child_name, data')
+    .eq('family_id', family.id)
+    .eq('section', 'school')
+
+  const schoolByChild: Record<string, any> = {}
+  for (const row of schoolRows ?? []) {
+    schoolByChild[row.child_name] = row.data
+  }
+
   const childrenContext = familyChildren.length > 0
     ? '\nChildren in this family:\n' + familyChildren
-        .filter((c: any) => c.name)
         .map((c: any) => {
+          const school = schoolByChild[c.name] ?? {}
+          const yearGroup = school.year_group || c.year_group
+          const className = school.class_name || c.class_name
           const parts = [c.name]
-          if (c.year_group) parts.push(c.year_group)
-          if (c.class_name) parts.push(`${c.class_name} class`)
+          if (yearGroup) parts.push(yearGroup)
+          if (className) parts.push(`${className} class`)
           return `- ${parts.join(', ')}`
         })
         .join('\n')
@@ -268,8 +283,9 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- Extract dates for: whole-school events, events for all pupils, parent events (coffee mornings, BBQs, open days), community events, and appointments with no year group specified
-- If an event names a specific year group or class, only include it if it matches one of the children's year group or class — skip it otherwise
+- ALWAYS include events that are whole-school, all-students, all-pupils, all-year-groups, or where no specific year group or class is mentioned — these apply to everyone
+- ALWAYS include parent-facing events: coffee mornings, BBQs, open days, parents evening, school fairs, community events
+- If an event explicitly names a specific year group or class, only include it if it matches one of the children's year group or class name — skip it otherwise
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
 - If the email mentions a specific year group or class that matches one of the children above, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day")
