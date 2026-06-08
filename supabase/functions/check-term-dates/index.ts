@@ -197,10 +197,18 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   let { termDates, schoolName } = await extractTermDates(termDatesContent)
   let usedUrl = termDatesUrl
 
-  // If no dates found, look for PDF or Word doc links on the page and try those
+  // If no dates found, look for document links on the page
   if (!termDates.length) {
-    const docLinks = findDocumentLinks(termDatesContent, termDatesUrl)
-    console.log(`No dates in HTML, checking ${docLinks.length} document link(s): ${docLinks.join(', ')}`)
+    // Fetch the page again with Jina's link summary to get every link reliably
+    const allLinks = await fetchJinaLinks(termDatesUrl)
+    console.log(`No dates in HTML. All links from page: ${JSON.stringify(allLinks)}`)
+
+    // Ask Claude which link is most likely to be the term dates document
+    const docLinks = allLinks.length > 0
+      ? await findDocumentLinkFromList(allLinks, termDatesUrl)
+      : findDocumentLinks(termDatesContent, termDatesUrl)  // fallback: regex on content
+
+    console.log(`Document links to try: ${JSON.stringify(docLinks)}`)
 
     for (const docUrl of docLinks) {
       const docContent = await fetchViaJina(docUrl)
@@ -239,6 +247,51 @@ async function fetchViaJina(url: string): Promise<string | null> {
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
+  }
+}
+
+// Fetch all links from a page using Jina's link summary header
+async function fetchJinaLinks(url: string): Promise<string[]> {
+  try {
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        'Accept': 'text/plain',
+        'X-With-Links-Summary': 'all',
+      },
+      signal: AbortSignal.timeout(25000),
+    })
+    if (!res.ok) return []
+    const text = await res.text()
+    // Jina appends a links section at the bottom: "Links/Buttons:\n- [text]: url\n..."
+    const linksSection = text.split(/links\/buttons:|links:\n/i).pop() ?? ''
+    const links: string[] = []
+    for (const line of linksSection.split('\n')) {
+      const m = line.match(/https?:\/\/[^\s]+/)
+      if (m) links.push(m[0])
+    }
+    return [...new Set(links)].slice(0, 30)
+  } catch {
+    return []
+  }
+}
+
+// Ask Claude to pick the most likely term-dates document from a list of links
+async function findDocumentLinkFromList(links: string[], pageUrl: string): Promise<string[]> {
+  const res = await callClaude(
+    `Here are all the links found on a school term dates page (${pageUrl}).
+Identify any links that are likely to be a term dates document (PDF, Word doc, spreadsheet, Google Drive, OneDrive, SharePoint, or similar).
+Return ONLY a JSON array of URLs — the most relevant first, maximum 3. If none are relevant, return [].
+
+Links:
+${links.join('\n')}`,
+    512
+  )
+  if (!res) return []
+  try {
+    const parsed = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
+    return Array.isArray(parsed) ? parsed.filter((u: any) => typeof u === 'string') : []
+  } catch {
+    return []
   }
 }
 
