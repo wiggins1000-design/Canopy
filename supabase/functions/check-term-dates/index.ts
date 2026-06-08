@@ -193,12 +193,34 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
-  const { termDates, schoolName } = await extractTermDates(termDatesContent)
-  console.log(`Extracted ${termDates.length} term date events`)
+  // Try extracting dates from the HTML page first
+  let { termDates, schoolName } = await extractTermDates(termDatesContent)
+  let usedUrl = termDatesUrl
 
-  if (!termDates.length) return { error: 'Found the term dates page but could not extract any dates. The page may use a PDF or image format.' }
+  // If no dates found, look for PDF or Word doc links on the page and try those
+  if (!termDates.length) {
+    const docLinks = findDocumentLinks(termDatesContent, termDatesUrl)
+    console.log(`No dates in HTML, checking ${docLinks.length} document link(s): ${docLinks.join(', ')}`)
 
-  return { termDatesUrl, termDates, contentHash, schoolName }
+    for (const docUrl of docLinks) {
+      const docContent = await fetchViaJina(docUrl)
+      if (!docContent) continue
+      const result = await extractTermDates(docContent)
+      if (result.termDates.length > 0) {
+        termDates = result.termDates
+        if (result.schoolName) schoolName = result.schoolName
+        usedUrl = docUrl
+        console.log(`Extracted ${termDates.length} events from document: ${docUrl}`)
+        break
+      }
+    }
+  }
+
+  console.log(`Total extracted: ${termDates.length} term date events`)
+
+  if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.' }
+
+  return { termDatesUrl: usedUrl, termDates, contentHash, schoolName }
 }
 
 async function fetchViaJina(url: string): Promise<string | null> {
@@ -280,6 +302,36 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
   return null
 }
 
+// Extract PDF, .doc, .docx links from Jina markdown output or raw HTML
+function findDocumentLinks(content: string, pageUrl: string): string[] {
+  const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
+  const found = new Set<string>()
+
+  // Markdown links: [text](url)
+  const mdPattern = /\[([^\]]*)\]\(([^)]+)\)/g
+  let m: RegExpExecArray | null
+  while ((m = mdPattern.exec(content)) !== null) {
+    const url = m[2].trim()
+    if (/\.(pdf|docx?)(\?[^)\s]*)?$/i.test(url)) {
+      found.add(url.startsWith('http') ? url : url.startsWith('/') ? `${origin}${url}` : url)
+    }
+  }
+
+  // Raw URLs anywhere in the text
+  const rawPattern = /https?:\/\/[^\s"'<>)]+\.(?:pdf|docx?)(?:\?[^\s"'<>)]*)?/gi
+  while ((m = rawPattern.exec(content)) !== null) {
+    found.add(m[0])
+  }
+
+  // Relative paths that look like document links
+  const relPattern = /(?:\/[^\s"'<>()]+\.(?:pdf|docx?)(?:\?[^\s"'<>)]*)?)/gi
+  while ((m = relPattern.exec(content)) !== null) {
+    if (origin) found.add(`${origin}${m[0]}`)
+  }
+
+  return [...found].slice(0, 5)
+}
+
 async function extractTermDates(content: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const today = new Date().toISOString().split('T')[0]
   const cutoffDate = new Date()
@@ -287,22 +339,29 @@ async function extractTermDates(content: string): Promise<{ termDates: any[], sc
   const cutoff = cutoffDate.toISOString().split('T')[0]
 
   const res = await callClaude(
-    `Extract all school term dates from this page. Today is ${today}. Ignore dates before ${cutoff}.
+    `Extract all UK school term dates from this content. Today is ${today}. Ignore dates before ${cutoff}.
 
-Return ONLY valid JSON — no markdown:
+The content may come from a webpage, PDF, or Word document. Dates may be in tables, lists, or paragraphs.
+Common formats: "Monday 4 September", "4th September 2024", "04/09/2024", "September 4".
+
+Return ONLY valid JSON — no markdown, no explanation:
 {
   "school_name": "name of the school or null",
   "events": [
     {
-      "title": "e.g. Autumn Term Starts / Half Term / Christmas Holiday / INSET Day / Term Ends",
+      "title": "clear title e.g. Autumn Term Starts / Half Term Holiday / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day / Term Ends",
       "date": "YYYY-MM-DD",
-      "end_date": "YYYY-MM-DD or null"
+      "end_date": "YYYY-MM-DD or null (use for multi-day holidays and half terms)"
     }
   ]
 }
 
-Include: term start dates, term end dates, half-term holidays, school holidays, INSET days.
-Include all future dates and up to 18 months ahead. Use the current or next year where no year is given.
+Rules:
+- Include: term start/end dates, half-term holidays, all school holidays, INSET days
+- For holiday periods always include end_date
+- Include dates up to 18 months from today, using the document's year context to resolve ambiguous years
+- If a table has columns like "Term | Start | End", create two events: "X Term Starts" and "X Term Ends"
+- INSET days: schools are closed, parents should know
 
 Content:
 ${content}`,
