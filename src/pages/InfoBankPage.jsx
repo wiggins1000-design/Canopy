@@ -349,7 +349,7 @@ function SchoolSection({ data, isParent, onSave }) {
 
       <div className="pt-1 border-t border-gray-100 space-y-2">
         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block pt-1">Term Dates</label>
-        <Field label="School website" placeholder="https://stmarys.sch.uk" {...f('school_url')} />
+        <Field label="School website or term dates page URL" placeholder="https://stmarys.sch.uk/term-dates" {...f('school_url')} />
         {lastFetched?.last_fetched_at && (
           <p className="text-xs text-gray-400">
             Last checked {formatDistanceToNow(new Date(lastFetched.last_fetched_at), { addSuffix: true })}

@@ -160,46 +160,58 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 // ── Two-hop scrape ────────────────────────────────────────────────────────────
 
 async function scrapeTermDates(homepageUrl: string, existingHash: string | null) {
-  const origin = new URL(homepageUrl).origin
+  const urlObj = new URL(homepageUrl)
+  const origin = urlObj.origin
+  const isDirectUrl = urlObj.pathname.length > 1 || urlObj.search.length > 0
 
-  const homepageContent = await fetchViaJina(homepageUrl)
-  if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
+  let termDatesUrl: string
 
-  console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
+  if (isDirectUrl) {
+    // User entered the term dates page URL directly — use it as-is
+    console.log(`Using direct term dates URL: ${homepageUrl}`)
+    termDatesUrl = homepageUrl
+  } else {
+    // Homepage URL — auto-discover the term dates page
+    const homepageContent = await fetchViaJina(homepageUrl)
+    if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
 
-  // First try: get all links from homepage via Jina link summary, scan for term dates URL
-  const homepageLinks = await fetchJinaLinks(homepageUrl)
-  console.log(`Homepage links found: ${homepageLinks.length}`, homepageLinks.slice(0, 20))
-  let termDatesUrl = findTermDatesLinkByPattern(homepageLinks)
+    console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-  // Second try: ask Claude to pick from the full link list
-  if (!termDatesUrl && homepageLinks.length > 0) {
-    console.log('Pattern match failed, asking Claude to pick from link list…')
-    termDatesUrl = await pickTermDatesLink(homepageLinks, origin)
-  }
+    // Try 1: Jina link summary — scan for term dates URL patterns
+    const homepageLinks = await fetchJinaLinks(homepageUrl)
+    const cleanedLinks = homepageLinks.map(l => l.replace(/[)>\s]+$/, ''))
+    console.log(`Homepage links found: ${cleanedLinks.length}`, cleanedLinks.slice(0, 30))
+    let found = findTermDatesLinkByPattern(cleanedLinks)
 
-  // Third try: ask Claude to find a URL from the page content
-  if (!termDatesUrl && homepageContent) {
-    console.log('Link list approach failed, trying content-based search…')
-    termDatesUrl = await findTermDatesUrl(homepageContent, origin)
-  }
-
-  // Fourth try: common UK school website URL patterns
-  if (!termDatesUrl) {
-    console.log('Trying common URL patterns…')
-    termDatesUrl = await tryCommonPaths(origin)
-  }
-
-  // Fifth try: homepage itself might contain term dates
-  if (!termDatesUrl) {
-    const lc = homepageContent.toLowerCase()
-    if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
-      console.log('Using homepage directly…')
-      termDatesUrl = homepageUrl
+    // Try 2: ask Claude to pick from the link list
+    if (!found && cleanedLinks.length > 0) {
+      console.log('Pattern match failed, asking Claude to pick…')
+      found = await pickTermDatesLink(cleanedLinks, origin)
     }
-  }
 
-  if (!termDatesUrl) return { error: 'Could not find term dates page. Try entering the direct URL of the term dates page instead of the homepage.' }
+    // Try 3: ask Claude to find a URL from page content
+    if (!found) {
+      console.log('Trying content-based search…')
+      found = await findTermDatesUrl(homepageContent, origin)
+    }
+
+    // Try 4: common UK school URL patterns
+    if (!found) {
+      console.log('Trying common URL patterns…')
+      found = await tryCommonPaths(origin)
+    }
+
+    // Try 5: homepage itself contains term dates
+    if (!found) {
+      const lc = homepageContent.toLowerCase()
+      if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
+        found = homepageUrl
+      }
+    }
+
+    if (!found) return { error: 'Could not find term dates page. Enter the direct URL of your school\'s term dates page in the School website field.' }
+    termDatesUrl = found
+  }
 
   console.log(`Term dates URL found: ${termDatesUrl}`)
 
@@ -531,7 +543,10 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`)
-    return `${u.protocol}//${u.hostname}`.toLowerCase()
+    // If a specific path is given, keep it (direct term dates URL) — otherwise just origin
+    const hasPath = u.pathname.length > 1 || u.search.length > 0
+    const base = `${u.protocol}//${u.hostname}`.toLowerCase()
+    return hasPath ? (base + u.pathname + u.search).toLowerCase() : base
   } catch {
     return url.toLowerCase().replace(/\/$/, '')
   }
