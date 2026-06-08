@@ -292,12 +292,13 @@ function SchoolSection({ data, isParent, onSave }) {
   async function save() {
     const { error } = await onSave(d)
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    return { error }
   }
 
   async function checkTermDates() {
     setChecking(true)
     setCheckResult(null)
-    await onSave(d)
+    await save()
     const { data: res, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
     setChecking(false)
     if (error) {
