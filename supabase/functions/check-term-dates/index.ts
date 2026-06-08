@@ -215,9 +215,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
   console.log(`Term dates URL found: ${termDatesUrl}`)
 
-  const termDatesContent = termDatesUrl === homepageUrl
-    ? homepageContent
-    : await fetchViaJina(termDatesUrl)
+  const termDatesContent = await fetchViaJina(termDatesUrl)
 
   console.log(`Term dates content length: ${termDatesContent?.length ?? 0}`)
   console.log(`Term dates content preview: ${termDatesContent?.slice(0, 500) ?? 'EMPTY'}`)
@@ -231,17 +229,23 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   let { termDates, schoolName } = await extractTermDates(termDatesContent)
   let usedUrl = termDatesUrl
 
-  // If no dates found, look for document links on the page
+  // If no dates found, look for document/download links on the page
   if (!termDates.length) {
-    // Fetch the page again with Jina's link summary to get every link reliably
     const allLinks = await fetchJinaLinks(termDatesUrl)
-    console.log(`No dates in HTML. All links from page: ${JSON.stringify(allLinks)}`)
+    const cleanedAllLinks = allLinks.map(l => l.replace(/[)>\s]+$/, ''))
 
-    // Ask Claude which link is most likely to be the term dates document
-    const docLinks = allLinks.length > 0
-      ? await findDocumentLinkFromList(allLinks, termDatesUrl)
-      : findDocumentLinks(termDatesContent, termDatesUrl)  // fallback: regex on content
+    // Only pass links that look like documents (pdf/doc/download) to the document finder
+    const likelyDocLinks = cleanedAllLinks.filter(l =>
+      /\.(pdf|docx?|xlsx?)(\?|$)/i.test(l) ||
+      /\/(download|attachment|file|upload|document|asset)/i.test(l) ||
+      /drive\.google|sharepoint|onedrive|1drv\.ms/i.test(l)
+    )
 
+    const docLinks = likelyDocLinks.length > 0
+      ? await findDocumentLinkFromList(likelyDocLinks, termDatesUrl)
+      : findDocumentLinks(termDatesContent, termDatesUrl)
+
+    console.log(`Likely document links: ${JSON.stringify(likelyDocLinks)}`)
     console.log(`Document links to try: ${JSON.stringify(docLinks)}`)
 
     for (const docUrl of docLinks) {
