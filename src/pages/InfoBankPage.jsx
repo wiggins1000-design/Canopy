@@ -297,6 +297,7 @@ function SchoolSection({ data, isParent, onSave }) {
   async function checkTermDates() {
     setChecking(true)
     setCheckResult(null)
+    await onSave(d)
     const { data: res, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
     setChecking(false)
     if (error) {
@@ -304,8 +305,10 @@ function SchoolSection({ data, isParent, onSave }) {
       return
     }
     const r = res?.results?.[0]
-    if (!r || r.status === 'error') {
-      setCheckResult({ type: 'error', message: r?.error ?? 'Something went wrong.' })
+    if (!r) {
+      setCheckResult({ type: 'error', message: 'Save the school website URL first, then try again.' })
+    } else if (r.status === 'error') {
+      setCheckResult({ type: 'error', message: r.error ?? 'Something went wrong. Check the URL is a valid school website.' })
     } else if (r.status === 'unchanged') {
       setCheckResult({ type: 'info', message: 'School website checked — no changes found.' })
     } else if (r.status === 'no_dates') {

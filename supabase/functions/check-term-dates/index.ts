@@ -155,21 +155,48 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 // ── Two-hop scrape ────────────────────────────────────────────────────────────
 
 async function scrapeTermDates(homepageUrl: string, existingHash: string | null) {
+  const origin = new URL(homepageUrl).origin
+
   const homepageContent = await fetchViaJina(homepageUrl)
-  if (!homepageContent) return { error: 'Failed to fetch school homepage' }
+  if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
 
-  const termDatesUrl = await findTermDatesUrl(homepageContent, homepageUrl)
-  if (!termDatesUrl) return { error: 'Could not locate term dates page from homepage' }
+  console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-  console.log(`Term dates page found: ${termDatesUrl}`)
+  // First try: ask Claude to find the link from the homepage content
+  let termDatesUrl = await findTermDatesUrl(homepageContent, origin)
 
-  const termDatesContent = await fetchViaJina(termDatesUrl)
+  // Second try: if Claude couldn't find it, try common UK school website URL patterns
+  if (!termDatesUrl) {
+    console.log('Claude could not find link, trying common URL patterns…')
+    termDatesUrl = await tryCommonPaths(origin)
+  }
+
+  // Third try: if the homepage itself looks like it contains term dates, use it directly
+  if (!termDatesUrl) {
+    const lc = homepageContent.toLowerCase()
+    if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer') || lc.includes('half-term') || lc.includes('half term'))) {
+      console.log('Term dates appear to be on the homepage itself, using directly…')
+      termDatesUrl = homepageUrl
+    }
+  }
+
+  if (!termDatesUrl) return { error: 'Could not find term dates page. Try entering the direct URL of the term dates page instead of the homepage.' }
+
+  console.log(`Term dates page: ${termDatesUrl}`)
+
+  const termDatesContent = termDatesUrl === homepageUrl
+    ? homepageContent
+    : await fetchViaJina(termDatesUrl)
+
   if (!termDatesContent) return { error: 'Failed to fetch term dates page' }
 
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
   const { termDates, schoolName } = await extractTermDates(termDatesContent)
+  console.log(`Extracted ${termDates.length} term date events`)
+
+  if (!termDates.length) return { error: 'Found the term dates page but could not extract any dates. The page may use a PDF or image format.' }
 
   return { termDatesUrl, termDates, contentHash, schoolName }
 }
@@ -178,36 +205,79 @@ async function fetchViaJina(url: string): Promise<string | null> {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: 'text/plain' },
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(25000),
     })
-    if (!res.ok) return null
-    return (await res.text()).slice(0, 15000)
+    if (!res.ok) {
+      console.error(`Jina returned ${res.status} for ${url}`)
+      return null
+    }
+    const text = await res.text()
+    console.log(`Jina fetched ${url}: ${text.length} chars`)
+    return text.slice(0, 15000)
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
   }
 }
 
-async function findTermDatesUrl(homepageContent: string, homepageUrl: string): Promise<string | null> {
+async function findTermDatesUrl(homepageContent: string, origin: string): Promise<string | null> {
   const res = await callClaude(
-    `You are helping find the term dates page on a school website.
+    `Find the term dates page URL on this UK school website.
 
-Base URL: ${homepageUrl}
+School website origin: ${origin}
 
-Homepage content:
+Homepage content (may be truncated):
 ${homepageContent}
 
-Find the URL for the term dates, school calendar, key dates, or academic calendar page.
-Return ONLY the full URL as plain text — nothing else. If you cannot find one, return the word null.`,
-    128
+Look for navigation links, menu items or page links related to:
+"Term Dates", "School Calendar", "Key Dates", "Academic Calendar", "Term Times",
+"Holiday Dates", "School Dates", "Dates & Deadlines", "Key Information", "Parents > Term Dates"
+
+Rules:
+- Return ONLY the URL as plain text, nothing else
+- If the URL is relative (starts with / or is a path), prefix it with: ${origin}
+- If you cannot find any relevant link at all, return exactly: null`,
+    256
   )
-  if (!res || res.trim() === 'null') return null
 
-  const url = res.trim()
+  if (!res) return null
+  const url = res.trim().replace(/^["']|["']$/g, '') // strip any accidental quotes
+  if (!url || url === 'null' || url.length > 500) return null
+
   if (url.startsWith('http')) return url
+  if (url.startsWith('/')) return `${origin}${url}`
 
-  // Resolve relative URL
-  try { return new URL(url, homepageUrl).href } catch { return null }
+  try { return new URL(url, origin).href } catch { return null }
+}
+
+// Common URL patterns used by UK school website platforms (SchoolJotter, Arbor, Arbor, Schudio, etc.)
+async function tryCommonPaths(origin: string): Promise<string | null> {
+  const paths = [
+    '/term-dates', '/term-dates/', '/term_dates', '/termdates',
+    '/parents/term-dates', '/parents-and-carers/term-dates',
+    '/key-information/term-dates', '/school-information/term-dates',
+    '/about/term-dates', '/about-us/term-dates',
+    '/calendar', '/school-calendar', '/academic-calendar',
+    '/parents/calendar', '/key-information/calendar',
+    '/term-times', '/parents/term-times',
+    '/holiday-dates', '/school-dates',
+  ]
+
+  for (const path of paths) {
+    try {
+      const url = `${origin}${path}`
+      const res = await fetch(url, {
+        method: 'HEAD',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(5000),
+      })
+      if (res.ok) {
+        console.log(`Found via common path: ${url}`)
+        return url
+      }
+    } catch { /* ignore */ }
+  }
+  return null
 }
 
 async function extractTermDates(content: string): Promise<{ termDates: any[], schoolName: string | null }> {
