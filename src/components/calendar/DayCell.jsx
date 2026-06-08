@@ -19,7 +19,6 @@ const OWNER_RING = {
 const TERM_STRIP = {
   holiday: 'bg-purple-400',
   inset:   'bg-amber-400',
-  term:    'bg-green-400',
 }
 
 export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termType }) {

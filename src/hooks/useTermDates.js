@@ -6,7 +6,7 @@ function classifyTermEvent(title, endDate) {
   const lower = title.toLowerCase()
   if (lower.includes('inset')) return 'inset'
   if (endDate) return 'holiday'   // Range = holiday / half-term / break
-  return 'term'                   // Single day = term start or end boundary
+  return null                     // Single day = term start/end — no strip shown
 }
 
 function priority(type) {
@@ -35,6 +35,7 @@ export function useTermDates(year) {
         const map = new Map()
         for (const event of data ?? []) {
           const type  = classifyTermEvent(event.title, event.end_date)
+          if (!type) continue
           const start = new Date(event.event_date + 'T00:00:00')
           const end   = event.end_date
             ? new Date(event.end_date + 'T00:00:00')

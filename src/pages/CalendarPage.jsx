@@ -161,7 +161,6 @@ export default function CalendarPage() {
           <>
             <LegendStrip color="bg-purple-400" label="Holiday" />
             <LegendStrip color="bg-amber-400"  label="INSET"   />
-            <LegendStrip color="bg-green-400"  label="Term"    />
           </>
         )}
         {!schedule && (

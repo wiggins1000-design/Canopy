@@ -502,11 +502,12 @@ Return ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- Include ALL term dates found — past, present and future — for all academic years shown
-- Include: term start/end dates, half-term holidays, school holidays, INSET days, bank holidays
+- Include ALL academic years shown — past, present and future
+- Include: half-term holidays, school holidays (Christmas, Easter, summer), INSET days, bank holidays
+- Do NOT include term start dates or term end dates — only closed/holiday periods and INSET days
 - For multi-day holiday periods always set end_date
 - Use the academic year context to determine the correct year for each date
-- If a table has columns like "Term | Start | End", create two events per term: "X Term Starts" and "X Term Ends"
+- If a table shows holiday date ranges, create one event per holiday period with start and end_date
 
 Content:
 ${content}`,
