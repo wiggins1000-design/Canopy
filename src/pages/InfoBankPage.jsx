@@ -280,11 +280,18 @@ function SchoolSection({ data, isParent, onSave }) {
 
   useEffect(() => {
     if (!d.school_url) { setLastFetched(null); return }
-    const url = d.school_url.replace(/\/$/, '').toLowerCase()
-    supabase.from('school_calendars').select('last_fetched_at, school_name')
-      .eq('homepage_url', url.startsWith('http') ? new URL(url).origin : `https://${url}`)
-      .maybeSingle()
-      .then(({ data }) => setLastFetched(data))
+    try {
+      const raw = d.school_url.startsWith('http') ? d.school_url : `https://${d.school_url}`
+      const u = new URL(raw)
+      if (!u.hostname.includes('.')) return  // not a valid hostname yet
+      const key = (u.origin + u.pathname + u.search).toLowerCase().replace(/\/$/, '')
+      supabase.from('school_calendars').select('last_fetched_at, school_name')
+        .eq('homepage_url', key)
+        .maybeSingle()
+        .then(({ data }) => setLastFetched(data))
+    } catch {
+      setLastFetched(null)
+    }
   }, [d.school_url])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
