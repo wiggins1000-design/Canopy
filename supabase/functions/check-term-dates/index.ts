@@ -225,31 +225,36 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
-  // Extract dates from the HTML page
-  let { termDates, schoolName } = await extractTermDates(termDatesContent)
+  // Run HTML extraction and document link search in parallel
+  const [htmlResult, docLinks] = await Promise.all([
+    extractTermDates(termDatesContent),
+    findDocumentLinksViaClaude(termDatesContent, termDatesUrl),
+  ])
+  let { termDates, schoolName } = htmlResult
   console.log(`Extracted ${termDates.length} events from HTML`)
-
-  // Always look for document links — there may be PDFs with additional years
-  const docLinks = await findDocumentLinksViaClaude(termDatesContent, termDatesUrl)
   console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
 
-  // Fetch each document and merge any new dates (deduped by title+date)
-  const seenKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-  for (const docUrl of docLinks) {
-    const docContent = await fetchViaJina(docUrl)
-    if (!docContent) continue
-    const result = await extractTermDates(docContent)
-    if (!schoolName && result.schoolName) schoolName = result.schoolName
-    let added = 0
-    for (const event of result.termDates) {
-      const key = `${event.title}||${event.date}`
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key)
-        termDates.push(event)
-        added++
+  // Fetch all PDFs in parallel and merge any new dates
+  if (docLinks.length > 0) {
+    const pdfResults = await Promise.all(
+      docLinks.map(async (docUrl: string) => {
+        const docContent = await fetchViaJina(docUrl)
+        if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
+        const result = await extractTermDates(docContent)
+        return { ...result, url: docUrl }
+      })
+    )
+
+    const seenKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+    for (const result of pdfResults) {
+      if (!schoolName && result.schoolName) schoolName = result.schoolName
+      let added = 0
+      for (const event of result.termDates) {
+        const key = `${event.title}||${event.date}`
+        if (!seenKeys.has(key)) { seenKeys.add(key); termDates.push(event); added++ }
       }
+      if (added > 0) console.log(`Merged ${added} new events from ${result.url}`)
     }
-    console.log(`Merged ${added} new events from ${docUrl}`)
   }
 
   console.log(`Total extracted: ${termDates.length} term date events`)
@@ -263,7 +268,7 @@ async function fetchViaJina(url: string): Promise<string | null> {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: 'text/plain' },
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(15000),
     })
     if (!res.ok) {
       console.error(`Jina returned ${res.status} for ${url}`)
@@ -271,7 +276,7 @@ async function fetchViaJina(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Jina fetched ${url}: ${text.length} chars`)
-    return text.slice(0, 15000)
+    return text.slice(0, 12000)
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
@@ -587,6 +592,7 @@ async function callClaude(prompt: string, maxTokens: number): Promise<string | n
       'anthropic-version': '2023-06-01',
       'content-type':      'application/json',
     },
+    signal: AbortSignal.timeout(25000),
     body: JSON.stringify({
       model:    'claude-haiku-4-5-20251001',
       max_tokens: maxTokens,
