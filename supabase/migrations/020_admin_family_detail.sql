@@ -8,7 +8,7 @@ DECLARE
   v_result jsonb;
 BEGIN
   -- Verify caller is an admin
-  IF NOT EXISTS (SELECT 1 FROM admin_accounts WHERE id = auth.uid()) THEN
+  IF NOT EXISTS (SELECT 1 FROM admin_accounts WHERE user_id = auth.uid()) THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
@@ -82,7 +82,7 @@ RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM admin_accounts WHERE id = auth.uid()) THEN
+  IF NOT EXISTS (SELECT 1 FROM admin_accounts WHERE user_id = auth.uid()) THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
