@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
 async function fetchViaReader(url: string): Promise<string | null> {
   if (!READER_URL) {
-    console.warn('READER_URL not set — falling back to Jina')
+    console.warn('READER_URL not set — using Jina')
     return fetchViaJina(url)
   }
   try {
@@ -131,13 +131,15 @@ async function fetchViaReader(url: string): Promise<string | null> {
       signal:  AbortSignal.timeout(40000),
     })
     if (!res.ok) {
-      console.error(`Reader returned ${res.status} for ${url}`)
-      return null
+      console.warn(`Reader returned ${res.status} for ${url} — falling back to Jina`)
+      return fetchViaJina(url)
     }
-    return await res.text()
+    const text = await res.text()
+    console.log(`Reader returned ${text.length} chars for ${url}`)
+    return text || null
   } catch (e: any) {
-    console.error('Reader fetch failed:', e?.message)
-    return fetchViaJina(url)   // graceful fallback
+    console.warn(`Reader fetch failed for ${url}: ${e?.message} — falling back to Jina`)
+    return fetchViaJina(url)
   }
 }
 
