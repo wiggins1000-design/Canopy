@@ -17,11 +17,11 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install
 
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm install typescript && npx tsc
+RUN npx tsc
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
