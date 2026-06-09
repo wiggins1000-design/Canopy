@@ -288,17 +288,22 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
-// Try a direct HTTP fetch first; fall back to Jina for JS-rendered or blocked pages.
+// Jina strips navigation/CSS/JS and returns clean text ideal for Claude.
+// Fall back to direct fetch only if Jina fails.
 async function fetchPage(url: string): Promise<string | null> {
-  // Direct fetch — fast and free, works for static HTML and PDFs
+  const jina = await fetchViaJina(url)
+  if (jina && looksLikeUsefulContent(jina)) {
+    console.log(`Jina fetch succeeded for ${url}: ${jina.length} chars`)
+    return jina
+  }
+  // Jina failed or returned useless content — try direct fetch as fallback
+  console.log(`Jina insufficient for ${url}, trying direct fetch…`)
   const direct = await fetchDirect(url)
   if (direct && looksLikeUsefulContent(direct)) {
     console.log(`Direct fetch succeeded for ${url}: ${direct.length} chars`)
     return direct
   }
-  // Fall back to Jina (renders JavaScript, bypasses some bot-protection)
-  console.log(`Direct fetch insufficient for ${url}, trying Jina…`)
-  return fetchViaJina(url)
+  return null
 }
 
 async function fetchDirect(url: string): Promise<string | null> {
