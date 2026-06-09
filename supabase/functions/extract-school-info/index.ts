@@ -47,32 +47,46 @@ Deno.serve(async (req) => {
       return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
     }
 
-    // ── Step 2: extract school info + find term dates page ───────────────────
+    // ── Step 2: check shared school_calendars cache ───────────────────────────
+    const { data: cached } = await supabase
+      .from('school_calendars')
+      .select('*')
+      .eq('homepage_url', normalised)
+      .maybeSingle()
+
+    const cacheAgeMs  = cached?.last_fetched_at
+      ? Date.now() - new Date(cached.last_fetched_at).getTime()
+      : Infinity
+    const cacheValid  = cacheAgeMs < 30 * 24 * 60 * 60 * 1000   // 30 days
+
+    let termDates: any[]     = cached?.term_dates ?? []
+    let termDatesUrl: string = cached?.term_dates_url ?? normalised
+
+    // ── Step 3: extract school info from homepage ─────────────────────────────
     const schoolInfo = await extractSchoolInfo(homepageText, normalised)
     console.log('Extracted school info:', JSON.stringify(schoolInfo))
+    if (schoolInfo.term_dates_url) termDatesUrl = schoolInfo.term_dates_url
 
-    // ── Step 3: if term dates page found, fetch it ────────────────────────────
-    let termDatesText = ''
-    let termDatesUrl  = schoolInfo.term_dates_url ?? null
+    // ── Step 4: fetch + extract term dates (skip if cache is fresh) ───────────
+    if (!cacheValid || termDates.length === 0) {
+      console.log('Cache miss — fetching term dates')
+      let termDatesText = ''
 
-    if (termDatesUrl) {
-      termDatesText = await fetchViaReader(termDatesUrl) ?? ''
-    }
-
-    // If no dates page found from homepage, try common path patterns
-    if (!termDatesText) {
-      const found = await tryCommonTermDatePaths(normalised)
-      if (found) {
-        termDatesUrl  = found.url
-        termDatesText = found.text
+      if (termDatesUrl && termDatesUrl !== normalised) {
+        termDatesText = await fetchViaReader(termDatesUrl) ?? ''
       }
-    }
 
-    // ── Step 4: extract term dates ────────────────────────────────────────────
-    let termDates: any[] = []
-    if (termDatesText) {
-      termDates = await extractTermDates(termDatesText)
-      console.log(`Extracted ${termDates.length} term date events`)
+      if (!termDatesText) {
+        const found = await tryCommonTermDatePaths(normalised)
+        if (found) { termDatesUrl = found.url; termDatesText = found.text }
+      }
+
+      if (termDatesText) {
+        termDates = await extractTermDates(termDatesText)
+        console.log(`Extracted ${termDates.length} term date events`)
+      }
+    } else {
+      console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
     }
 
     // ── Step 5: store school info in info_bank ────────────────────────────────
@@ -86,9 +100,9 @@ Deno.serve(async (req) => {
       eventsAdded = await storeTermDates(
         family_id,
         normalised,
-        termDatesUrl ?? normalised,
+        termDatesUrl,
         termDates,
-        schoolInfo.school_name,
+        schoolInfo.school_name ?? cached?.school_name ?? null,
       )
     }
 
