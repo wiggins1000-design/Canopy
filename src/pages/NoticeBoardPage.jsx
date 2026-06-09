@@ -27,11 +27,11 @@ export default function NoticeBoardPage() {
   const { pinnedPosts, feedPosts, reads, loading, markRead } = useNoticeboard()
   const { isParent } = useFamily()
   const [showNewPost, setShowNewPost] = useState(false)
-  const [hiddenTags, setHiddenTags]   = useState(new Set())
-  const [datePreset, setDatePreset]   = useState('')
+  const [activeTags,  setActiveTags]  = useState(new Set())
+  const [datePreset,  setDatePreset]  = useState('')
 
-  function toggleHidden(tagId) {
-    setHiddenTags((prev) => {
+  function toggleTag(tagId) {
+    setActiveTags((prev) => {
       const next = new Set(prev)
       next.has(tagId) ? next.delete(tagId) : next.add(tagId)
       return next
@@ -40,7 +40,7 @@ export default function NoticeBoardPage() {
 
   function applyFilters(posts) {
     let out = posts
-    if (hiddenTags.size > 0) out = out.filter((p) => !hiddenTags.has(p.tag))
+    if (activeTags.size > 0) out = out.filter((p) => activeTags.has(p.tag))
     const cutoff = getDateCutoff(datePreset)
     if (cutoff) out = out.filter((p) => new Date(p.created_at) >= cutoff)
     return out
@@ -81,25 +81,25 @@ export default function NoticeBoardPage() {
       {/* Tag filter bar */}
       <div className="flex flex-wrap gap-2 pb-1">
         <button
-          onClick={() => setHiddenTags(new Set())}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${hiddenTags.size === 0 ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}
+          onClick={() => setActiveTags(new Set())}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${activeTags.size === 0 ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`}
         >
           All
         </button>
         {NOTICE_TAGS.map((t) => {
-          const hidden = hiddenTags.has(t.id)
+          const active = activeTags.has(t.id)
           return (
             <button
               key={t.id}
-              onClick={() => toggleHidden(t.id)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${hidden ? 'bg-gray-100 text-gray-300 line-through' : t.chip}`}
+              onClick={() => toggleTag(t.id)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${active ? t.active : 'bg-gray-100 text-gray-500'}`}
             >
               {t.label}
             </button>
           )
         })}
       </div>
-      <p className="text-xs text-gray-400 pb-3">Tap a type to hide it from your feed</p>
+      <p className="text-xs text-gray-400 pb-3">Tap a type to filter your feed</p>
 
       {/* Date filter */}
       <div className="relative mb-4">
@@ -148,7 +148,7 @@ export default function NoticeBoardPage() {
                 <svg className="w-12 h-12 mx-auto mb-3 text-gray-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
-                {hiddenTags.size > 0 ? (
+                {activeTags.size > 0 || datePreset ? (
                   <p className="text-sm font-medium">No posts matching your current filter</p>
                 ) : (
                   <>
