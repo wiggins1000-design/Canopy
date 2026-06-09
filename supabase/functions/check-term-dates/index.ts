@@ -306,7 +306,7 @@ async function fetchDirect(url: string): Promise<string | null> {
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; Canopy/1.0; +https://canopy.app)',
-        'Accept': 'text/html,application/xhtml+xml,application/pdf,*/*',
+        'Accept': 'text/html,application/xhtml+xml,*/*',
       },
       signal: AbortSignal.timeout(12000),
       redirect: 'follow',
@@ -316,7 +316,11 @@ async function fetchDirect(url: string): Promise<string | null> {
       return null
     }
     const contentType = res.headers.get('content-type') ?? ''
-    // For non-HTML (PDFs etc.) return raw text
+    // PDFs must go through Jina — raw binary bytes are unreadable by Claude
+    if (contentType.includes('pdf') || url.toLowerCase().endsWith('.pdf')) {
+      console.log(`Direct fetch skipping PDF for ${url}, deferring to Jina`)
+      return null
+    }
     const text = await res.text()
     console.log(`Direct fetch OK for ${url}: ${text.length} chars, type: ${contentType}`)
     return text.slice(0, 15000)
@@ -331,10 +335,9 @@ function looksLikeUsefulContent(text: string): boolean {
   const lc = text.toLowerCase()
   // Reject pages that appear to be empty JS shells
   if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
-  // Must contain some calendar-relevant keywords OR be a PDF
+  // Must contain calendar-relevant keywords
   return lc.includes('term') || lc.includes('holiday') || lc.includes('inset') ||
-         lc.includes('autumn') || lc.includes('spring') || lc.includes('summer') ||
-         text.startsWith('%PDF')
+         lc.includes('autumn') || lc.includes('spring') || lc.includes('summer')
 }
 
 async function fetchViaJina(url: string): Promise<string | null> {
