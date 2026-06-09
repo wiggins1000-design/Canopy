@@ -11,6 +11,8 @@
 // ── Secrets required ─────────────────────────────────────────────────────────
 //   ANTHROPIC_API_KEY
 //   TERM_DATES_WEBHOOK_TOKEN   (set same value in cron job header)
+//   READER_URL                 canopy-reader Railway service URL
+//   READER_SECRET              shared secret for reader service
 //   SUPABASE_URL               (auto-injected)
 //   SUPABASE_SERVICE_ROLE_KEY  (auto-injected)
 //
@@ -288,21 +290,45 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
-// Jina strips navigation/CSS/JS and returns clean text ideal for Claude.
-// Fall back to direct fetch only if Jina fails.
+// Fetch page content using canopy-reader (Puppeteer + pdf-parse + Vision).
+// Falls back to Jina if reader is not configured, then direct fetch.
 async function fetchPage(url: string): Promise<string | null> {
+  const readerUrl    = Deno.env.get('READER_URL')
+  const readerSecret = Deno.env.get('READER_SECRET') ?? ''
+
+  if (readerUrl) {
+    try {
+      const res = await fetch(`${readerUrl}/fetch?url=${encodeURIComponent(url)}`, {
+        headers: { Authorization: `Bearer ${readerSecret}` },
+        signal:  AbortSignal.timeout(40000),
+      })
+      if (res.ok) {
+        const text = await res.text()
+        if (text && looksLikeUsefulContent(text)) {
+          console.log(`Reader fetch succeeded for ${url}: ${text.length} chars`)
+          return text
+        }
+      }
+    } catch (e: any) {
+      console.warn(`Reader fetch failed for ${url}: ${e?.message} — falling back to Jina`)
+    }
+  }
+
+  // Fallback: Jina (strips HTML boilerplate, handles most pages)
   const jina = await fetchViaJina(url)
   if (jina && looksLikeUsefulContent(jina)) {
     console.log(`Jina fetch succeeded for ${url}: ${jina.length} chars`)
     return jina
   }
-  // Jina failed or returned useless content — try direct fetch as fallback
+
+  // Last resort: direct fetch
   console.log(`Jina insufficient for ${url}, trying direct fetch…`)
   const direct = await fetchDirect(url)
   if (direct && looksLikeUsefulContent(direct)) {
     console.log(`Direct fetch succeeded for ${url}: ${direct.length} chars`)
     return direct
   }
+
   return null
 }
 

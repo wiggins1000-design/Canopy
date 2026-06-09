@@ -158,7 +158,10 @@ export default function InfoBankPage() {
         <SchoolSection
           data={sectionData}
           isParent={isParent}
+          familyId={family.id}
+          childName={activeTab}
           onSave={(data) => saveSection(activeTab, 'school', data)}
+          onExtracted={(data) => setAllData((prev) => ({ ...prev, [`${activeTab}||school`]: { ...prev[`${activeTab}||school`], ...data } }))}
         />
       ) : activeSection === 'contacts' ? (
         <ContactsSection
@@ -268,15 +271,17 @@ function MedicalSection({ data, isParent, onSave }) {
 
 // ── School ────────────────────────────────────────────────────
 
-function SchoolSection({ data, isParent, onSave }) {
-  const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
+function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted }) {
+  const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
   const [lastFetched, setLastFetched] = useState(null)
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState(null)
+  const [extracting, setExtracting] = useState(false)
+  const [extractResult, setExtractResult] = useState(null)
 
-  useEffect(() => { setD({ ...defaults, ...data }); setCheckResult(null) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ ...defaults, ...data }); setCheckResult(null); setExtractResult(null) }, [JSON.stringify(data)])
 
   useEffect(() => {
     if (!d.school_url) { setLastFetched(null); return }
@@ -300,6 +305,47 @@ function SchoolSection({ data, isParent, onSave }) {
     const { error } = await onSave(d)
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
     return { error }
+  }
+
+  async function extractSchoolInfo() {
+    if (!d.school_url) return
+    setExtracting(true)
+    setExtractResult(null)
+    // Save URL first so edge function can read it
+    await save()
+    const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
+      body: {
+        family_id:  familyId,
+        child_name: childName,
+        school_url: d.school_url,
+      },
+    })
+    setExtracting(false)
+    if (error || res?.error) {
+      setExtractResult({ type: 'error', message: res?.error ?? 'Could not extract school info. Check the URL is the school homepage.' })
+      return
+    }
+    const info = res?.school_info ?? {}
+    // Merge extracted fields into local state (only fill blanks)
+    setD((prev) => ({
+      ...prev,
+      school_name:    prev.school_name    || info.school_name    || prev.school_name,
+      school_address: prev.school_address || info.school_address || prev.school_address,
+      school_phone:   prev.school_phone   || info.school_phone   || prev.school_phone,
+      school_email:   prev.school_email   || info.school_email   || prev.school_email,
+      head_teacher:   prev.head_teacher   || info.head_teacher   || prev.head_teacher,
+    }))
+    onExtracted?.({
+      school_name:    info.school_name,
+      school_address: info.school_address,
+      school_phone:   info.school_phone,
+      school_email:   info.school_email,
+      head_teacher:   info.head_teacher,
+    })
+    const termMsg = res.events_added > 0
+      ? ` · ${res.events_added} term date${res.events_added === 1 ? '' : 's'} added to calendar.`
+      : res.term_dates > 0 ? ' · Term dates already up to date.' : ''
+    setExtractResult({ type: 'success', message: `School info extracted.${termMsg}` })
   }
 
   async function checkTermDates() {
@@ -350,21 +396,46 @@ function SchoolSection({ data, isParent, onSave }) {
         <Field label="Year group" placeholder="e.g. Year 4" {...f('year_group')} />
         <Field label="Class" placeholder="e.g. Maple" {...f('class_name')} />
       </div>
-      <Field label="School name" placeholder="St Mary's Primary School" {...f('school_name')} />
-      <Field label="Address" placeholder="3 School Lane, London" {...f('school_address')} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('school_phone')} />
-        <Field label="Hours" placeholder="e.g. 8:50 – 3:15" {...f('hours')} />
+      {/* School URL + auto-extract */}
+      <div className="space-y-2 pb-1">
+        <Field label="School homepage URL" placeholder="https://stmarys.sch.uk" {...f('school_url')} />
+        {isParent && d.school_url && (
+          <button
+            onClick={extractSchoolInfo}
+            disabled={extracting}
+            className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {extracting ? 'Extracting school info…' : 'Extract school info & term dates'}
+          </button>
+        )}
+        {extractResult && (
+          <p className={`text-xs font-medium ${extractResult.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+            {extractResult.message}
+          </p>
+        )}
       </div>
-      <div className="grid grid-cols-2 gap-3">
+
+      <div className="border-t border-gray-100 pt-3 space-y-3">
+        <Field label="School name" placeholder="St Mary's Primary School" {...f('school_name')} />
+        <Field label="Address" placeholder="3 School Lane, London" {...f('school_address')} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('school_phone')} />
+          <Field label="Email" placeholder="office@stmarys.sch.uk" type="email" {...f('school_email')} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Hours" placeholder="e.g. 8:50 – 3:15" {...f('hours')} />
+          <Field label="Head teacher" placeholder="Mr Brown" {...f('head_teacher')} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Year group" placeholder="e.g. Year 4" {...f('year_group')} />
+          <Field label="Class" placeholder="e.g. Maple" {...f('class_name')} />
+        </div>
         <Field label="Class teacher" placeholder="Mrs Taylor" {...f('teacher')} />
-        <Field label="Head teacher" placeholder="Mr Brown" {...f('head_teacher')} />
+        <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
       </div>
-      <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
 
       <div className="pt-1 border-t border-gray-100 space-y-2">
         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block pt-1">Term Dates</label>
-        <Field label="School website or term dates page URL" placeholder="https://stmarys.sch.uk/term-dates" {...f('school_url')} />
         {lastFetched?.last_fetched_at && (
           <p className="text-xs text-gray-400">
             Last checked {formatDistanceToNow(new Date(lastFetched.last_fetched_at), { addSuffix: true })}
@@ -382,7 +453,7 @@ function SchoolSection({ data, isParent, onSave }) {
             disabled={checking}
             className="w-full border border-blue-200 bg-blue-50 text-blue-700 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
           >
-            {checking ? 'Checking website…' : 'Check term dates now'}
+            {checking ? 'Checking website…' : 'Refresh term dates only'}
           </button>
         )}
       </div>
