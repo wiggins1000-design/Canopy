@@ -37,10 +37,10 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canopy-mid text-white text-3xl mb-4">
-            🌿
+          <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
+            <img src="/logo.png" alt="Canopy" className="h-12" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Set new password</h1>
+          <h2 className="text-lg font-semibold text-gray-700">Set new password</h2>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

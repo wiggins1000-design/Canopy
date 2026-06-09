@@ -49,11 +49,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canopy-mid text-white text-3xl mb-4">
-            🌿
+          <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
+            <img src="/logo.png" alt="Canopy" className="h-12" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Canopy</h1>
-          <p className="text-gray-500 mt-1 text-sm">Share what matters.</p>
+          <p className="text-gray-500 text-sm">Share what matters.</p>
         </div>
 
         {/* Card */}
