@@ -334,6 +334,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       school_phone:   prev.school_phone   || info.school_phone   || prev.school_phone,
       school_email:   prev.school_email   || info.school_email   || prev.school_email,
       head_teacher:   prev.head_teacher   || info.head_teacher   || prev.head_teacher,
+      hours:          prev.hours          || info.school_hours   || prev.hours,
     }))
     onExtracted?.({
       school_name:    info.school_name,

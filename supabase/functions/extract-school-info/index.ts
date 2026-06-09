@@ -63,8 +63,16 @@ Deno.serve(async (req) => {
     let termDatesUrl: string = cached?.term_dates_url ?? normalised
 
     // ── Step 3: extract school info from homepage ─────────────────────────────
-    const schoolInfo = await extractSchoolInfo(homepageText, normalised)
-    console.log('Extracted school info:', JSON.stringify(schoolInfo))
+    const origin = (() => { try { return new URL(normalised).origin } catch { return normalised } })()
+    let schoolInfo = await extractSchoolInfo(homepageText, normalised)
+    console.log('Homepage extraction:', JSON.stringify(schoolInfo))
+
+    // If contact details are missing, fetch the contact page in parallel with nothing else
+    if (isMissingContactInfo(schoolInfo)) {
+      schoolInfo = await enrichFromContactPage(schoolInfo, origin)
+      console.log('After contact page enrichment:', JSON.stringify(schoolInfo))
+    }
+
     if (schoolInfo.term_dates_url) termDatesUrl = schoolInfo.term_dates_url
 
     // ── Step 4: fetch + extract term dates (skip if cache is fresh) ───────────
@@ -164,14 +172,18 @@ interface SchoolInfo {
   school_email:   string | null
   school_phone:   string | null
   head_teacher:   string | null
+  school_hours:   string | null
   term_dates_url: string | null
+  contact_url:    string | null
 }
 
 async function extractSchoolInfo(content: string, pageUrl: string): Promise<SchoolInfo> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
+  return parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(content, pageUrl, origin), 600))
+}
 
-  const res = await callClaude(
-    `Extract school information from this webpage content.
+function buildSchoolInfoPrompt(content: string, pageUrl: string, origin: string): string {
+  return `Extract school information from this webpage content.
 
 Base URL: ${pageUrl}
 
@@ -182,20 +194,23 @@ Return ONLY valid JSON — no markdown, no explanation:
   "school_email":   "main office email address or null",
   "school_phone":   "main office phone number or null",
   "head_teacher":   "headteacher / principal full name or null",
-  "term_dates_url": "absolute URL of the term dates / school calendar page, or null"
+  "school_hours":   "school day hours e.g. '8:50am – 3:15pm' or null",
+  "term_dates_url": "absolute URL of the term dates / school calendar page, or null",
+  "contact_url":    "absolute URL of the contact / contact us page, or null"
 }
 
 Rules:
-- For term_dates_url: look for links mentioning 'term dates', 'term times', 'school calendar', 'holidays', 'academic year'
-- For relative term_dates_url values (starting with /), prefix with ${origin}
+- For relative URLs (starting with /), prefix with ${origin}
+- For term_dates_url: links mentioning 'term dates', 'term times', 'school calendar', 'holidays', 'academic year'
+- For contact_url: links mentioning 'contact', 'contact us', 'get in touch', 'find us'
 - If multiple emails/phones, prefer the main office one
 - Return null for any field not found
 
 Content:
-${content.slice(0, 20000)}`,
-    512
-  )
+${content.slice(0, 25000)}`
+}
 
+function parseSchoolInfoJson(res: string | null): SchoolInfo {
   if (!res) return emptySchoolInfo()
   try {
     const json = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
@@ -205,7 +220,9 @@ ${content.slice(0, 20000)}`,
       school_email:   json.school_email   ?? null,
       school_phone:   json.school_phone   ?? null,
       head_teacher:   json.head_teacher   ?? null,
+      school_hours:   json.school_hours   ?? null,
       term_dates_url: json.term_dates_url ?? null,
+      contact_url:    json.contact_url    ?? null,
     }
   } catch {
     return emptySchoolInfo()
@@ -213,7 +230,45 @@ ${content.slice(0, 20000)}`,
 }
 
 function emptySchoolInfo(): SchoolInfo {
-  return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, term_dates_url: null }
+  return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
+}
+
+function isMissingContactInfo(info: SchoolInfo): boolean {
+  return !info.school_address || !info.school_email || !info.school_phone
+}
+
+async function enrichFromContactPage(info: SchoolInfo, origin: string): Promise<SchoolInfo> {
+  // Find the contact page URL — prefer Claude-identified one, then try common paths
+  let contactUrl = info.contact_url
+  if (!contactUrl) {
+    for (const path of ['/contact', '/contact-us', '/contacts', '/about/contact', '/about-us/contact', '/school-information/contact']) {
+      try {
+        const r = await fetch(`${origin}${path}`, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
+        if (r.ok) { contactUrl = `${origin}${path}`; break }
+      } catch { /* not found */ }
+    }
+  }
+  if (!contactUrl) return info
+
+  console.log(`Fetching contact page: ${contactUrl}`)
+  const contactText = await fetchViaReader(contactUrl)
+  if (!contactText) return info
+
+  const contactInfo = parseSchoolInfoJson(
+    await callClaude(buildSchoolInfoPrompt(contactText, contactUrl, origin), 600)
+  )
+
+  // Merge: fill in any blanks from the contact page
+  return {
+    school_name:    info.school_name    ?? contactInfo.school_name,
+    school_address: info.school_address ?? contactInfo.school_address,
+    school_email:   info.school_email   ?? contactInfo.school_email,
+    school_phone:   info.school_phone   ?? contactInfo.school_phone,
+    head_teacher:   info.head_teacher   ?? contactInfo.head_teacher,
+    school_hours:   info.school_hours   ?? contactInfo.school_hours,
+    term_dates_url: info.term_dates_url ?? contactInfo.term_dates_url,
+    contact_url:    contactUrl,
+  }
 }
 
 async function extractTermDates(content: string): Promise<any[]> {
@@ -283,6 +338,7 @@ async function storeSchoolInfo(
   merge('school_email',   info.school_email)
   merge('school_phone',   info.school_phone)
   merge('head_teacher',   info.head_teacher)
+  merge('hours',          info.school_hours)
 
   updated.info_extracted_at = new Date().toISOString()
 
