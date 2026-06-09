@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { formatDate } from '../lib/scheduleEngine'
@@ -15,6 +15,8 @@ const SECTION_OPTIONS = [
 
 export default function ExportPage() {
   const { isParent } = useFamily()
+  const isIOS     = useMemo(() => /iphone|ipad|ipod/i.test(navigator.userAgent), [])
+  const isAndroid = useMemo(() => /android/i.test(navigator.userAgent), [])
   const [sections, setSections] = useState(['changes', 'posts', 'events'])
   const [fromDate, setFromDate] = useState('')
   const [toDate,   setToDate]   = useState(formatDate(new Date()))
@@ -143,7 +145,12 @@ export default function ExportPage() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
         <p className="text-xs text-amber-700">
-          The export opens in a new tab. Use your browser's <strong>Print</strong> function (Ctrl+P / Cmd+P) and choose <strong>Save as PDF</strong> to download the file.
+          {isIOS
+            ? <>The export opens in a new tab. Tap the <strong>Share button</strong> (the box with an arrow) then choose <strong>Print</strong> or <strong>Save to Files</strong> to keep a copy.</>
+            : isAndroid
+            ? <>The export opens in a new tab. Tap the <strong>menu (⋮)</strong> in your browser then choose <strong>Share</strong> or <strong>Print</strong> to save as PDF.</>
+            : <>The export opens in a new tab. Use your browser's <strong>Print</strong> function (Ctrl+P / Cmd+P) and choose <strong>Save as PDF</strong>.</>
+          }
         </p>
       </div>
     </div>
