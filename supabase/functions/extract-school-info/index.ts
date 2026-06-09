@@ -31,16 +31,7 @@ const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
-  // Verify caller is authenticated
-  const authHeader = req.headers.get('authorization') ?? ''
-  const { data: { user } } = await createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { authorization: authHeader } } }
-  ).auth.getUser()
-
-  if (!user) return new Response('Unauthorized', { status: 401, headers: CORS })
-
+  // JWT is verified automatically by Supabase before this function runs
   const { family_id, child_name, school_url } = await req.json()
   if (!school_url) {
     return new Response(JSON.stringify({ error: 'school_url required' }), { status: 400, headers: CORS })
