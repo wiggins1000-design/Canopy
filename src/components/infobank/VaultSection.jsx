@@ -19,7 +19,7 @@ const CATEGORIES = [
 const CAT_STYLES = {
   legal:     'bg-purple-100 text-purple-700',
   medical:   'bg-red-100 text-red-700',
-  school:    'bg-blue-100 text-blue-700',
+  school:    'bg-canopy-mist text-canopy-deep',
   identity:  'bg-yellow-100 text-yellow-700',
   financial: 'bg-green-100 text-green-700',
   other:     'bg-gray-100 text-gray-600',
@@ -177,7 +177,7 @@ export default function VaultSection({ childName }) {
       {/* Document list */}
       {loading ? (
         <div className="flex justify-center py-10">
-          <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-gray-400">
@@ -244,7 +244,7 @@ export default function VaultSection({ childName }) {
         <>
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+            className="w-full border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 hover:border-canopy-green hover:text-canopy-mid transition-colors flex items-center justify-center gap-2"
           >
             <UploadIcon className="w-4 h-4" />
             Upload document
@@ -262,7 +262,7 @@ export default function VaultSection({ childName }) {
               type="text"
               value={uploadTitle}
               onChange={(e) => setUploadTitle(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>

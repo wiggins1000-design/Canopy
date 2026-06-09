@@ -127,7 +127,7 @@ export default function MediaPage() {
           <select
             value={datePreset ?? ''}
             onChange={(e) => setDatePreset(e.target.value || null)}
-            className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green"
           >
             {DATE_PRESETS.map((p) => (
               <option key={String(p.id)} value={p.id ?? ''}>{p.label}</option>
@@ -146,7 +146,7 @@ export default function MediaPage() {
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
               />
             </div>
             <div className="flex-1">
@@ -155,7 +155,7 @@ export default function MediaPage() {
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
               />
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function MediaPage() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
       ) : isEmpty ? (
         <EmptyState typeFilter={typeFilter} tagFilter={tagFilter} />
@@ -269,8 +269,8 @@ function DocRow({ post }) {
 
   return (
     <div className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3">
-      <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-        <FileIcon className="w-5 h-5 text-blue-500" />
+      <div className="w-9 h-9 rounded-lg bg-canopy-frost flex items-center justify-center shrink-0">
+        <FileIcon className="w-5 h-5 text-canopy-green" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{post.file_name ?? 'Attachment'}</p>

@@ -67,7 +67,7 @@ export default function NoticeBoardPage() {
           {isParent && (
             <button
               onClick={() => setShowNewPost(true)}
-              className="flex items-center gap-1.5 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-700 active:scale-95 transition-all"
+              className="flex items-center gap-1.5 bg-canopy-mid text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -106,7 +106,7 @@ export default function NoticeBoardPage() {
         <select
           value={datePreset}
           onChange={(e) => setDatePreset(e.target.value)}
-          className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full appearance-none border border-gray-200 rounded-xl px-3 py-2.5 pr-9 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green"
         >
           {DATE_PRESETS.map((p) => (
             <option key={p.id} value={p.id}>{p.label}</option>
@@ -119,7 +119,7 @@ export default function NoticeBoardPage() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <div className="space-y-6">

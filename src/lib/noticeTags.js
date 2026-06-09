@@ -1,5 +1,5 @@
 export const NOTICE_TAGS = [
-  { id: 'school',       label: 'School',       chip: 'bg-blue-100 text-blue-700',   active: 'bg-blue-600 text-white' },
+  { id: 'school',       label: 'School',       chip: 'bg-canopy-mist text-canopy-deep',   active: 'bg-canopy-mid text-white' },
   { id: 'health',       label: 'Health',       chip: 'bg-red-100 text-red-700',     active: 'bg-red-600 text-white' },
   { id: 'appointments', label: 'Appointments', chip: 'bg-violet-100 text-violet-700', active: 'bg-violet-600 text-white' },
   { id: 'clubs',        label: 'Clubs',        chip: 'bg-green-100 text-green-700', active: 'bg-green-600 text-white' },

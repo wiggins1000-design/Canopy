@@ -57,7 +57,7 @@ export default function AdminLoginPage() {
                 placeholder="admin@mycanopymail.com"
                 required
                 autoComplete="username"
-                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green"
               />
             </div>
             <PasswordField

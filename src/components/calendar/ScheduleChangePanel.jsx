@@ -121,7 +121,7 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
               onClick={onNeedEndDate}
             >
               {endDateStr ? format(parseDate(endDateStr), 'EEE d MMM') : (
-                <span className="text-blue-600">Tap to select →</span>
+                <span className="text-canopy-mid">Tap to select →</span>
               )}
             </button>
           </div>
@@ -135,7 +135,7 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>
@@ -144,7 +144,7 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Note (required)</label>
           <textarea
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-canopy-green"
             rows={3}
             placeholder={isHoliday ? 'e.g. Half-term holiday in France…' : 'Briefly explain the reason for this change…'}
             value={note}

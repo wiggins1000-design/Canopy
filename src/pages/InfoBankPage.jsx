@@ -62,7 +62,7 @@ export default function InfoBankPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -117,7 +117,7 @@ export default function InfoBankPage() {
             key={s.id}
             onClick={() => setActiveSection(s.id)}
             className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
-              activeSection === s.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+              activeSection === s.id ? 'bg-canopy-mid text-white' : 'bg-gray-100 text-gray-600'
             }`}
           >
             {s.label}
@@ -194,7 +194,7 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
         onChange={(e) => onChange(e.target.value)}
         placeholder={readOnly ? '—' : placeholder}
         readOnly={readOnly}
-        className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+        className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
       />
     </div>
   )
@@ -210,7 +210,7 @@ function TextArea({ label, value, onChange, placeholder, readOnly, rows = 2 }) {
         placeholder={readOnly ? '—' : placeholder}
         readOnly={readOnly}
         rows={rows}
-        className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+        className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
       />
     </div>
   )
@@ -346,7 +346,18 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     const termMsg = res.events_added > 0
       ? ` · ${res.events_added} term date${res.events_added === 1 ? '' : 's'} added to calendar.`
       : res.term_dates > 0 ? ' · Term dates already up to date.' : ''
-    setExtractResult({ type: 'success', message: `School info extracted.${termMsg}` })
+
+    const fieldLabels = { school_name: 'school name', school_address: 'address', school_phone: 'phone', school_email: 'email', head_teacher: 'headteacher', school_hours: 'school hours' }
+    const missing = Object.entries(fieldLabels)
+      .filter(([k]) => {
+        const prev = data?.[k === 'school_hours' ? 'hours' : k]
+        const got  = info[k]
+        return !prev && !got
+      })
+      .map(([, label]) => label)
+    const missingMsg = missing.length ? ` Couldn't find: ${missing.join(', ')}.` : ''
+
+    setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${termMsg}${missingMsg}` })
   }
 
   async function checkTermDates() {
@@ -404,13 +415,13 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           <button
             onClick={extractSchoolInfo}
             disabled={extracting}
-            className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="w-full bg-canopy-mid text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-canopy-deep transition-colors disabled:opacity-50"
           >
             {extracting ? 'Extracting school info…' : 'Extract school info & term dates'}
           </button>
         )}
         {extractResult && (
-          <p className={`text-xs font-medium ${extractResult.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+          <p className={`text-xs font-medium ${extractResult.type === 'error' ? 'text-red-600' : extractResult.type === 'info' ? 'text-amber-600' : 'text-green-600'}`}>
             {extractResult.message}
           </p>
         )}
@@ -452,7 +463,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           <button
             onClick={checkTermDates}
             disabled={checking}
-            className="w-full border border-blue-200 bg-blue-50 text-blue-700 rounded-xl py-2.5 text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+            className="w-full border border-canopy-mist bg-canopy-frost text-canopy-deep rounded-xl py-2.5 text-sm font-medium hover:bg-canopy-mist transition-colors disabled:opacity-50"
           >
             {checking ? 'Checking website…' : 'Refresh term dates only'}
           </button>
@@ -510,7 +521,7 @@ function ContactsSection({ data, isParent, onSave }) {
       {isParent && (
         <button
           onClick={() => { setContacts((p) => [...p, blank()]); setSaved(false) }}
-          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-canopy-green hover:text-canopy-mid transition-colors"
         >
           + Add contact
         </button>

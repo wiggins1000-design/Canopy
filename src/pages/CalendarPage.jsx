@@ -134,7 +134,7 @@ export default function CalendarPage() {
           {isParent && (
             <button
               onClick={() => setShowNewEvent(true)}
-              className="flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all mr-1"
+              className="flex items-center gap-1 bg-canopy-mid text-white text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all mr-1"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -172,14 +172,14 @@ export default function CalendarPage() {
 
       {/* Selecting end date hint */}
       {selectingEndDate && (
-        <div className="mb-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-sm text-blue-700 font-medium">
+        <div className="mb-2 bg-canopy-frost border border-canopy-mist rounded-xl px-3 py-2 text-sm text-canopy-deep font-medium">
           Tap a day on the calendar to set the end date
         </div>
       )}
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <>

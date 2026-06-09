@@ -124,7 +124,7 @@ export default function NewPostSheet({ open, onClose }) {
     <BottomSheet open={open} onClose={handleClose} title="New post">
       <div className="px-5 py-4 space-y-4">
         <textarea
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-canopy-green"
           rows={5}
           placeholder="Write a note for the notice board…"
           value={content}

@@ -59,7 +59,7 @@ export default function JoinPage() {
   if (session === undefined || (session && familyLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -71,7 +71,7 @@ export default function JoinPage() {
         <div className="text-center space-y-3">
           {joining ? (
             <>
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="text-sm text-gray-500">Joining family…</p>
             </>
           ) : error ? (
@@ -90,7 +90,7 @@ export default function JoinPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white text-3xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canopy-mid text-white text-3xl mb-4">
             🌿
           </div>
           <h1 className="text-2xl font-bold text-gray-900">You've been invited</h1>
@@ -98,9 +98,9 @@ export default function JoinPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2.5 mb-5 text-center">
-            <p className="text-xs text-blue-500 font-semibold uppercase tracking-wide">Invite code</p>
-            <p className="font-mono text-xl font-bold text-blue-900 tracking-widest mt-0.5">{code?.toUpperCase()}</p>
+          <div className="bg-canopy-frost border border-canopy-mist rounded-xl px-4 py-2.5 mb-5 text-center">
+            <p className="text-xs text-canopy-green font-semibold uppercase tracking-wide">Invite code</p>
+            <p className="font-mono text-xl font-bold text-canopy-deep tracking-widest mt-0.5">{code?.toUpperCase()}</p>
           </div>
 
           <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
@@ -147,7 +147,7 @@ function Field({ label, type, value, onChange, placeholder, required }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
       />
     </div>
   )

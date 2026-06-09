@@ -149,7 +149,7 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>
@@ -158,7 +158,7 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Note (optional)</label>
           <textarea
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-canopy-green"
             rows={2}
             placeholder="Reason for the offer…"
             value={note}

@@ -4,6 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        'canopy': {
+          'deep':  '#1b4332',
+          'mid':   '#2d6a4f',
+          'green': '#52b788',
+          'light': '#74c69d',
+          'mist':  '#d8f3dc',
+          'frost': '#f4fbf4',
+        },
         'pa': {
           50:  '#eff6ff',
           100: '#dbeafe',

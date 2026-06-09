@@ -65,8 +65,8 @@ export default function InvitePage() {
 
       {/* Family info */}
       {family && (
-        <div className="bg-blue-50 rounded-2xl px-4 py-3 border border-blue-100">
-          <p className="text-xs font-semibold text-blue-500 uppercase tracking-wide">Children</p>
+        <div className="bg-canopy-frost rounded-2xl px-4 py-3 border border-canopy-mist">
+          <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide">Children</p>
           <p className="font-bold text-gray-900 mt-0.5">{family.name}</p>
         </div>
       )}
@@ -112,7 +112,7 @@ export default function InvitePage() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="e.g. sarah@email.com"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
             <p className="text-xs text-gray-400">If entered, Canopy will send them an invite email directly.</p>
           </div>

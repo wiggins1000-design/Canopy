@@ -1,5 +1,5 @@
 const variants = {
-  primary:   'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+  primary:   'bg-canopy-mid text-white hover:bg-canopy-deep active:bg-canopy-deep',
   secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300',
   danger:    'bg-red-600 text-white hover:bg-red-700',
   ghost:     'text-gray-600 hover:bg-gray-100',
@@ -14,7 +14,7 @@ export default function Button({ children, variant = 'primary', className = '', 
       disabled={disabled || loading}
       className={[
         'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold',
-        'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+        'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-canopy-green',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         variants[variant],
         className,

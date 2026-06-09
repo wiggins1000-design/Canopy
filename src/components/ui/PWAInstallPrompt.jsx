@@ -57,7 +57,7 @@ export default function PWAInstallPrompt() {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-4">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 bg-canopy-mid rounded-xl flex items-center justify-center shrink-0">
               <img src="/icons/icon-192.png" alt="Canopy" className="w-8 h-8 rounded-lg" />
             </div>
             <div className="flex-1 min-w-0">
@@ -84,7 +84,7 @@ export default function PWAInstallPrompt() {
               {!showIOSSteps ? (
                 <button
                   onClick={() => setShowIOSSteps(true)}
-                  className="w-full bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl"
+                  className="w-full bg-canopy-mid text-white text-sm font-semibold py-2.5 rounded-xl"
                 >
                   Show me how
                 </button>
@@ -106,7 +106,7 @@ export default function PWAInstallPrompt() {
             <div className="mt-3 flex gap-2">
               <button
                 onClick={install}
-                className="flex-1 bg-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl"
+                className="flex-1 bg-canopy-mid text-white text-sm font-semibold py-2.5 rounded-xl"
               >
                 Install
               </button>
@@ -127,7 +127,7 @@ export default function PWAInstallPrompt() {
 function IOSStep({ num, children }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+      <span className="w-5 h-5 rounded-full bg-canopy-mist text-canopy-deep text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
         {num}
       </span>
       <p className="text-sm text-gray-700">{children}</p>

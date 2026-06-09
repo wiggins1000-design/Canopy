@@ -49,7 +49,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white text-3xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-canopy-mid text-white text-3xl mb-4">
             🌿
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Canopy</h1>
@@ -60,7 +60,7 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           {mode === 'forgot' ? (
             <>
-              <button onClick={() => switchMode('signin')} className="text-sm text-blue-600 flex items-center gap-1 mb-4">
+              <button onClick={() => switchMode('signin')} className="text-sm text-canopy-mid flex items-center gap-1 mb-4">
                 ← Back to sign in
               </button>
               <h2 className="text-base font-semibold text-gray-900 mb-1">Reset your password</h2>
@@ -134,7 +134,7 @@ function Field({ label, type, value, onChange, placeholder, required }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
       />
     </div>
   )

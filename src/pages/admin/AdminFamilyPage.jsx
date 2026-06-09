@@ -33,7 +33,7 @@ export default function AdminFamilyPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-4 border-canopy-green border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -173,9 +173,9 @@ export default function AdminFamilyPage() {
 
 function StatCard({ label, value, highlight }) {
   return (
-    <div className={`rounded-2xl border px-5 py-4 ${highlight ? 'bg-blue-600/10 border-blue-500/30' : 'bg-slate-800 border-slate-700'}`}>
+    <div className={`rounded-2xl border px-5 py-4 ${highlight ? 'bg-canopy-mid/10 border-canopy-green/30' : 'bg-slate-800 border-slate-700'}`}>
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${highlight ? 'text-blue-400' : 'text-white'}`}>
+      <p className={`text-3xl font-bold mt-1 ${highlight ? 'text-canopy-light' : 'text-white'}`}>
         {value ?? <span className="text-slate-600">—</span>}
       </p>
     </div>

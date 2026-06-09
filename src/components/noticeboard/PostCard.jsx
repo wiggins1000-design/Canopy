@@ -123,7 +123,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
             href={signedFileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-blue-600 hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-canopy-mid hover:bg-gray-100 transition-colors"
           >
             <FileIcon className="w-4 h-4 shrink-0" />
             <span className="truncate">{post.file_name ?? 'Attachment'}</span>

@@ -298,7 +298,7 @@ export default function ConfigPage() {
               <span className="text-sm font-medium text-gray-700">
                 {pushEnabled ? 'Notifications on' : 'Notifications off'}
               </span>
-              <div className={`relative w-11 h-6 rounded-full transition-colors ${pushEnabled ? 'bg-blue-600' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
+              <div className={`relative w-11 h-6 rounded-full transition-colors ${pushEnabled ? 'bg-canopy-mid' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
               </div>
             </button>
@@ -341,7 +341,7 @@ export default function ConfigPage() {
                 value={p}
                 checked={patternType === p}
                 onChange={() => setPatternType(p)}
-                className="accent-blue-600"
+                className="accent-canopy-mid"
               />
               <span className="text-sm font-medium text-gray-800">{PATTERN_LABELS[p]}</span>
             </label>
@@ -424,7 +424,7 @@ export default function ConfigPage() {
           value={startDate}
           min={schedule ? formatDate(new Date()) : undefined}
           onChange={(e) => setStartDate(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
         />
         <p className="text-xs text-gray-400">
           {schedule
@@ -453,7 +453,7 @@ export default function ConfigPage() {
               type="time"
               value={changeoverTime}
               onChange={(e) => setChangeoverTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>
@@ -463,7 +463,7 @@ export default function ConfigPage() {
               value={changeoverLocation}
               onChange={(e) => setChangeoverLocation(e.target.value)}
               placeholder="e.g. School gate"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
@@ -489,7 +489,7 @@ export default function ConfigPage() {
             <span className="text-sm text-gray-800 flex-1 font-mono">{familyEmail}</span>
             <button
               onClick={() => navigator.clipboard.writeText(familyEmail)}
-              className="text-xs text-blue-600 font-medium shrink-0 hover:underline"
+              className="text-xs text-canopy-mid font-medium shrink-0 hover:underline"
             >
               Copy
             </button>
@@ -518,7 +518,7 @@ export default function ConfigPage() {
             onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
             onKeyDown={(e) => e.key === 'Enter' && addEmail()}
             placeholder="e.g. chris@work.com"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
           />
           <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
         </div>
@@ -545,14 +545,14 @@ export default function ConfigPage() {
               value={child.name}
               onChange={(e) => updateChild(child.id, 'name', e.target.value)}
               placeholder="Name"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
             />
           </div>
         ))}
 
         <button
           onClick={addChild}
-          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-canopy-green hover:text-canopy-mid transition-colors"
         >
           + Add child
         </button>
@@ -583,14 +583,14 @@ export default function ConfigPage() {
                 value={pet.name}
                 onChange={(e) => updatePet(pet.id, 'name', e.target.value)}
                 placeholder="Name"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
               />
               <input
                 type="text"
                 value={pet.type}
                 onChange={(e) => updatePet(pet.id, 'type', e.target.value)}
                 placeholder="e.g. Dog, Cat, Rabbit"
-                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
               />
             </div>
           </div>
@@ -598,7 +598,7 @@ export default function ConfigPage() {
 
         <button
           onClick={addPet}
-          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
+          className="w-full border-2 border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-canopy-green hover:text-canopy-mid transition-colors"
         >
           + Add pet
         </button>
@@ -621,7 +621,7 @@ export default function ConfigPage() {
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
           placeholder="+44 7911 123456"
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
         />
         <p className="text-xs text-gray-400">Include country code, e.g. +44 for UK, +1 for US.</p>
         {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
@@ -655,7 +655,7 @@ export default function ConfigPage() {
             <span className="text-sm font-medium text-gray-700">
               {pushEnabled ? 'Notifications on' : 'Notifications off'}
             </span>
-            <div className={`relative w-11 h-6 rounded-full transition-colors ${pushEnabled ? 'bg-blue-600' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
+            <div className={`relative w-11 h-6 rounded-full transition-colors ${pushEnabled ? 'bg-canopy-mid' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
           </button>

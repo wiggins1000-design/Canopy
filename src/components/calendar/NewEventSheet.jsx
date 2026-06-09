@@ -228,7 +228,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={extracting}
-            className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-3 text-sm font-medium text-gray-600 hover:border-canopy-green hover:text-canopy-mid transition-colors disabled:opacity-50"
           >
             <CameraIcon className="w-4 h-4" />
             Photo / screenshot
@@ -240,7 +240,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             className={`flex-1 flex items-center justify-center gap-2 border-2 rounded-xl py-3 text-sm font-medium transition-colors disabled:opacity-50 ${
               recording
                 ? 'border-red-400 bg-red-50 text-red-600 animate-pulse'
-                : 'border-dashed border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600'
+                : 'border-dashed border-gray-300 text-gray-600 hover:border-canopy-green hover:text-canopy-mid'
             }`}
           >
             <MicIcon className="w-4 h-4" />
@@ -250,8 +250,8 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
 
         {/* Extraction states */}
         {extracting && (
-          <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 rounded-xl px-3 py-2.5">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin shrink-0" />
+          <div className="flex items-center gap-2 text-sm text-canopy-mid bg-canopy-frost rounded-xl px-3 py-2.5">
+            <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
             Extracting event details…
           </div>
         )}
@@ -281,7 +281,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. School sports day"
             autoFocus={!imagePreview && !transcript}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
           />
         </div>
 
@@ -292,7 +292,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>
@@ -303,7 +303,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
           />
         </div>
 
@@ -329,7 +329,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Any extra details…"
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-canopy-green"
           />
         </div>
 

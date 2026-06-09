@@ -67,10 +67,30 @@ Deno.serve(async (req) => {
     let schoolInfo = await extractSchoolInfo(homepageText, normalised)
     console.log('Homepage extraction:', JSON.stringify(schoolInfo))
 
-    // If contact details are missing, fetch the contact page in parallel with nothing else
+    // Fill contact blanks from cache — avoids extra requests when another family already fetched this school
+    if (cached) {
+      schoolInfo = {
+        ...schoolInfo,
+        school_address: schoolInfo.school_address ?? cached.school_address ?? null,
+        school_email:   schoolInfo.school_email   ?? cached.school_email   ?? null,
+        school_phone:   schoolInfo.school_phone   ?? cached.school_phone   ?? null,
+        head_teacher:   schoolInfo.head_teacher   ?? cached.head_teacher   ?? null,
+        school_hours:   schoolInfo.school_hours   ?? cached.school_hours   ?? null,
+      }
+      if (cached.school_address || cached.school_email || cached.school_phone)
+        console.log('Contact info populated from cache')
+    }
+
+    // If contact details are missing, fetch the contact page
     if (isMissingContactInfo(schoolInfo)) {
-      schoolInfo = await enrichFromContactPage(schoolInfo, origin)
+      schoolInfo = await enrichFromContactPage(schoolInfo, normalised, origin)
       console.log('After contact page enrichment:', JSON.stringify(schoolInfo))
+    }
+
+    // If school hours still missing, try a school-day/times page
+    if (!schoolInfo.school_hours) {
+      schoolInfo = await enrichFromSchoolDayPage(schoolInfo, origin)
+      console.log('After school day enrichment:', JSON.stringify(schoolInfo))
     }
 
     if (schoolInfo.term_dates_url) termDatesUrl = schoolInfo.term_dates_url
@@ -102,16 +122,13 @@ Deno.serve(async (req) => {
       await storeSchoolInfo(family_id, child_name, schoolInfo)
     }
 
-    // ── Step 6: store term dates ──────────────────────────────────────────────
+    // ── Step 6: cache contact info + term dates (always, so other families benefit) ──
+    await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
+
+    // ── Step 7: add term date events for this family ──────────────────────────
     let eventsAdded = 0
     if (termDates.length > 0 && family_id) {
-      eventsAdded = await storeTermDates(
-        family_id,
-        normalised,
-        termDatesUrl,
-        termDates,
-        schoolInfo.school_name ?? cached?.school_name ?? null,
-      )
+      eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
     }
 
     return respond({
@@ -237,18 +254,51 @@ function isMissingContactInfo(info: SchoolInfo): boolean {
   return !info.school_address || !info.school_email || !info.school_phone
 }
 
-async function enrichFromContactPage(info: SchoolInfo, origin: string): Promise<SchoolInfo> {
-  // Find the contact page URL — prefer Claude-identified one, then try common paths
-  let contactUrl = info.contact_url
-  if (!contactUrl) {
-    for (const path of ['/contact', '/contact-us', '/contacts', '/about/contact', '/about-us/contact', '/school-information/contact']) {
-      try {
-        const r = await fetch(`${origin}${path}`, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
-        if (r.ok) { contactUrl = `${origin}${path}`; break }
-      } catch { /* not found */ }
+async function findContactUrl(homepageUrl: string, origin: string, claudeContactUrl: string | null): Promise<string | null> {
+  // 1. Use Claude-identified URL if available
+  if (claudeContactUrl) return claudeContactUrl
+
+  // 2. Use Jina's link summary to get all navigation links from the homepage
+  try {
+    const res = await fetch(`https://r.jina.ai/${homepageUrl}`, {
+      headers: { Accept: 'text/plain', 'X-With-Links-Summary': 'all' },
+      signal: AbortSignal.timeout(20000),
+    })
+    if (res.ok) {
+      const text = await res.text()
+      // Extract links section (Jina appends "Links/Images found:" at the bottom)
+      const linksSection = text.split(/links\/images found:/i)[1] ?? text
+      const lines = linksSection.split('\n')
+      const contactKeywords = /contact|find.us|get.in.touch|about.us|reach.us/i
+      for (const line of lines) {
+        const urlMatch = line.match(/https?:\/\/[^\s)"]+/)
+        if (urlMatch && contactKeywords.test(line)) {
+          console.log(`Found contact URL via Jina links: ${urlMatch[0]}`)
+          return urlMatch[0]
+        }
+      }
     }
+  } catch (e: any) {
+    console.warn('Jina link summary failed:', e?.message)
   }
-  if (!contactUrl) return info
+
+  // 3. Try common path patterns
+  for (const path of ['/contact', '/contact-us', '/contacts', '/about/contact', '/about-us/contact', '/school-information/contact', '/key-information/contact']) {
+    try {
+      const r = await fetch(`${origin}${path}`, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
+      if (r.ok) return `${origin}${path}`
+    } catch { /* not found */ }
+  }
+
+  return null
+}
+
+async function enrichFromContactPage(info: SchoolInfo, homepageUrl: string, origin: string): Promise<SchoolInfo> {
+  const contactUrl = await findContactUrl(homepageUrl, origin, info.contact_url)
+  if (!contactUrl) {
+    console.log('No contact page found')
+    return info
+  }
 
   console.log(`Fetching contact page: ${contactUrl}`)
   const contactText = await fetchViaReader(contactUrl)
@@ -269,6 +319,33 @@ async function enrichFromContactPage(info: SchoolInfo, origin: string): Promise<
     term_dates_url: info.term_dates_url ?? contactInfo.term_dates_url,
     contact_url:    contactUrl,
   }
+}
+
+async function enrichFromSchoolDayPage(info: SchoolInfo, origin: string): Promise<SchoolInfo> {
+  const paths = [
+    '/school-day', '/school-day/', '/school-times', '/school-hours',
+    '/parents/school-day', '/parents/school-times', '/parents-and-carers/school-day',
+    '/key-information/school-day', '/key-information/school-times',
+    '/school-information/school-day', '/about/school-day',
+    '/our-school/school-day', '/school-life/school-day',
+  ]
+
+  for (const path of paths) {
+    const url = `${origin}${path}`
+    try {
+      const head = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
+      if (!head.ok) continue
+      const text = await fetchViaReader(url)
+      if (!text || text.length < 100) continue
+      console.log(`Fetching school day page: ${url}`)
+      const extracted = parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(text, url, origin), 300))
+      if (extracted.school_hours) {
+        return { ...info, school_hours: extracted.school_hours }
+      }
+    } catch { /* not found */ }
+  }
+
+  return info
 }
 
 async function extractTermDates(content: string): Promise<any[]> {
@@ -350,25 +427,33 @@ async function storeSchoolInfo(
     )
 }
 
-async function storeTermDates(
-  familyId:    string,
-  homepageUrl: string,
+async function cacheSchoolData(
+  homepageUrl:  string,
   termDatesUrl: string,
-  termDates:   any[],
-  schoolName:  string | null,
-): Promise<number> {
-  // Upsert school_calendars cache
+  termDates:    any[],
+  info:         SchoolInfo,
+): Promise<void> {
   const contentHash = await hashString(JSON.stringify(termDates))
   await supabase.from('school_calendars').upsert({
     homepage_url:    homepageUrl,
     term_dates_url:  termDatesUrl,
-    school_name:     schoolName ?? undefined,
+    school_name:     info.school_name     ?? undefined,
+    school_address:  info.school_address  ?? undefined,
+    school_email:    info.school_email    ?? undefined,
+    school_phone:    info.school_phone    ?? undefined,
+    head_teacher:    info.head_teacher    ?? undefined,
+    school_hours:    info.school_hours    ?? undefined,
     term_dates:      termDates,
     content_hash:    contentHash,
     last_fetched_at: new Date().toISOString(),
   }, { onConflict: 'homepage_url' })
+}
 
-  // Get existing events to avoid duplicates
+async function addTermDateEvents(
+  familyId:    string,
+  homepageUrl: string,
+  termDates:   any[],
+): Promise<number> {
   const { data: existing } = await supabase
     .from('family_events')
     .select('title, event_date')

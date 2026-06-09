@@ -67,7 +67,7 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
               </div>
               {isParent && (
                 <button
-                  className="text-xs text-blue-600 font-medium hover:underline shrink-0"
+                  className="text-xs text-canopy-mid font-medium hover:underline shrink-0"
                   onClick={() => {
                     setDraftTime(changeoverTime ?? '')
                     setDraftLocation(changeoverLocation ?? '')
@@ -87,7 +87,7 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
                     type="time"
                     value={draftTime}
                     onChange={(e) => setDraftTime(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-canopy-green"
                   />
                 </div>
                 <div>
@@ -97,7 +97,7 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
                     value={draftLocation}
                     onChange={(e) => setDraftLocation(e.target.value)}
                     placeholder="e.g. School"
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-canopy-green"
                   />
                 </div>
               </div>

@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name…"
-            className="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
+            className="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green w-56"
           />
         </div>
 
@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center">
-                      <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                      <div className="w-6 h-6 border-4 border-canopy-green border-t-transparent rounded-full animate-spin mx-auto" />
                     </td>
                   </tr>
                 ) : families.length === 0 ? (
@@ -134,9 +134,9 @@ export default function AdminDashboardPage() {
 
 function StatCard({ label, value, highlight }) {
   return (
-    <div className={`rounded-2xl border px-5 py-4 ${highlight ? 'bg-blue-600/10 border-blue-500/30' : 'bg-slate-800 border-slate-700'}`}>
+    <div className={`rounded-2xl border px-5 py-4 ${highlight ? 'bg-canopy-mid/10 border-canopy-green/30' : 'bg-slate-800 border-slate-700'}`}>
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${highlight ? 'text-blue-400' : 'text-white'}`}>
+      <p className={`text-3xl font-bold mt-1 ${highlight ? 'text-canopy-light' : 'text-white'}`}>
         {value ?? <span className="text-slate-600">—</span>}
       </p>
     </div>

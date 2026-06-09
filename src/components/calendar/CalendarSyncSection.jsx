@@ -139,7 +139,7 @@ export default function CalendarSyncSection() {
       {/* iCal subscription */}
       <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-blue-600 shrink-0" />
+          <CalendarIcon className="w-5 h-5 text-canopy-mid shrink-0" />
           <div>
             <p className="text-sm font-semibold text-gray-800">Subscribe (iCal)</p>
             <p className="text-xs text-gray-400">Works with Apple Calendar, Google, Outlook, and any other app</p>
@@ -156,7 +156,7 @@ export default function CalendarSyncSection() {
                 onChange={(e) => setIcalTypes(prev =>
                   e.target.checked ? [...prev, opt.id] : prev.filter(t => t !== opt.id)
                 )}
-                className="accent-blue-600 w-4 h-4 rounded"
+                className="accent-canopy-mid w-4 h-4 rounded"
               />
               <div>
                 <p className="text-sm font-medium text-gray-800">{opt.label}</p>
@@ -172,7 +172,7 @@ export default function CalendarSyncSection() {
               <span className="text-xs text-gray-600 font-mono flex-1 truncate">{icalUrl()}</span>
               <button
                 onClick={copyUrl}
-                className="text-xs font-semibold text-blue-600 hover:underline shrink-0"
+                className="text-xs font-semibold text-canopy-mid hover:underline shrink-0"
               >
                 {copied ? '✓ Copied' : 'Copy'}
               </button>
@@ -287,7 +287,7 @@ function OAuthTypeSelector({ types, onChange }) {
             onChange={(e) => onChange(prev =>
               e.target.checked ? [...prev, opt.id] : prev.filter(t => t !== opt.id)
             )}
-            className="accent-blue-600 w-4 h-4"
+            className="accent-canopy-mid w-4 h-4"
           />
           <span className="text-sm text-gray-700">{opt.label}</span>
         </label>

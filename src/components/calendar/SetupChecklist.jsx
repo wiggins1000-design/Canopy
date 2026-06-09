@@ -43,8 +43,8 @@ export default function SetupChecklist() {
   if (items.every((i) => i.done)) return null
 
   return (
-    <div className="mx-3 mb-3 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3">
-      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2.5">Getting started</p>
+    <div className="mx-3 mb-3 bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
+      <p className="text-xs font-semibold text-canopy-mid uppercase tracking-wide mb-2.5">Getting started</p>
       <div className="space-y-2.5">
         {items.map((item) => (
           <button
@@ -53,7 +53,7 @@ export default function SetupChecklist() {
             className={`flex items-center gap-3 w-full text-left ${item.done ? 'cursor-default' : ''}`}
           >
             <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-              item.done ? 'border-blue-400 bg-blue-400' : 'border-gray-300 bg-white'
+              item.done ? 'border-canopy-green bg-canopy-green' : 'border-gray-300 bg-white'
             }`}>
               {item.done && (
                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">

@@ -15,7 +15,7 @@ export default function PasswordField({ label, value, onChange, placeholder, req
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          className={`w-full rounded-xl px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          className={`w-full rounded-xl px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${
             dark
               ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-500'
               : 'border border-gray-200'

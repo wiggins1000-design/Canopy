@@ -8,7 +8,7 @@ const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 
 const STATUS_LABELS = {
   pending:          { label: 'Uploaded — not yet analysed', colour: 'text-gray-500' },
-  analyzing:        { label: 'Analysing…',                  colour: 'text-blue-600'  },
+  analyzing:        { label: 'Analysing…',                  colour: 'text-canopy-mid'  },
   needs_approval:   { label: 'Awaiting approval',           colour: 'text-amber-600' },
   active:           { label: 'Active — checks enabled',     colour: 'text-green-600' },
   failed:           { label: 'Analysis failed',             colour: 'text-red-600'   },
@@ -135,7 +135,7 @@ export default function CourtOrderPage() {
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <div className="w-7 h-7 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -240,8 +240,8 @@ function OrderCard({ order, paName, pbName, currentUserId, onAnalyse, onApprove,
 
           {/* Analysing spinner */}
           {(order.status === 'analyzing' || analysing) && (
-            <div className="flex items-center gap-2 text-sm text-blue-600">
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center gap-2 text-sm text-canopy-mid">
+              <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin" />
               Reading the document with AI…
             </div>
           )}

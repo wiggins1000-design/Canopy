@@ -102,7 +102,7 @@ export default function ExportPage() {
               type="date"
               value={fromDate}
               onChange={e => setFromDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
           <div>
@@ -111,7 +111,7 @@ export default function ExportPage() {
               type="date"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
@@ -122,12 +122,12 @@ export default function ExportPage() {
       <section className="space-y-3">
         <label className="text-sm font-semibold text-gray-700 block">Include in export</label>
         {SECTION_OPTIONS.map((opt) => (
-          <label key={opt.id} className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 cursor-pointer transition-all ${sections.includes(opt.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+          <label key={opt.id} className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 cursor-pointer transition-all ${sections.includes(opt.id) ? 'border-canopy-green bg-canopy-frost' : 'border-gray-200 bg-white'}`}>
             <input
               type="checkbox"
               checked={sections.includes(opt.id)}
               onChange={() => toggleSection(opt.id)}
-              className="accent-blue-600 w-4 h-4 mt-0.5 shrink-0"
+              className="accent-canopy-mid w-4 h-4 mt-0.5 shrink-0"
             />
             <div>
               <p className="text-sm font-semibold text-gray-800">{opt.label}</p>
