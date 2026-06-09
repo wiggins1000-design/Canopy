@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useFamily } from '../../context/FamilyContext'
 import { supabase } from '../../lib/supabase'
 import OnboardingPage from '../../pages/OnboardingPage'
+import PWAInstallPrompt from '../ui/PWAInstallPrompt'
 
 export default function AppLayout() {
   const { user } = useAuth()
@@ -38,6 +39,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <BottomNav />
+      <PWAInstallPrompt />
     </div>
   )
 }

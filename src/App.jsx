@@ -17,6 +17,9 @@ import ConfigPage from './pages/ConfigPage'
 import InvitePage from './pages/InvitePage'
 import RequestsPage from './pages/RequestsPage'
 import InfoBankPage from './pages/InfoBankPage'
+import ExportPage from './pages/ExportPage'
+import CourtOrderPage from './pages/CourtOrderPage'
+import AdminFamilyPage from './pages/admin/AdminFamilyPage'
 
 export default function App() {
   return (
@@ -32,6 +35,7 @@ export default function App() {
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="family/:id" element={<AdminFamilyPage />} />
           </Route>
           <Route
             element={
@@ -48,6 +52,8 @@ export default function App() {
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/requests" element={<RequestsPage />} />
             <Route path="/info" element={<InfoBankPage />} />
+            <Route path="/export" element={<ExportPage />} />
+            <Route path="/court-order" element={<CourtOrderPage />} />
           </Route>
         </Routes>
       </FamilyProvider>

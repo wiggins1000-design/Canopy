@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [families, setFamilies] = useState([])
   const [search, setSearch] = useState('')
@@ -97,7 +99,7 @@ export default function AdminDashboardPage() {
                     </td>
                   </tr>
                 ) : families.map((f) => (
-                  <tr key={f.id} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+                  <tr key={f.id} onClick={() => navigate(`/admin/family/${f.id}`)} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <p className="text-white font-medium">{f.name}</p>
                       <p className="text-slate-500 text-xs font-mono mt-0.5">

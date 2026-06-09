@@ -33,16 +33,15 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   // ── Auth ──────────────────────────────────────────────────────────────────
-  const webhookToken = Deno.env.get('TERM_DATES_WEBHOOK_TOKEN')
+  const webhookToken  = Deno.env.get('TERM_DATES_WEBHOOK_TOKEN')
   const incomingToken = req.headers.get('x-webhook-token')
-  const authHeader = req.headers.get('authorization')
+  const authHeader    = req.headers.get('authorization')
 
   let targetFamilyId: string | null = null
 
   if (incomingToken && webhookToken && incomingToken === webhookToken) {
     // Cron mode — process all families
   } else if (authHeader?.startsWith('Bearer ')) {
-    // Manual trigger — use user's JWT to verify identity (correct Supabase edge function pattern)
     const userClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -110,7 +109,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       .eq('homepage_url', homepageUrl)
       .maybeSingle()
 
-    const ageMs = cached?.last_fetched_at
+    const ageMs   = cached?.last_fetched_at
       ? Date.now() - new Date(cached.last_fetched_at).getTime()
       : Infinity
     const isStale = ageMs > 30 * 24 * 60 * 60 * 1000
@@ -118,7 +117,6 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     let termDates: any[] = (cached as any)?.term_dates ?? []
 
     if (!cached || isStale || forceRefresh) {
-      // On manual refresh, ignore the cached hash so PDFs are always re-fetched
       const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
       const scraped = await scrapeTermDates(homepageUrl, existingHash)
 
@@ -126,7 +124,6 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
         await supabase.from('school_calendars')
           .update({ last_fetched_at: new Date().toISOString() })
           .eq('homepage_url', homepageUrl)
-        // Fall through — still apply cached termDates to this family in case they're missing
       }
 
       if (scraped.error) {
@@ -151,7 +148,11 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
     let totalAdded = 0
     for (const familyId of familyIds) {
-      totalAdded += await applyTermDatesToFamily(familyId, termDates)
+      const added = await applyTermDatesToFamily(familyId, termDates)
+      if (added > 0) {
+        await postTermDatesNotice(familyId, added, (cached as any)?.school_name)
+      }
+      totalAdded += added
     }
 
     return { status: 'ok', eventsAdded: totalAdded, totalDates: termDates.length }
@@ -161,29 +162,45 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
   }
 }
 
+// ── Term dates notice post ────────────────────────────────────────────────────
+
+async function postTermDatesNotice(familyId: string, addedCount: number, schoolName: string | null) {
+  const school  = schoolName ? ` from ${schoolName}` : ''
+  const content = `🗓️ ${addedCount} new school date${addedCount !== 1 ? 's' : ''}${school} added to the calendar.\nToggle the graduation cap on the calendar to view term dates and holidays.`
+
+  const { error } = await supabase.rpc('create_notice_post', {
+    p_family_id: familyId,
+    p_content:   content,
+    p_image_url: null,
+    p_file_url:  null,
+    p_file_name: null,
+    p_tag:       'notification',
+  })
+  if (error) console.error('Failed to post term dates notice:', error)
+}
+
 // ── Two-hop scrape ────────────────────────────────────────────────────────────
 
 async function scrapeTermDates(homepageUrl: string, existingHash: string | null) {
-  const urlObj = new URL(homepageUrl)
-  const origin = urlObj.origin
+  const urlObj  = new URL(homepageUrl)
+  const origin  = urlObj.origin
   const isDirectUrl = urlObj.pathname.length > 1 || urlObj.search.length > 0
 
   let termDatesUrl: string
 
   if (isDirectUrl) {
-    // User entered the term dates page URL directly — use it as-is
     console.log(`Using direct term dates URL: ${homepageUrl}`)
     termDatesUrl = homepageUrl
   } else {
-    // Homepage URL — auto-discover the term dates page
-    const homepageContent = await fetchViaJina(homepageUrl)
+    // Try a direct fetch of the homepage first — saves a Jina call for static sites
+    const homepageContent = await fetchPage(homepageUrl)
     if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
 
     console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
     // Try 1: Jina link summary — scan for term dates URL patterns
     const homepageLinks = await fetchJinaLinks(homepageUrl)
-    const cleanedLinks = homepageLinks.map(l => l.replace(/[)>\s]+$/, ''))
+    const cleanedLinks  = homepageLinks.map(l => l.replace(/[)>\s]+$/, ''))
     console.log(`Homepage links found: ${cleanedLinks.length}`, cleanedLinks.slice(0, 30))
     let found = findTermDatesLinkByPattern(cleanedLinks)
 
@@ -219,7 +236,8 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
   console.log(`Term dates URL found: ${termDatesUrl}`)
 
-  const termDatesContent = await fetchViaJina(termDatesUrl)
+  // Try direct fetch first; fall back to Jina only when the response looks like JS-rendered HTML
+  const termDatesContent = await fetchPage(termDatesUrl)
 
   console.log(`Term dates content length: ${termDatesContent?.length ?? 0}`)
   console.log(`Term dates content preview: ${termDatesContent?.slice(0, 500) ?? 'EMPTY'}`)
@@ -229,7 +247,6 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
-  // Run HTML extraction and document link search in parallel
   console.log('Starting parallel Claude extraction...')
   const [htmlResult, docLinks] = await Promise.all([
     extractTermDates(termDatesContent),
@@ -243,7 +260,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   if (docLinks.length > 0) {
     const pdfResults = await Promise.all(
       docLinks.map(async (docUrl: string) => {
-        const docContent = await fetchViaJina(docUrl)
+        const docContent = await fetchPage(docUrl)
         if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
         const result = await extractTermDates(docContent)
         return { ...result, url: docUrl }
@@ -267,6 +284,57 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.' }
 
   return { termDatesUrl, termDates, contentHash, schoolName }
+}
+
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
+
+// Try a direct HTTP fetch first; fall back to Jina for JS-rendered or blocked pages.
+async function fetchPage(url: string): Promise<string | null> {
+  // Direct fetch — fast and free, works for static HTML and PDFs
+  const direct = await fetchDirect(url)
+  if (direct && looksLikeUsefulContent(direct)) {
+    console.log(`Direct fetch succeeded for ${url}: ${direct.length} chars`)
+    return direct
+  }
+  // Fall back to Jina (renders JavaScript, bypasses some bot-protection)
+  console.log(`Direct fetch insufficient for ${url}, trying Jina…`)
+  return fetchViaJina(url)
+}
+
+async function fetchDirect(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Canopy/1.0; +https://canopy.app)',
+        'Accept': 'text/html,application/xhtml+xml,application/pdf,*/*',
+      },
+      signal: AbortSignal.timeout(12000),
+      redirect: 'follow',
+    })
+    if (!res.ok) {
+      console.log(`Direct fetch returned ${res.status} for ${url}`)
+      return null
+    }
+    const contentType = res.headers.get('content-type') ?? ''
+    // For non-HTML (PDFs etc.) return raw text
+    const text = await res.text()
+    console.log(`Direct fetch OK for ${url}: ${text.length} chars, type: ${contentType}`)
+    return text.slice(0, 15000)
+  } catch (e) {
+    console.log(`Direct fetch threw for ${url}:`, e)
+    return null
+  }
+}
+
+function looksLikeUsefulContent(text: string): boolean {
+  if (text.length < 200) return false
+  const lc = text.toLowerCase()
+  // Reject pages that appear to be empty JS shells
+  if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
+  // Must contain some calendar-relevant keywords OR be a PDF
+  return lc.includes('term') || lc.includes('holiday') || lc.includes('inset') ||
+         lc.includes('autumn') || lc.includes('spring') || lc.includes('summer') ||
+         text.startsWith('%PDF')
 }
 
 async function fetchViaJina(url: string): Promise<string | null> {
@@ -293,14 +361,13 @@ async function fetchJinaLinks(url: string): Promise<string[]> {
   try {
     const res = await fetch(`https://r.jina.ai/${url}`, {
       headers: {
-        'Accept': 'text/plain',
+        'Accept':            'text/plain',
         'X-With-Links-Summary': 'all',
       },
       signal: AbortSignal.timeout(25000),
     })
     if (!res.ok) return []
     const text = await res.text()
-    // Jina appends a links section at the bottom: "Links/Buttons:\n- [text]: url\n..."
     const linksSection = text.split(/links\/buttons:|links:\n/i).pop() ?? ''
     const links: string[] = []
     for (const line of linksSection.split('\n')) {
@@ -308,26 +375,6 @@ async function fetchJinaLinks(url: string): Promise<string[]> {
       if (m) links.push(m[0])
     }
     return [...new Set(links)].slice(0, 30)
-  } catch {
-    return []
-  }
-}
-
-// Ask Claude to pick the most likely term-dates document from a list of links
-async function findDocumentLinkFromList(links: string[], pageUrl: string): Promise<string[]> {
-  const res = await callClaude(
-    `Here are all the links found on a school term dates page (${pageUrl}).
-Identify any links that are likely to be a term dates document (PDF, Word doc, spreadsheet, Google Drive, OneDrive, SharePoint, or similar).
-Return ONLY a JSON array of URLs — the most relevant first, maximum 3. If none are relevant, return [].
-
-Links:
-${links.join('\n')}`,
-    512
-  )
-  if (!res) return []
-  try {
-    const parsed = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
-    return Array.isArray(parsed) ? parsed.filter((u: any) => typeof u === 'string') : []
   } catch {
     return []
   }
@@ -354,17 +401,13 @@ Rules:
   )
 
   if (!res) return null
-  const url = res.trim().replace(/^["']|["']$/g, '') // strip any accidental quotes
-  // Reject if it looks like a sentence rather than a URL (has spaces, too long, or starts with "I ")
+  const url = res.trim().replace(/^["']|["']$/g, '')
   if (!url || url === 'null' || url.includes(' ') || url.length > 300) return null
-
   if (url.startsWith('http')) return url
   if (url.startsWith('/')) return `${origin}${url}`
-
   try { return new URL(url, origin).href } catch { return null }
 }
 
-// Scan a list of links for obvious term dates URL patterns
 function findTermDatesLinkByPattern(links: string[]): string | null {
   const patterns = [/term.?dates/i, /term.?times/i, /school.?calendar/i, /key.?dates/i, /holiday.?dates/i, /school.?dates/i, /academic.?calendar/i, /dates.?deadlines/i]
   for (const link of links) {
@@ -375,7 +418,6 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
   return null
 }
 
-// Ask Claude to pick the most likely term dates link from a list of real URLs
 async function pickTermDatesLink(links: string[], origin: string): Promise<string | null> {
   const res = await callClaude(
     `From this list of URLs from a UK school website (${origin}), return the single URL most likely to be the term dates or school calendar page.
@@ -393,7 +435,6 @@ ${links.slice(0, 40).join('\n')}`,
   try { return new URL(url, origin).href } catch { return null }
 }
 
-// Common URL patterns used by UK school website platforms (SchoolJotter, Arbor, Arbor, Schudio, etc.)
 async function tryCommonPaths(origin: string): Promise<string | null> {
   const paths = [
     '/term-dates', '/term-dates/', '/term_dates', '/termdates',
@@ -423,7 +464,6 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
   return null
 }
 
-// Ask Claude to find all document download links from the page content
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
   const res = await callClaude(
@@ -448,36 +488,6 @@ ${content.slice(0, 8000)}`,
       .filter((u: any) => typeof u === 'string' && u.startsWith('http') && !u.includes(' '))
       .slice(0, 5)
   } catch { return [] }
-}
-
-// Extract PDF, .doc, .docx links from Jina markdown output or raw HTML
-function findDocumentLinks(content: string, pageUrl: string): string[] {
-  const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
-  const found = new Set<string>()
-
-  // Markdown links: [text](url)
-  const mdPattern = /\[([^\]]*)\]\(([^)]+)\)/g
-  let m: RegExpExecArray | null
-  while ((m = mdPattern.exec(content)) !== null) {
-    const url = m[2].trim()
-    if (/\.(pdf|docx?)(\?[^)\s]*)?$/i.test(url)) {
-      found.add(url.startsWith('http') ? url : url.startsWith('/') ? `${origin}${url}` : url)
-    }
-  }
-
-  // Raw URLs anywhere in the text
-  const rawPattern = /https?:\/\/[^\s"'<>)]+\.(?:pdf|docx?)(?:\?[^\s"'<>)]*)?/gi
-  while ((m = rawPattern.exec(content)) !== null) {
-    found.add(m[0])
-  }
-
-  // Relative paths that look like document links
-  const relPattern = /(?:\/[^\s"'<>()]+\.(?:pdf|docx?)(?:\?[^\s"'<>)]*)?)/gi
-  while ((m = relPattern.exec(content)) !== null) {
-    if (origin) found.add(`${origin}${m[0]}`)
-  }
-
-  return [...found].slice(0, 5)
 }
 
 async function extractTermDates(content: string): Promise<{ termDates: any[], schoolName: string | null }> {
@@ -547,7 +557,7 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
   let added = 0
   for (const event of termDates) {
     if (!event.date || !event.title) continue
-    if (event.date < cutoffStr) continue   // skip events more than 1 month in the past
+    if (event.date < cutoffStr) continue
     const key = `${event.title}||${event.date}`
     if (existingKeys.has(key)) continue
 
@@ -575,9 +585,8 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`)
-    // If a specific path is given, keep it (direct term dates URL) — otherwise just origin
     const hasPath = u.pathname.length > 1 || u.search.length > 0
-    const base = `${u.protocol}//${u.hostname}`.toLowerCase()
+    const base    = `${u.protocol}//${u.hostname}`.toLowerCase()
     return hasPath ? (base + u.pathname + u.search).toLowerCase() : base
   } catch {
     return url.toLowerCase().replace(/\/$/, '')
@@ -586,7 +595,7 @@ function normalizeUrl(url: string): string {
 
 async function hashContent(content: string): Promise<string> {
   const encoded = new TextEncoder().encode(content)
-  const buf = await crypto.subtle.digest('SHA-256', encoded)
+  const buf     = await crypto.subtle.digest('SHA-256', encoded)
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 

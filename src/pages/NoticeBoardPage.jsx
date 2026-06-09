@@ -24,7 +24,7 @@ function getDateCutoff(preset) {
 
 export default function NoticeBoardPage() {
   const navigate = useNavigate()
-  const { pinnedPosts, feedPosts, loading } = useNoticeboard()
+  const { pinnedPosts, feedPosts, reads, loading, markRead } = useNoticeboard()
   const { isParent } = useFamily()
   const [showNewPost, setShowNewPost] = useState(false)
   const [hiddenTags, setHiddenTags]   = useState(new Set())
@@ -133,7 +133,7 @@ export default function NoticeBoardPage() {
                 <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Pinned</h2>
               </div>
               {filteredPinned.map((post) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} reads={reads[post.id] ?? new Set()} onVisible={markRead} />
               ))}
             </section>
           )}
@@ -158,7 +158,9 @@ export default function NoticeBoardPage() {
                 )}
               </div>
             ) : (
-              filteredFeed.map((post) => <PostCard key={post.id} post={post} />)
+              filteredFeed.map((post) => (
+                <PostCard key={post.id} post={post} reads={reads[post.id] ?? new Set()} onVisible={markRead} />
+              ))
             )}
           </section>
         </div>

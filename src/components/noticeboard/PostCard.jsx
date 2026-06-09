@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { supabase, toStoragePath } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { tagById } from '../../lib/noticeTags'
 
 const AUTHOR_STYLES = {
-  parent_a: { dot: 'bg-pa-400', border: 'border-pa-200', name: 'text-pa-700' },
-  parent_b: { dot: 'bg-pb-400', border: 'border-pb-200', name: 'text-pb-700' },
+  parent_a:    { dot: 'bg-pa-400',   border: 'border-pa-200',   name: 'text-pa-700'  },
+  parent_b:    { dot: 'bg-pb-400',   border: 'border-pb-200',   name: 'text-pb-700'  },
   third_party: { dot: 'bg-gray-300', border: 'border-gray-200', name: 'text-gray-500' },
 }
 
-export default function PostCard({ post }) {
+const ROLE_DISC_COLOUR = {
+  parent_a:    'bg-pa-400',
+  parent_b:    'bg-pb-400',
+  third_party: 'bg-gray-300',
+}
+
+export default function PostCard({ post, reads = new Set(), onVisible }) {
   const { members, isParent } = useFamily()
   const [signedImageUrl, setSignedImageUrl] = useState(null)
-  const [signedFileUrl, setSignedFileUrl] = useState(null)
+  const [signedFileUrl, setSignedFileUrl]   = useState(null)
+  const cardRef = useRef(null)
 
   useEffect(() => {
     if (!post.image_url) return
@@ -31,9 +38,20 @@ export default function PostCard({ post }) {
       .then(({ data }) => { if (data?.signedUrl) setSignedFileUrl(data.signedUrl) })
   }, [post.file_url, post.image_url])
 
-  const author = members.find((m) => m.user_id === post.author_id)
-  const authorRole = author?.role ?? 'third_party'
-  const styles = AUTHOR_STYLES[authorRole] ?? AUTHOR_STYLES.third_party
+  // Intersection observer — fires onVisible when card enters viewport
+  useEffect(() => {
+    if (!onVisible || !cardRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { onVisible(post.id); observer.disconnect() } },
+      { threshold: 0.5 }
+    )
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [post.id, onVisible])
+
+  const author      = members.find((m) => m.user_id === post.author_id)
+  const authorRole  = author?.role ?? 'third_party'
+  const styles      = AUTHOR_STYLES[authorRole] ?? AUTHOR_STYLES.third_party
 
   async function togglePin() {
     await supabase.rpc('update_notice_post', { p_post_id: post.id, p_is_pinned: !post.is_pinned })
@@ -43,8 +61,13 @@ export default function PostCard({ post }) {
     await supabase.rpc('update_notice_post', { p_post_id: post.id, p_is_archived: true })
   }
 
+  // Build reader discs: all members who have read this post (excluding author)
+  const readers = members.filter(
+    (m) => reads.has(m.user_id) && m.user_id !== post.author_id
+  )
+
   return (
-    <div className={`bg-white rounded-2xl border ${styles.border} p-4 space-y-3`}>
+    <div ref={cardRef} className={`bg-white rounded-2xl border ${styles.border} p-4 space-y-3`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -87,11 +110,7 @@ export default function PostCard({ post }) {
 
       {/* Image attachment */}
       {post.image_url && signedImageUrl && (
-        <img
-          src={signedImageUrl}
-          alt=""
-          className="rounded-xl w-full max-h-64 object-cover"
-        />
+        <img src={signedImageUrl} alt="" className="rounded-xl w-full max-h-64 object-cover" />
       )}
       {post.image_url && !signedImageUrl && (
         <div className="rounded-xl w-full h-32 bg-gray-100 animate-pulse" />
@@ -115,6 +134,22 @@ export default function PostCard({ post }) {
             <span className="truncate">{post.file_name ?? 'Attachment'}</span>
           </div>
         )
+      )}
+
+      {/* Read receipts */}
+      {readers.length > 0 && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-xs text-gray-400">Seen by</span>
+          {readers.map((m) => (
+            <div
+              key={m.user_id}
+              title={m.display_name}
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${ROLE_DISC_COLOUR[m.role] ?? 'bg-gray-300'}`}
+            >
+              {(m.display_name ?? '?')[0].toUpperCase()}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )

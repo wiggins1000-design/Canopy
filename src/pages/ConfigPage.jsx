@@ -5,8 +5,10 @@ import { supabase, registerPushSubscription, unregisterPushSubscription } from '
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../lib/scheduleEngine'
+import { useNavigate } from 'react-router-dom'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
+import CalendarSyncSection from '../components/calendar/CalendarSyncSection'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
@@ -15,7 +17,7 @@ export default function ConfigPage() {
   const { user } = useAuth()
   const emailDomain = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
   const familyEmail = family?.email_key ? `${family.email_key}@${emailDomain}` : null
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
 
   const [patternType, setPatternType] = useState('alternating_weeks')
   const [startingParent, setStartingParent] = useState('parent_a')
@@ -659,6 +661,29 @@ export default function ConfigPage() {
             </div>
           </button>
         )}
+      </section>
+
+      {/* Calendar sync */}
+      <CalendarSyncSection />
+
+      {/* Legal tools */}
+      <section className="space-y-2 pt-2">
+        <label className="text-sm font-semibold text-gray-700 block">Legal tools</label>
+        <p className="text-xs text-gray-400">Export records or manage your court order for advisory compliance checks.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/export')}
+            className="flex-1 bg-gray-100 text-gray-800 text-sm font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            Export records
+          </button>
+          <button
+            onClick={() => navigate('/court-order')}
+            className="flex-1 bg-gray-100 text-gray-800 text-sm font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+          >
+            Court order
+          </button>
+        </div>
       </section>
 
       {/* Change password */}
