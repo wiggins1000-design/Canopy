@@ -7,16 +7,14 @@ export default function OnboardingPage() {
   const { createFamily, joinFamily } = useFamily()
   const { signOut } = useAuth()
   const [step, setStep] = useState('choose') // 'choose' | 'create' | 'join'
-  const [familyName, setFamilyName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleCreate() {
-    if (!familyName.trim()) { setError('Enter a family name.'); return }
     setLoading(true)
     setError(null)
-    const { error } = await createFamily(familyName.trim())
+    const { error } = await createFamily()
     if (error) setError(error.message)
     setLoading(false)
   }
@@ -63,14 +61,6 @@ export default function OnboardingPage() {
               <button onClick={() => setStep('choose')} className="text-sm text-canopy-mid flex items-center gap-1 mb-1">
                 ← Back
               </button>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Children's names</label>
-              <input
-                type="text"
-                value={familyName}
-                onChange={(e) => setFamilyName(e.target.value)}
-                placeholder="e.g. Isabelle and Henry"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
-              />
               <p className="text-xs text-gray-400">
                 You'll be set up as Parent A. Share an invite code from the People tab for Parent B to join.
               </p>

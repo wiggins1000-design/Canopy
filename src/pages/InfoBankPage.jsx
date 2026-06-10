@@ -5,12 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
+import AccountsSection from '../components/infobank/AccountsSection'
 
 const SECTIONS = [
   { id: 'medical',   label: 'Medical'   },
   { id: 'school',    label: 'School'    },
   { id: 'contacts',  label: 'Contacts'  },
   { id: 'personal',  label: 'Personal'  },
+  { id: 'accounts',  label: '🔐 Accounts' },
   { id: 'docs',      label: 'Docs'      },
 ]
 
@@ -82,7 +84,7 @@ export default function InfoBankPage() {
   const isPetTab = petNames.has(activeTab)
   const petSections = [{ id: 'vet', label: 'Vet' }, { id: 'medical', label: 'Medical' }, { id: 'docs', label: 'Docs' }]
   const activeSections = activeTab === 'Family'
-    ? [{ id: 'contacts', label: 'Contacts' }, { id: 'docs', label: 'Docs' }]
+    ? [{ id: 'contacts', label: 'Contacts' }, { id: 'accounts', label: '🔐 Accounts' }, { id: 'docs', label: 'Docs' }]
     : isPetTab ? petSections : SECTIONS
 
   const sectionData = getData(activeTab, activeSection)
@@ -126,7 +128,11 @@ export default function InfoBankPage() {
       </div>
 
       {/* Section content */}
-      {activeTab === 'Family' ? (
+      {activeTab === 'Family' && activeSection === 'accounts' ? (
+        <AccountsSection childName="Family" />
+      ) : activeTab === 'Family' && activeSection === 'docs' ? (
+        <VaultSection childName="Family" />
+      ) : activeTab === 'Family' ? (
         <ContactsSection
           data={sectionData}
           isParent={isParent}
@@ -169,6 +175,8 @@ export default function InfoBankPage() {
           isParent={isParent}
           onSave={(data) => saveSection(activeTab, 'contacts', data)}
         />
+      ) : activeSection === 'accounts' ? (
+        <AccountsSection childName={activeTab} />
       ) : activeSection === 'docs' ? (
         <VaultSection childName={activeTab} />
       ) : (

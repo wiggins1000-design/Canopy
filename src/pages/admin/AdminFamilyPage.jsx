@@ -58,7 +58,9 @@ export default function AdminFamilyPage() {
         <button onClick={() => navigate('/admin/dashboard')} className="text-sm text-slate-400 hover:text-white flex items-center gap-1 mb-3">
           ← All families
         </button>
-        <h1 className="text-2xl font-bold text-white">{family.name}</h1>
+        <h1 className="text-2xl font-bold text-white">
+          {members.filter((m) => ['parent_a', 'parent_b'].includes(m.role)).map((m) => m.display_name).join(' & ') || 'Family'}
+        </h1>
         <p className="text-slate-400 text-sm font-mono mt-0.5">
           {family.email_key}@{EMAIL_DOMAIN}
         </p>

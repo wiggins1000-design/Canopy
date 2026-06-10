@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
   }
 
   // ── Build iCal ───────────────────────────────────────────────────────────
-  const ical = buildICal(events, family.name ?? 'Canopy')
+  const ical = buildICal(events, 'Canopy')
 
   return new Response(ical, {
     headers: {

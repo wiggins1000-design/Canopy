@@ -77,10 +77,9 @@ export function FamilyProvider({ children }) {
   const parentA = members.find((m) => m.role === 'parent_a')
   const parentB = members.find((m) => m.role === 'parent_b')
 
-  async function createFamily(name) {
+  async function createFamily() {
     const displayName = user.user_metadata?.display_name ?? user.email
     const { error } = await supabase.rpc('create_family', {
-      family_name: name,
       member_display_name: displayName,
     })
     if (error) return { error }

@@ -63,11 +63,13 @@ export default function InvitePage() {
         <button onClick={signOut} className="text-xs text-gray-400 hover:underline">Sign out</button>
       </div>
 
-      {/* Family info */}
-      {family && (
+      {/* Children */}
+      {family?.config?.children?.filter((c) => c.name).length > 0 && (
         <div className="bg-canopy-frost rounded-2xl px-4 py-3 border border-canopy-mist">
           <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide">Children</p>
-          <p className="font-bold text-gray-900 mt-0.5">{family.name}</p>
+          <p className="font-bold text-gray-900 mt-0.5">
+            {family.config.children.filter((c) => c.name).map((c) => c.name).join(' & ')}
+          </p>
         </div>
       )}
 

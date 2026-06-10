@@ -101,7 +101,7 @@ export default function AdminDashboardPage() {
                 ) : families.map((f) => (
                   <tr key={f.id} onClick={() => navigate(`/admin/family/${f.id}`)} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
-                      <p className="text-white font-medium">{f.name}</p>
+                      <p className="text-white font-medium">{f.parent_names ?? '—'}</p>
                       <p className="text-slate-500 text-xs font-mono mt-0.5">
                         {f.email_key}@{EMAIL_DOMAIN}
                       </p>
