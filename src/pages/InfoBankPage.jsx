@@ -266,10 +266,11 @@ function SectionWrapper({ children, isParent, onSave, saved }) {
 // ── Medical ───────────────────────────────────────────────────
 
 function MedicalSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ gp_name: '', gp_phone: '', gp_address: '', dentist_name: '', dentist_phone: '', dentist_address: '', blood_type: '', allergies: '', medications: '', notes: '', ...data })
+  const defaults = { gp_practice: '', gp_name: '', gp_phone: '', gp_email: '', gp_address: '', dentist_practice: '', dentist_name: '', dentist_phone: '', dentist_email: '', dentist_address: '', blood_type: '', allergies: '', medications: '', notes: '' }
+  const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ gp_name: '', gp_phone: '', gp_address: '', dentist_name: '', dentist_phone: '', dentist_address: '', blood_type: '', allergies: '', medications: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ ...defaults, ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -281,17 +282,21 @@ function MedicalSection({ data, isParent, onSave }) {
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">GP / Doctor</p>
+      <Field label="Practice name" placeholder="Riverside Medical Centre" {...f('gp_practice')} />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Name" placeholder="Dr Smith" {...f('gp_name')} />
+        <Field label="Doctor name" placeholder="Dr Smith" {...f('gp_name')} />
         <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('gp_phone')} />
       </div>
+      <Field label="Email" placeholder="reception@riverside.nhs.uk" type="email" {...f('gp_email')} />
       <Field label="Address" placeholder="1 High Street, London" {...f('gp_address')} />
 
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Dentist</p>
+      <Field label="Practice name" placeholder="Smile Dental Practice" {...f('dentist_practice')} />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Name" placeholder="Dr Jones" {...f('dentist_name')} />
+        <Field label="Dentist name" placeholder="Dr Jones" {...f('dentist_name')} />
         <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('dentist_phone')} />
       </div>
+      <Field label="Email" placeholder="hello@smiledental.co.uk" type="email" {...f('dentist_email')} />
       <Field label="Address" placeholder="2 High Street, London" {...f('dentist_address')} />
 
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Health</p>
