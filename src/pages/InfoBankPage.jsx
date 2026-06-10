@@ -438,10 +438,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
 
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Year group" placeholder="e.g. Year 4" {...f('year_group')} />
-        <Field label="Class" placeholder="e.g. Maple" {...f('class_name')} />
-      </div>
       {/* School URL + auto-extract */}
       <div className="space-y-2 pb-1">
         <Field label="School homepage URL" placeholder="https://stmarys.sch.uk" {...f('school_url')} />
