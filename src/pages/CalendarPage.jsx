@@ -98,7 +98,8 @@ export default function CalendarPage() {
 
   return (
     <div className="px-3 pt-4" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* Header */}
+      <h1 className="text-xl font-bold text-gray-900 mb-3">Calendar</h1>
+      {/* Month nav */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-gray-100" aria-label="Previous month">
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -106,7 +107,7 @@ export default function CalendarPage() {
           </svg>
         </button>
 
-        <h1 className="text-lg font-bold text-gray-900">{format(viewDate, 'MMMM yyyy')}</h1>
+        <span className="text-lg font-bold text-gray-900">{format(viewDate, 'MMMM yyyy')}</span>
 
         <div className="flex items-center gap-1">
           <button

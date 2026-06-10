@@ -78,14 +78,18 @@ export default function InvitePage() {
         <h2 className="text-sm font-semibold text-gray-700">Members</h2>
         {members.map((m) => (
           <div key={m.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${m.role === 'parent_a' ? 'bg-pa-400' : m.role === 'parent_b' ? 'bg-pb-400' : 'bg-gray-300'}`}>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${
+              m.role === 'parent_a' ? 'bg-pa-400 text-white' :
+              m.role === 'parent_b' ? 'bg-pb-400 text-white' :
+              'bg-yellow-200 text-yellow-800'
+            }`}>
               {m.display_name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-gray-900">{m.display_name}</p>
               <Badge
                 label={m.role === 'parent_a' ? 'Parent A' : m.role === 'parent_b' ? 'Parent B' : 'Read-only'}
-                type={m.role === 'parent_a' ? 'parent_a' : m.role === 'parent_b' ? 'parent_b' : 'expired'}
+                type={m.role === 'parent_a' ? 'parent_a' : m.role === 'parent_b' ? 'parent_b' : 'read_only'}
               />
             </div>
             {m.role === userRole && <span className="text-xs text-gray-400">You</span>}

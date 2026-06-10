@@ -3,6 +3,7 @@ const styles = {
   accepted:        'bg-green-100 text-green-800',
   declined:        'bg-red-100 text-red-800',
   expired:         'bg-gray-100 text-gray-500',
+  read_only:       'bg-yellow-100 text-yellow-700',
   offered:         'bg-purple-100 text-purple-800',
   offer_accepted:  'bg-green-100 text-green-800',
   change_pending:  'bg-yellow-100 text-yellow-800',

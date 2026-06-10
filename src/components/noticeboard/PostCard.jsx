@@ -7,13 +7,13 @@ import { tagById } from '../../lib/noticeTags'
 const AUTHOR_STYLES = {
   parent_a:    { dot: 'bg-pa-400',   border: 'border-pa-200',   name: 'text-pa-700'  },
   parent_b:    { dot: 'bg-pb-400',   border: 'border-pb-200',   name: 'text-pb-700'  },
-  third_party: { dot: 'bg-gray-300', border: 'border-gray-200', name: 'text-gray-500' },
+  third_party: { dot: 'bg-yellow-300', border: 'border-yellow-200', name: 'text-yellow-700' },
 }
 
 const ROLE_DISC_COLOUR = {
   parent_a:    'bg-pa-400',
   parent_b:    'bg-pb-400',
-  third_party: 'bg-gray-300',
+  third_party: 'bg-yellow-300',
 }
 
 export default function PostCard({ post, reads = new Set(), onVisible }) {
