@@ -16,8 +16,16 @@ const SECTIONS = [
   { id: 'contacts',  label: 'Contacts' },
 ]
 
+const SECTION_LABELS = {
+  medical: 'medical details', school: 'school details', personal: 'personal details',
+  contacts: 'contacts', accounts: 'account details', vet: 'vet details', docs: 'documents',
+}
+const SECTION_TAGS = {
+  medical: 'health', school: 'school', vet: 'health',
+}
+
 export default function InfoBankPage() {
-  const { family, isParent } = useFamily()
+  const { family, isParent, members, userRole } = useFamily()
   const navigate = useNavigate()
   const children = (family?.config?.children ?? []).filter((c) => c.name)
   const pets     = (family?.config?.pets ?? []).filter((p) => p.name)
@@ -57,6 +65,16 @@ export default function InfoBankPage() {
     )
     if (!error) {
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
+
+      // Post activity to notice board
+      const authorName  = members?.find((m) => m.role === userRole)?.display_name ?? 'A parent'
+      const subjectLabel = tab === 'Family' ? 'family' : `${tab}'s`
+      const sectionLabel = SECTION_LABELS[section] ?? section
+      supabase.rpc('create_notice_post', {
+        p_family_id: family.id,
+        p_content:   `📋 ${authorName} updated ${subjectLabel} ${sectionLabel}`,
+        p_tag:       SECTION_TAGS[section] ?? null,
+      })
 
       const siblings = children.filter((c) => c.name !== tab)
 
