@@ -100,7 +100,7 @@ export default function NewPostSheet({ open, onClose }) {
         await sendSmsNotification({
           familyId:     family.id,
           recipientRole,
-          authorName:   member?.display_name ?? 'Your co-parent',
+          authorName:   member?.display_name ?? 'The other parent',
         })
       }
     }

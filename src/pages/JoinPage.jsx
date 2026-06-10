@@ -93,6 +93,7 @@ export default function JoinPage() {
           <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
             <img src="/logo.png" alt="Canopy" className="h-12" />
           </div>
+          <p className="text-gray-500 text-sm mb-2">Share what matters.</p>
           <h2 className="text-lg font-semibold text-gray-700">You've been invited</h2>
           <p className="text-gray-500 mt-1 text-sm">Sign in or create an account to join Canopy.</p>
         </div>

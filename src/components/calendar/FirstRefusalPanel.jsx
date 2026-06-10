@@ -68,7 +68,7 @@ export default function FirstRefusalPanel({ open, onClose, calendarDays, selecte
       return
     }
 
-    const recipientName = recipientMember?.display_name ?? 'your co-parent'
+    const recipientName = recipientMember?.display_name ?? 'the other parent'
     await sendPushNotification({
       familyId:      family.id,
       recipientRole,

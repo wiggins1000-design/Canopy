@@ -31,14 +31,15 @@ Deno.serve(async (req) => {
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
 
-        <tr><td style="background:#ffffff;padding:32px 40px 24px;text-align:center;border-bottom:3px solid #1b4332;">
+        <tr><td style="background:#ffffff;padding:32px 40px 20px;text-align:center;border-bottom:3px solid #1b4332;">
           <img src="${appOrigin}/logo.png" alt="Canopy" height="48" style="height:48px;width:auto;display:inline-block;" />
+          <p style="margin:10px 0 0;color:#6b7280;font-size:13px;">Share what matters.</p>
         </td></tr>
 
         <tr><td style="padding:36px 40px 28px;">
           <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You've been invited to Canopy</h1>
           <p style="margin:0 0 20px;color:#555;font-size:15px;line-height:1.6;">${senderName} has invited you to join as ${roleLabel}.</p>
-          <p style="margin:0 0 32px;color:#6b7280;font-size:14px;line-height:1.7;">Canopy is a private co-parenting app for managing shared schedules, notices, and family events.</p>
+          <p style="margin:0 0 32px;color:#6b7280;font-size:14px;line-height:1.7;">Canopy is a private family app for staying organised together — shared schedules, a notice board, calendar events, and everything important about your children in one place.</p>
 
           <div style="text-align:center;margin-bottom:32px;">
             <a href="${inviteLink}" style="display:inline-block;background:#1b4332;color:#ffffff;font-weight:600;font-size:15px;padding:14px 40px;border-radius:12px;text-decoration:none;">Accept invitation</a>
