@@ -60,7 +60,7 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {isOffered && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
         {type === 'change_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
         {type === 'offer_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-        {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />}
+        {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
       </div>
     </button>
   )

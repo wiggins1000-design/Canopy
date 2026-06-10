@@ -362,8 +362,8 @@ export default function ConfigPage() {
                   'flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all',
                   startingParent === role
                     ? role === 'parent_a'
-                      ? 'border-pa-400 bg-pa-100 text-pa-900'
-                      : 'border-pb-400 bg-pb-100 text-pb-900'
+                      ? 'border-pa-700 bg-pa-100 text-pa-900'
+                      : 'border-pb-700 bg-pb-100 text-pb-900'
                     : 'border-gray-200 bg-gray-50 text-gray-600',
                 ].join(' ')}
               >
