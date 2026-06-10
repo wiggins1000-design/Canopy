@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
 
-        <tr><td style="background:#1b4332;padding:28px 40px;text-align:center;">
-          <img src="${appOrigin}/logo.png" alt="Canopy" height="44" style="height:44px;width:auto;display:inline-block;" />
+        <tr><td style="background:#ffffff;padding:32px 40px 24px;text-align:center;border-bottom:3px solid #1b4332;">
+          <img src="${appOrigin}/logo.png" alt="Canopy" height="48" style="height:48px;width:auto;display:inline-block;" />
         </td></tr>
 
         <tr><td style="padding:36px 40px 28px;">
