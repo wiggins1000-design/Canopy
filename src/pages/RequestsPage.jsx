@@ -83,7 +83,7 @@ export default function RequestsPage() {
         <div className="space-y-3">
           {filtered.map((item) =>
             item._kind === 'change'
-              ? <ChangeCard key={item.id} change={item} memberName={memberName} />
+              ? <ChangeCard key={item.id} change={item} memberName={memberName} members={members} />
               : <OfferCard  key={item.id} offer={item}  memberName={memberName} />
           )}
         </div>
@@ -92,7 +92,12 @@ export default function RequestsPage() {
   )
 }
 
-function ChangeCard({ change, memberName }) {
+function ChangeCard({ change, memberName, members }) {
+  const assignedMember = members?.find((m) => m.role === change.assigned_to)
+  const requesterMember = members?.find((m) => m.user_id === change.requested_by)
+  const assignedName = requesterMember && assignedMember && requesterMember.user_id === assignedMember.user_id
+    ? 'themself'
+    : (assignedMember?.display_name ?? change.assigned_to)
   const dateRange = change.start_date === change.end_date
     ? format(parseISO(change.start_date), 'd MMM yyyy')
     : `${format(parseISO(change.start_date), 'd MMM')} – ${format(parseISO(change.end_date), 'd MMM yyyy')}`
@@ -108,7 +113,7 @@ function ChangeCard({ change, memberName }) {
       </div>
       <p className="text-xs text-gray-500">
         Requested by <span className="font-medium text-gray-700">{memberName(change.requested_by)}</span>
-        {' · '}assign to <span className="font-medium text-gray-700">{change.assigned_to === 'parent_a' ? 'Parent A' : 'Parent B'}</span>
+        {' · '}assign to <span className="font-medium text-gray-700">{assignedName}</span>
       </p>
       {change.note && <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">"{change.note}"</p>}
       {change.responded_at && (
