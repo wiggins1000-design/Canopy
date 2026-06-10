@@ -216,27 +216,29 @@ function AccountCard({ account, isParent, onEdit, onDelete }) {
 
 function CredentialRow({ label, value, revealed, loading, onReveal, onCopy, copied }) {
   return (
-    <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide w-16 shrink-0">{label}</span>
-      <span className="text-sm text-gray-800 flex-1 truncate font-mono">{value}</span>
-      {onReveal && (
+    <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{label}</p>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-800 flex-1 truncate font-mono">{value}</span>
+        {onReveal && (
+          <button
+            onClick={onReveal}
+            disabled={loading}
+            className="shrink-0 p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {loading
+              ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              : revealed ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />
+            }
+          </button>
+        )}
         <button
-          onClick={onReveal}
-          disabled={loading}
+          onClick={onCopy}
           className="shrink-0 p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          {loading
-            ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-            : revealed ? <EyeOffIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />
-          }
+          {copied ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
         </button>
-      )}
-      <button
-        onClick={onCopy}
-        className="shrink-0 p-1 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
-      >
-        {copied ? <CheckIcon className="w-3.5 h-3.5 text-green-500" /> : <CopyIcon className="w-3.5 h-3.5" />}
-      </button>
+      </div>
     </div>
   )
 }
