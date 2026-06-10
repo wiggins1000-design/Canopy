@@ -227,14 +227,14 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
   return (
     <div>
       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
-      <div className={actionHref ? 'flex items-center gap-2' : ''}>
+      <div className={actionHref ? 'flex items-center gap-2 w-full min-w-0' : ''}>
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={readOnly ? '—' : placeholder}
           readOnly={readOnly}
-          className={`border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${actionHref ? 'flex-1' : 'w-full'}`}
+          className={`border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${actionHref ? 'flex-1 min-w-0' : 'w-full'}`}
         />
         {actionHref && (
           <a
@@ -298,19 +298,15 @@ function MedicalSection({ data, isParent, onSave }) {
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">GP / Doctor</p>
       <Field label="Practice name" placeholder="Riverside Medical Centre" {...f('gp_practice')} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Doctor name" placeholder="Dr Smith" {...f('gp_name')} />
-        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('gp_phone')} />
-      </div>
+      <Field label="Doctor name" placeholder="Dr Smith" {...f('gp_name')} />
+      <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('gp_phone')} />
       <Field label="Email" placeholder="reception@riverside.nhs.uk" type="email" {...f('gp_email')} />
       <Field label="Address" placeholder="1 High Street, London" {...f('gp_address')} />
 
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Dentist</p>
       <Field label="Practice name" placeholder="Smile Dental Practice" {...f('dentist_practice')} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Dentist name" placeholder="Dr Jones" {...f('dentist_name')} />
-        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('dentist_phone')} />
-      </div>
+      <Field label="Dentist name" placeholder="Dr Jones" {...f('dentist_name')} />
+      <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('dentist_phone')} />
       <Field label="Email" placeholder="hello@smiledental.co.uk" type="email" {...f('dentist_email')} />
       <Field label="Address" placeholder="2 High Street, London" {...f('dentist_address')} />
 
