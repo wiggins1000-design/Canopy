@@ -76,7 +76,10 @@ export default function InvitePage() {
       {/* Members list */}
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-gray-700">Members</h2>
-        {members.map((m) => (
+        {[...members].sort((a, b) => {
+          const order = { parent_a: 0, parent_b: 1, third_party: 2 }
+          return (order[a.role] ?? 2) - (order[b.role] ?? 2)
+        }).map((m) => (
           <div key={m.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3">
             <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${
               m.role === 'parent_a' ? 'bg-pa-400 text-white' :
