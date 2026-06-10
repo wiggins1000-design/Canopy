@@ -12,7 +12,7 @@ const OWNER_COLORS = {
   parent_b: 'text-pb-700 bg-pb-50 border-pb-200',
 }
 
-export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
@@ -43,6 +43,16 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
           </svg>
         </button>
       </div>
+
+      {/* Birthday banner */}
+      {birthdayNames.length > 0 && (
+        <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span className="text-base">🎂</span>
+          <p className="text-sm font-medium text-yellow-800">
+            {birthdayNames.join(' & ')}'s birthday!
+          </p>
+        </div>
+      )}
 
       {/* Status badges */}
       <div className="flex flex-wrap gap-1.5 mt-2">

@@ -21,7 +21,7 @@ const TERM_STRIP = {
   inset:   'bg-amber-400',
 }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termType }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termType, isBirthday }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -61,6 +61,7 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {type === 'change_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
         {type === 'offer_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
         {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
+        {isBirthday && <span className="text-[9px] leading-none">🎂</span>}
       </div>
     </button>
   )

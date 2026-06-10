@@ -5,6 +5,7 @@ import { useCalendar } from '../hooks/useCalendar'
 import { useFamily } from '../context/FamilyContext'
 import { useFamilyEvents } from '../hooks/useFamilyEvents'
 import { useTermDates } from '../hooks/useTermDates'
+import { useBirthdays } from '../hooks/useBirthdays'
 import { formatDate } from '../lib/scheduleEngine'
 import CalendarGrid from '../components/calendar/CalendarGrid'
 import DayDetailPanel from '../components/calendar/DayDetailPanel'
@@ -18,6 +19,15 @@ export default function CalendarPage() {
   const { parentA, parentB, schedule, isParent } = useFamily()
   const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
   const termDays = useTermDates(viewDate.getFullYear())
+  const birthdayList = useBirthdays()
+  // Build a map of dateStr → child names for the current view year
+  const birthdayDates = new Map()
+  for (const { name, dob } of birthdayList) {
+    const [, mm, dd] = dob.split('-')
+    const dateStr = `${viewDate.getFullYear()}-${mm}-${dd}`
+    if (!birthdayDates.has(dateStr)) birthdayDates.set(dateStr, [])
+    birthdayDates.get(dateStr).push(name)
+  }
   const [showSchoolDates, setShowSchoolDates] = useState(
     () => localStorage.getItem('canopy-show-school-dates') !== '0'
   )
@@ -191,6 +201,7 @@ export default function CalendarPage() {
             selectingEndDate={selectingEndDate}
             eventDates={eventDates}
             termDays={showSchoolDates ? termDays : null}
+            birthdayDates={birthdayDates}
           />
 
           {/* Inline day detail */}
@@ -198,6 +209,7 @@ export default function CalendarPage() {
             <DayDetailPanel
               day={selectedDay}
               dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
+              birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}

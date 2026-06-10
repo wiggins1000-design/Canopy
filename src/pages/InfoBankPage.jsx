@@ -627,10 +627,10 @@ function ContactsSection({ data, isParent, onSave }) {
 // ── Vet ───────────────────────────────────────────────────────
 
 function VetSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
+  const [d, setD] = useState({ dob: '', vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ dob: '', vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -641,7 +641,8 @@ function VetSection({ data, isParent, onSave }) {
 
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
-      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Vet</p>
+      <Field label="Date of birth" type="date" {...f('dob')} />
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Vet</p>
       <Field label="Practice name" placeholder="Riverside Vets" {...f('vet_name')} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('vet_phone')} />
@@ -694,10 +695,10 @@ function PetMedicalSection({ data, isParent, onSave }) {
 // ── Personal ──────────────────────────────────────────────────
 
 function PersonalSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data })
+  const [d, setD] = useState({ dob: '', top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ dob: '', top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -708,6 +709,7 @@ function PersonalSection({ data, isParent, onSave }) {
 
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+      <Field label="Date of birth" type="date" {...f('dob')} />
       <div className="grid grid-cols-3 gap-3">
         <Field label="Top size" placeholder="Age 8 / 128cm" {...f('top_size')} />
         <Field label="Bottoms" placeholder="Age 8 / 128cm" {...f('bottom_size')} />
