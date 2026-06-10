@@ -8,12 +8,12 @@ import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
 
 const SECTIONS = [
-  { id: 'medical',   label: 'Medical'   },
-  { id: 'school',    label: 'School'    },
-  { id: 'contacts',  label: 'Contacts'  },
-  { id: 'personal',  label: 'Personal'  },
-  { id: 'accounts',  label: '🔐 Accounts' },
-  { id: 'docs',      label: 'Docs'      },
+  { id: 'medical',   label: 'Medical'  },
+  { id: 'school',    label: 'School'   },
+  { id: 'personal',  label: 'Personal' },
+  { id: 'accounts',  label: 'Accounts' },
+  { id: 'docs',      label: 'Docs'     },
+  { id: 'contacts',  label: 'Contacts' },
 ]
 
 export default function InfoBankPage() {
@@ -129,7 +129,7 @@ export default function InfoBankPage() {
   const isPetTab = petNames.has(activeTab)
   const petSections = [{ id: 'vet', label: 'Vet' }, { id: 'medical', label: 'Medical' }, { id: 'docs', label: 'Docs' }]
   const activeSections = activeTab === 'Family'
-    ? [{ id: 'contacts', label: 'Contacts' }, { id: 'accounts', label: '🔐 Accounts' }, { id: 'docs', label: 'Docs' }]
+    ? [{ id: 'accounts', label: 'Accounts' }, { id: 'docs', label: 'Docs' }, { id: 'contacts', label: 'Contacts' }]
     : isPetTab ? petSections : SECTIONS
 
   const sectionData = getData(activeTab, activeSection)
