@@ -439,17 +439,32 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
       {/* School URL + auto-extract */}
-      <div className="space-y-2 pb-1">
-        <Field label="School homepage URL" placeholder="https://stmarys.sch.uk" {...f('school_url')} />
-        {isParent && d.school_url && (
-          <button
-            onClick={extractSchoolInfo}
-            disabled={extracting}
-            className="w-full bg-canopy-mid text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-canopy-deep transition-colors disabled:opacity-50"
-          >
-            {extracting ? 'Extracting school info…' : 'Extract school info & term dates'}
-          </button>
-        )}
+      <div className="space-y-1.5 pb-1">
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">School homepage URL</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={d.school_url}
+            onChange={(v) => { f('school_url').onChange(v.target.value) }}
+            placeholder="https://stmarys.sch.uk"
+            readOnly={!isParent}
+            className={`flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${!isParent ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+          />
+          {isParent && (
+            <button
+              onClick={extractSchoolInfo}
+              disabled={extracting || !d.school_url}
+              title="Fetch school info & term dates"
+              className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-canopy-mid text-white hover:bg-canopy-deep transition-colors disabled:opacity-40"
+            >
+              {extracting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FetchIcon className="w-5 h-5" />
+              )}
+            </button>
+          )}
+        </div>
         {extractResult && (
           <p className={`text-xs font-medium ${extractResult.type === 'error' ? 'text-red-600' : extractResult.type === 'info' ? 'text-amber-600' : 'text-green-600'}`}>
             {extractResult.message}
@@ -657,5 +672,17 @@ function PersonalSection({ data, isParent, onSave }) {
       </div>
       <TextArea label="Notes" placeholder="e.g. Prefers slim fit, sensitive skin…" rows={3} {...f('notes')} />
     </SectionWrapper>
+  )
+}
+
+// Globe with down-arrow: "fetch from internet"
+function FetchIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" d="M3.5 9h17M3.5 15h17" />
+      <path strokeLinecap="round" d="M12 3c-2.5 3-3.5 5.5-3.5 9s1 6 3.5 9M12 3c2.5 3 3.5 5.5 3.5 9s-1 6-3.5 9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-5M10 14l2 2 2-2" />
+    </svg>
   )
 }
