@@ -5,7 +5,7 @@ export default function PasswordField({ label, value, onChange, placeholder, req
 
   return (
     <div>
-      <label className={`text-xs font-semibold uppercase tracking-wide block mb-1 ${dark ? 'text-slate-400' : 'text-gray-500'}`}>
+      <label className={`text-xs font-semibold uppercase tracking-wide block mb-2 ${dark ? 'text-slate-400' : 'text-gray-500'}`}>
         {label}
       </label>
       <div className="relative">

@@ -140,7 +140,7 @@ export default function JoinPage() {
 function Field({ label, type, value, onChange, placeholder, required }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
+      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">{label}</label>
       <input
         type={type}
         value={value}
