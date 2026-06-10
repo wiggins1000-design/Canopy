@@ -125,11 +125,11 @@ export default function InvitePage() {
 
           <div className="flex gap-2">
             {!hasParentB && (
-              <Button variant="secondary" className="flex-1 text-xs" loading={generating === 'parent_b'} onClick={() => handleGenerateInvite('parent_b')}>
+              <Button className="flex-1 text-xs" loading={generating === 'parent_b'} onClick={() => handleGenerateInvite('parent_b')}>
                 {inviteEmail.trim() ? 'Email invite to Parent B' : 'Invite Parent B'}
               </Button>
             )}
-            <Button variant="secondary" className="flex-1 text-xs" loading={generating === 'third_party'} onClick={() => handleGenerateInvite('third_party')}>
+            <Button className="flex-1 text-xs" loading={generating === 'third_party'} onClick={() => handleGenerateInvite('third_party')}>
               {inviteEmail.trim() ? 'Email read-only invite' : 'Invite read-only'}
             </Button>
           </div>
