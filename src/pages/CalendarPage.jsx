@@ -156,7 +156,7 @@ export default function CalendarPage() {
       <div className="flex gap-4 mb-3 px-1 flex-wrap">
         <LegendDot color="bg-pa-400" label={pa} />
         <LegendDot color="bg-pb-400" label={pb} />
-        <LegendDot color="bg-teal-400" label="Events" />
+        <LegendDot color="bg-gray-500" label="Events" />
         {showSchoolDates && termDays.size > 0 && (
           <>
             <LegendStrip color="bg-purple-400" label="Holiday" />

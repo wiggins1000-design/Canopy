@@ -141,24 +141,24 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
       {dayEvents.length > 0 && (
         <div className="mt-3 space-y-1.5">
           {dayEvents.map((ev) => (
-            <div key={ev.id} className="bg-teal-50 border border-teal-200 rounded-xl px-3 py-2">
+            <div key={ev.id} className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-teal-900 truncate">{ev.title}</p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">{ev.title}</p>
                   {ev.event_time && (
-                    <p className="text-xs text-teal-700">{ev.event_time}</p>
+                    <p className="text-xs text-gray-600">{ev.event_time}</p>
                   )}
                   {ev.notes && (
-                    <p className="text-xs text-teal-700 mt-0.5">{ev.notes}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{ev.notes}</p>
                   )}
                   {ev.source === 'email_ai' && ev.source_subject && (
-                    <p className="text-[10px] text-teal-500 mt-0.5">From email: "{ev.source_subject}"</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">From email: "{ev.source_subject}"</p>
                   )}
                 </div>
                 {isParent && (
                   <button
                     onClick={() => setEditingEvent(ev)}
-                    className="shrink-0 p-1 rounded-lg hover:bg-teal-100 text-teal-600 transition-colors"
+                    className="shrink-0 p-1 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
                     aria-label="Edit event"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
