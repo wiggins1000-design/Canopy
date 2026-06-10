@@ -1,16 +1,16 @@
 import { formatDate } from '../../lib/scheduleEngine'
 
 const OWNER_BG = {
-  parent_a: 'bg-pa-100',
-  parent_b: 'bg-pb-100',
+  parent_a: 'bg-pa-400',
+  parent_b: 'bg-pb-400',
 }
 const OWNER_TEXT = {
   parent_a: 'text-pa-900',
   parent_b: 'text-pb-900',
 }
 const OWNER_RING = {
-  parent_a: 'ring-pa-400',
-  parent_b: 'ring-pb-400',
+  parent_a: 'ring-pa-700',
+  parent_b: 'ring-pb-700',
 }
 
 /**
