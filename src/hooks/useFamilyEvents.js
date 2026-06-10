@@ -8,7 +8,7 @@ function expandRecurring(ev, from, to) {
   const recEnd = ev.recurrence_end ? new Date(ev.recurrence_end + 'T00:00:00') : null
   const limit = recEnd && recEnd < to ? recEnd : to
 
-  // Fast-forward to first candidate near `from`
+  // Fast-forward to first candidate at or before `from`
   if (cur < from) {
     if (ev.recurrence === 'weekly' || ev.recurrence === 'fortnightly') {
       const stepDays = ev.recurrence === 'weekly' ? 7 : 14
@@ -25,7 +25,9 @@ function expandRecurring(ev, from, to) {
   let iters = 0
   while (cur <= limit && iters < 100) {
     iters++
-    if (cur >= from) instances.push({ ...ev, event_date: cur.toISOString().split('T')[0] })
+    if (cur >= from) {
+      instances.push({ ...ev, event_date: cur.toISOString().split('T')[0] })
+    }
     const prev = +cur
     if (ev.recurrence === 'weekly')           cur.setDate(cur.getDate() + 7)
     else if (ev.recurrence === 'fortnightly') cur.setDate(cur.getDate() + 14)
@@ -48,27 +50,24 @@ export function useFamilyEvents(year, month) {
     const from = `${year}-${String(month).padStart(2, '0')}-01`
     const lastDay = new Date(year, month, 0).getDate()
     const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const fromDate = new Date(from + 'T00:00:00')
+    const toDate   = new Date(to   + 'T00:00:00')
 
-    // Non-recurring events within this month
-    const [{ data: inMonth }, { data: recurringBefore }] = await Promise.all([
+    // Two simple queries — no complex OR needed
+    const [{ data: nonRecurring }, { data: allRecurring }] = await Promise.all([
+      // Non-recurring events within this month only
       supabase.from('family_events').select('*')
         .is('recurrence', null)
-        .gte('event_date', from).lte('event_date', to)
-        .order('event_date'),
-      // Recurring events that started before this month and may still be recurring into it
-      supabase.from('family_events').select('*')
-        .not('recurrence', 'is', null)
+        .gte('event_date', from)
         .lte('event_date', to)
-        .or(`recurrence_end.is.null,recurrence_end.gte.${from}`),
+        .order('event_date'),
+      // All recurring events (date filtering is done client-side by expandRecurring)
+      supabase.from('family_events').select('*')
+        .not('recurrence', 'is', null),
     ])
 
-    const fromDate = new Date(from + 'T00:00:00')
-    const toDate   = new Date(to + 'T00:00:00')
-
-    // Expand all recurring events (includes those starting within this month too)
-    const expanded = (recurringBefore ?? []).flatMap((ev) => expandRecurring(ev, fromDate, toDate))
-
-    const combined = [...(inMonth ?? []), ...expanded]
+    const expanded = (allRecurring ?? []).flatMap((ev) => expandRecurring(ev, fromDate, toDate))
+    const combined = [...(nonRecurring ?? []), ...expanded]
     combined.sort((a, b) => a.event_date.localeCompare(b.event_date))
 
     setEvents(combined)
