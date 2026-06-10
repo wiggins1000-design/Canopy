@@ -21,36 +21,42 @@ Deno.serve(async (req) => {
   }
 
   const roleLabel = role === 'parent_b' ? 'the other parent' : 'a read-only member'
+  const appOrigin = new URL(inviteLink).origin
 
   const html = `<!DOCTYPE html>
 <html>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:40px 20px;color:#111;background:#fff;">
-  <div style="text-align:center;margin-bottom:32px;">
-    <div style="display:inline-block;width:56px;height:56px;background:#2563eb;border-radius:16px;font-size:28px;line-height:56px;margin-bottom:16px;">🌿</div>
-    <h1 style="font-size:22px;font-weight:700;margin:0 0 8px;">You've been invited to Canopy</h1>
-    <p style="color:#666;margin:0;font-size:15px;">${senderName} has invited you to join as ${roleLabel}.</p>
-  </div>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4fbf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf4;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
 
-  <p style="color:#555;line-height:1.7;font-size:14px;">
-    Canopy is a private co-parenting app for managing shared schedules, notices, and family events.
-  </p>
+        <tr><td style="background:#1b4332;padding:28px 40px;text-align:center;">
+          <img src="${appOrigin}/logo.png" alt="Canopy" height="44" style="height:44px;width:auto;display:inline-block;" />
+        </td></tr>
 
-  <div style="text-align:center;margin:32px 0;">
-    <a href="${inviteLink}"
-       style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;font-size:15px;padding:14px 36px;border-radius:12px;text-decoration:none;">
-      Accept invitation
-    </a>
-  </div>
+        <tr><td style="padding:36px 40px 28px;">
+          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">You've been invited to Canopy</h1>
+          <p style="margin:0 0 20px;color:#555;font-size:15px;line-height:1.6;">${senderName} has invited you to join as ${roleLabel}.</p>
+          <p style="margin:0 0 32px;color:#6b7280;font-size:14px;line-height:1.7;">Canopy is a private co-parenting app for managing shared schedules, notices, and family events.</p>
 
-  <p style="color:#999;font-size:13px;text-align:center;margin-bottom:4px;">Or enter this code manually when prompted:</p>
-  <p style="text-align:center;font-family:monospace;font-size:30px;font-weight:700;letter-spacing:6px;color:#111;margin:4px 0 32px;">
-    ${inviteCode}
-  </p>
+          <div style="text-align:center;margin-bottom:32px;">
+            <a href="${inviteLink}" style="display:inline-block;background:#1b4332;color:#ffffff;font-weight:600;font-size:15px;padding:14px 40px;border-radius:12px;text-decoration:none;">Accept invitation</a>
+          </div>
 
-  <hr style="border:none;border-top:1px solid #eee;margin-bottom:24px;" />
-  <p style="color:#bbb;font-size:12px;text-align:center;margin:0;">
-    This invite expires in 7 days. If you weren't expecting this, you can safely ignore it.
-  </p>
+          <div style="background:#f4fbf4;border:1px solid #d8f3dc;border-radius:14px;padding:20px;text-align:center;">
+            <p style="margin:0 0 10px;color:#6b7280;font-size:13px;">Or enter this code manually when prompted:</p>
+            <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:30px;font-weight:700;letter-spacing:8px;color:#1b4332;">${inviteCode}</p>
+          </div>
+        </td></tr>
+
+        <tr><td style="padding:20px 40px 28px;border-top:1px solid #d8f3dc;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;line-height:1.6;">This invite expires in 7 days. If you weren't expecting this, you can safely ignore it.</p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`
 
