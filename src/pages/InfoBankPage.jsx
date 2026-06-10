@@ -219,17 +219,32 @@ export default function InfoBankPage() {
 // ── Shared field components ───────────────────────────────────
 
 function Field({ label, value, onChange, placeholder, readOnly, type = 'text' }) {
+  const actionHref = value
+    ? type === 'tel'   ? `tel:${value.replace(/\s/g, '')}`
+    : type === 'email' ? `mailto:${value}`
+    : null : null
+
   return (
     <div>
       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={readOnly ? '—' : placeholder}
-        readOnly={readOnly}
-        className={`w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-      />
+      <div className={actionHref ? 'flex items-center gap-2' : ''}>
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={readOnly ? '—' : placeholder}
+          readOnly={readOnly}
+          className={`border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${actionHref ? 'flex-1' : 'w-full'}`}
+        />
+        {actionHref && (
+          <a
+            href={actionHref}
+            className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-canopy-frost hover:text-canopy-deep transition-colors"
+          >
+            {type === 'tel' ? <PhoneIcon className="w-4 h-4" /> : <MailIcon className="w-4 h-4" />}
+          </a>
+        )}
+      </div>
     </div>
   )
 }
@@ -677,6 +692,22 @@ function PersonalSection({ data, isParent, onSave }) {
       </div>
       <TextArea label="Notes" placeholder="e.g. Prefers slim fit, sensitive skin…" rows={3} {...f('notes')} />
     </SectionWrapper>
+  )
+}
+
+function PhoneIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  )
+}
+
+function MailIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
   )
 }
 
