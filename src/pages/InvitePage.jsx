@@ -58,10 +58,7 @@ export default function InvitePage() {
 
   return (
     <div className="px-4 py-5 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">People</h1>
-        <button onClick={signOut} className="text-xs text-gray-400 hover:underline">Sign out</button>
-      </div>
+      <h1 className="text-xl font-bold text-gray-900">People</h1>
 
       {/* Children */}
       {family?.config?.children?.filter((c) => c.name).length > 0 && (

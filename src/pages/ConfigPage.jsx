@@ -13,7 +13,7 @@ const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
   const { schedule, saveSchedule, updateFamilyConfig, family, member, parentA, parentB, isParent, reload } = useFamily()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const emailDomain = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
   const familyEmail = family?.email_key ? `${family.email_key}@${emailDomain}` : null
   const navigate    = useNavigate()
@@ -296,6 +296,9 @@ export default function ConfigPage() {
             <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
               {passwordSaved ? '✓ Password updated' : 'Update password'}
             </Button>
+            <button onClick={signOut} className="w-full text-sm text-red-500 py-2 hover:underline">
+              Sign out
+            </button>
           </div>
         </AccordionGroup>
       </div>
@@ -560,6 +563,12 @@ export default function ConfigPage() {
           <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
             {passwordSaved ? '✓ Password updated' : 'Update password'}
           </Button>
+          <button
+            onClick={signOut}
+            className="w-full text-sm text-red-500 py-2 hover:underline"
+          >
+            Sign out
+          </button>
         </div>
       </AccordionGroup>
 
