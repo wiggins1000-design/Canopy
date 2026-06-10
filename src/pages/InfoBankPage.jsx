@@ -58,11 +58,12 @@ export default function InfoBankPage() {
     if (!error) {
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
 
+      const siblings = children.filter((c) => c.name !== tab)
+
       // School sync: propagate shared school fields to siblings at the same school
       if (section === 'school' && data.school_name) {
         const SHARED = ['school_name', 'school_address', 'school_phone', 'school_email', 'head_teacher', 'hours', 'school_url']
         const sharedPatch = Object.fromEntries(SHARED.map((k) => [k, data[k] ?? '']))
-        const siblings = children.filter((c) => c.name !== tab)
         for (const sibling of siblings) {
           const sibData = allData[`${sibling.name}||school`] ?? {}
           if (!sibData.school_name || sibData.school_name === data.school_name) {
@@ -72,6 +73,32 @@ export default function InfoBankPage() {
               { onConflict: 'family_id,child_name,section' }
             )
             setAllData((prev) => ({ ...prev, [`${sibling.name}||school`]: merged }))
+          }
+        }
+      }
+
+      // Medical sync: propagate GP and dentist details to siblings who share the same practice (or have none set)
+      if (section === 'medical') {
+        const GP_FIELDS      = ['gp_practice', 'gp_name', 'gp_phone', 'gp_email', 'gp_address']
+        const DENTIST_FIELDS = ['dentist_practice', 'dentist_name', 'dentist_phone', 'dentist_email', 'dentist_address']
+        for (const sibling of siblings) {
+          const sibData = allData[`${sibling.name}||medical`] ?? {}
+          let merged = { ...sibData }
+          let changed = false
+          if (data.gp_practice && (!sibData.gp_practice || sibData.gp_practice === data.gp_practice)) {
+            GP_FIELDS.forEach((k) => { merged[k] = data[k] ?? '' })
+            changed = true
+          }
+          if (data.dentist_practice && (!sibData.dentist_practice || sibData.dentist_practice === data.dentist_practice)) {
+            DENTIST_FIELDS.forEach((k) => { merged[k] = data[k] ?? '' })
+            changed = true
+          }
+          if (changed) {
+            await supabase.from('info_bank').upsert(
+              { family_id: family.id, child_name: sibling.name, section: 'medical', data: merged, updated_at: new Date().toISOString() },
+              { onConflict: 'family_id,child_name,section' }
+            )
+            setAllData((prev) => ({ ...prev, [`${sibling.name}||medical`]: merged }))
           }
         }
       }
