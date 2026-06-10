@@ -13,13 +13,16 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
   const { family, member, userRole, parentA, parentB } = useFamily()
   const { user } = useAuth()
 
-  const [title, setTitle]     = useState('')
-  const [date, setDate]       = useState(initialDate ?? formatDate(new Date()))
-  const [endDate, setEndDate] = useState('')
-  const [time, setTime]       = useState('')
-  const [notes, setNotes]     = useState('')
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState(null)
+  const [title, setTitle]           = useState('')
+  const [date, setDate]             = useState(initialDate ?? formatDate(new Date()))
+  const [endDate, setEndDate]       = useState('')
+  const [time, setTime]             = useState('')
+  const [endTime, setEndTime]       = useState('')
+  const [recurrence, setRecurrence] = useState('')
+  const [recurrenceEnd, setRecurrenceEnd] = useState('')
+  const [notes, setNotes]           = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState(null)
 
   // Photo capture
   const [extracting, setExtracting]     = useState(false)
@@ -144,6 +147,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     if (ev.title) setTitle(ev.title)
     if (ev.date)  setDate(ev.date)
     if (ev.end_date) setEndDate(ev.end_date)
+    if (ev.end_time) setEndTime(ev.end_time)
     if (ev.time)  setTime(ev.time)
     if (ev.notes) setNotes(ev.notes)
   }
@@ -157,13 +161,16 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setError(null)
 
     const { error: dbErr } = await supabase.rpc('create_family_event', {
-      p_family_id:  family.id,
-      p_title:      title.trim(),
-      p_event_date: date,
-      p_end_date:   endDate || null,
-      p_event_time: time || null,
-      p_notes:      notes.trim() || null,
-      p_source:     'manual',
+      p_family_id:      family.id,
+      p_title:          title.trim(),
+      p_event_date:     date,
+      p_end_date:       endDate || null,
+      p_event_time:     time || null,
+      p_end_time:       endTime || null,
+      p_notes:          notes.trim() || null,
+      p_source:         'manual',
+      p_recurrence:     recurrence || null,
+      p_recurrence_end: recurrenceEnd || null,
     })
 
     if (dbErr) { setError(dbErr.message); setSaving(false); return }
@@ -200,6 +207,9 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setDate(initialDate ?? formatDate(new Date()))
     setEndDate('')
     setTime('')
+    setEndTime('')
+    setRecurrence('')
+    setRecurrenceEnd('')
     setNotes('')
     setError(null)
     setSaving(false)
@@ -308,16 +318,59 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+              Start time <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => { setTime(e.target.value); if (!e.target.value) setEndTime('') }}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+              End time <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              disabled={!time}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+        </div>
+
         <div>
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
-            Time <span className="font-normal text-gray-400">(optional)</span>
-          </label>
-          <input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
-          />
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Repeat</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {[{ v: '', l: 'None' }, { v: 'weekly', l: 'Weekly' }, { v: 'fortnightly', l: 'Fortnightly' }, { v: 'monthly', l: 'Monthly' }, { v: 'yearly', l: 'Yearly' }].map(({ v, l }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => { setRecurrence(v); if (!v) setRecurrenceEnd('') }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  recurrence === v
+                    ? 'bg-canopy-mid text-white border-canopy-mid'
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-canopy-green'
+                }`}
+              >{l}</button>
+            ))}
+          </div>
+          {recurrence && (
+            <div className="mt-2">
+              <label className="text-xs text-gray-400 block mb-1">End repeat <span className="text-gray-300">(optional)</span></label>
+              <input
+                type="date"
+                value={recurrenceEnd}
+                onChange={(e) => setRecurrenceEnd(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+              />
+            </div>
+          )}
         </div>
 
         <div>

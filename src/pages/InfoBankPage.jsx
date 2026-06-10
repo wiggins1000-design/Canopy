@@ -57,6 +57,24 @@ export default function InfoBankPage() {
     )
     if (!error) {
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
+
+      // School sync: propagate shared school fields to siblings at the same school
+      if (section === 'school' && data.school_name) {
+        const SHARED = ['school_name', 'school_address', 'school_phone', 'school_email', 'head_teacher', 'hours', 'school_url']
+        const sharedPatch = Object.fromEntries(SHARED.map((k) => [k, data[k] ?? '']))
+        const siblings = children.filter((c) => c.name !== tab)
+        for (const sibling of siblings) {
+          const sibData = allData[`${sibling.name}||school`] ?? {}
+          if (!sibData.school_name || sibData.school_name === data.school_name) {
+            const merged = { ...sibData, ...sharedPatch }
+            await supabase.from('info_bank').upsert(
+              { family_id: family.id, child_name: sibling.name, section: 'school', data: merged, updated_at: new Date().toISOString() },
+              { onConflict: 'family_id,child_name,section' }
+            )
+            setAllData((prev) => ({ ...prev, [`${sibling.name}||school`]: merged }))
+          }
+        }
+      }
     }
     return { error }
   }
@@ -93,23 +111,31 @@ export default function InfoBankPage() {
     <div className="px-4 py-5 space-y-4">
       <h1 className="text-xl font-bold text-gray-900">Info Bank</h1>
 
-      {/* Child / Pet / Family tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => {
-              const defaultSection = petNames.has(tab) ? 'vet' : tab === 'Family' ? 'contacts' : 'medical'
-              setActiveTab(tab)
-              setActiveSection(defaultSection)
-            }}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors shrink-0 ${
-              activeTab === tab ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Subject dropdown */}
+      <div className="relative">
+        <select
+          value={activeTab ?? ''}
+          onChange={(e) => {
+            const tab = e.target.value
+            const defaultSection = petNames.has(tab) ? 'vet' : tab === 'Family' ? 'contacts' : 'medical'
+            setActiveTab(tab)
+            setActiveSection(defaultSection)
+          }}
+          className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-canopy-green pr-10"
+        >
+          {children.map((c) => (
+            <option key={c.name} value={c.name}>{c.name}</option>
+          ))}
+          {pets.map((p) => (
+            <option key={p.name} value={p.name}>🐾 {p.name}</option>
+          ))}
+          <option value="Family">Family</option>
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </div>
 
       {/* Section tabs */}

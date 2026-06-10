@@ -146,7 +146,10 @@ export default function DayDetailPanel({ day, dayEvents = [], onRequestChange, o
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{ev.title}</p>
                   {ev.event_time && (
-                    <p className="text-xs text-gray-600">{ev.event_time}</p>
+                    <p className="text-xs text-gray-600">
+                      {ev.event_time}{ev.end_time ? ` – ${ev.end_time}` : ''}
+                      {ev.recurrence && <span className="ml-1.5 text-gray-400">↻ {ev.recurrence}</span>}
+                    </p>
                   )}
                   {ev.notes && (
                     <p className="text-xs text-gray-600 mt-0.5">{ev.notes}</p>
