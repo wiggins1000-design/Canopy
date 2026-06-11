@@ -271,8 +271,17 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
     : type === 'email' ? `mailto:${value}`
     : null : null
 
-  function handleCopy() {
-    navigator.clipboard.writeText(value)
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(value)
+    } catch {
+      const el = document.createElement('input')
+      el.value = value
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
