@@ -5,9 +5,9 @@ import { useFamily } from '../../context/FamilyContext'
 import { tagById } from '../../lib/noticeTags'
 
 const AUTHOR_STYLES = {
-  parent_a:    { dot: 'bg-pa-400',   border: 'border-pa-200',   name: 'text-pa-700'  },
-  parent_b:    { dot: 'bg-pb-400',   border: 'border-pb-200',   name: 'text-pb-700'  },
-  third_party: { dot: 'bg-yellow-300', border: 'border-yellow-200', name: 'text-yellow-700' },
+  parent_a:    { dot: 'bg-pa-400',     leftColor: '#52b788', name: 'text-canopy-mid'   },
+  parent_b:    { dot: 'bg-pb-400',     leftColor: '#9ca3af', name: 'text-gray-600'     },
+  third_party: { dot: 'bg-yellow-400', leftColor: '#f59e0b', name: 'text-yellow-700'   },
 }
 
 const ROLE_DISC_COLOUR = {
@@ -67,7 +67,11 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
   )
 
   return (
-    <div ref={cardRef} className={`bg-white rounded-2xl border ${styles.border} p-4 space-y-3`}>
+    <div
+      ref={cardRef}
+      className="bg-canopy-frost rounded-2xl border border-canopy-mist border-l-4 p-4 space-y-3 shadow-sm"
+      style={{ borderLeftColor: styles.leftColor }}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
