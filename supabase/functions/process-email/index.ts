@@ -73,11 +73,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'no to address' }), { status: 400, headers: CORS })
   }
 
-  const { data: family } = await supabase
+  const { data: family, error: familyErr } = await supabase
     .from('families')
-    .select('id, name, config')
+    .select('id, config')
     .eq('email_key', emailKey)
     .single()
+  if (familyErr) console.error('Family lookup error:', familyErr.message)
 
   if (!family) {
     console.log('No family found for email_key:', emailKey)
