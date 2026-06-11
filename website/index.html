@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canopy — The family app that keeps everyone in the loop</title>
+  <meta name="description" content="Canopy is a private family app for managing shared schedules, notices, and everything important about your children — in one secure place.">
+  <meta property="og:title" content="Canopy — Share what matters.">
+  <meta property="og:description" content="A private family app for staying organised together. Shared calendar, notice board, children's info, and secure documents.">
+  <meta property="og:url" content="https://mycanopymail.com">
+  <meta name="theme-color" content="#1b4332">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canopy: {
+              deep:  '#1b4332',
+              mid:   '#2d6a4f',
+              green: '#52b788',
+              light: '#74c69d',
+              mist:  '#d8f3dc',
+              frost: '#f4fbf4',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .feature-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(27,67,50,0.10); }
+    .phone-wrap {
+      width: 220px;
+      aspect-ratio: 9/19;
+      background: linear-gradient(160deg, #1b4332 0%, #2d6a4f 100%);
+      border-radius: 2.5rem;
+      box-shadow: 0 40px 80px rgba(27,67,50,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
+      padding: 12px;
+      position: relative;
+    }
+    .phone-screen {
+      background: #f4fbf4;
+      border-radius: 2rem;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    /* Placeholder screenshot mockup lines */
+    .mock-bar { background: #d8f3dc; border-radius: 4px; }
+    .mock-cell { background: #e8f5e9; border-radius: 8px; }
+  </style>
+</head>
+<body class="bg-white text-gray-900 antialiased" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+
+  <!-- ── Navigation ── -->
+  <nav class="bg-canopy-deep sticky top-0 z-50 shadow-sm">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-white font-bold text-xl tracking-tight">Canopy</span>
+        <span class="hidden sm:block text-canopy-mist text-sm">Share what matters.</span>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-5">
+        <a href="#features" class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">Features</a>
+        <a href="#pricing"  class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">Pricing</a>
+        <!-- Update this URL once Railway custom domain is set -->
+        <a href="https://canopy-production-4239.up.railway.app"
+           class="text-sm font-semibold bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <section class="bg-canopy-frost pt-16 pb-20 px-5">
+    <div class="max-w-5xl mx-auto flex flex-col lg:flex-row items-center gap-12">
+
+      <!-- Copy -->
+      <div class="flex-1 text-center lg:text-left">
+        <p class="text-canopy-mid font-semibold text-xs uppercase tracking-widest mb-4">Share what matters.</p>
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight mb-5">
+          The family app that keeps everyone in the loop
+        </h1>
+        <p class="text-lg text-gray-600 leading-relaxed mb-8 max-w-xl mx-auto lg:mx-0">
+          Canopy is a private family app for staying organised together — shared schedules, a family notice board, and everything important about your children in one secure place.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+          <!-- ──────────────────────────────────────────────────────────────────
+               STRIPE PAYMENT LINK GOES HERE
+               1. Go to Stripe Dashboard → Payment Links → Create
+               2. Add product: "Canopy Family Plan" £8.99/month recurring
+               3. Set success URL: https://app.mycanopymail.com
+               4. Replace the href="#" below with your Payment Link URL
+               ────────────────────────────────────────────────────────────────── -->
+          <a href="#pricing"
+             class="bg-canopy-deep hover:bg-canopy-mid text-white font-semibold px-8 py-4 rounded-2xl text-base transition-colors shadow-lg"
+             style="box-shadow: 0 8px 20px rgba(27,67,50,0.25);">
+            Get started — £8.99/month
+          </a>
+          <a href="#features"
+             class="bg-white border-2 border-canopy-mist text-canopy-deep font-semibold px-8 py-4 rounded-2xl text-base transition-colors hover:bg-canopy-mist hover:border-canopy-light">
+            See features
+          </a>
+        </div>
+        <p class="text-xs text-gray-400 mt-4">One price for the whole family. Cancel anytime.</p>
+      </div>
+
+      <!-- Phone mockup — replace inner content with <img> once screenshots are ready -->
+      <div class="flex-shrink-0 flex justify-center lg:justify-end">
+        <div class="phone-wrap">
+          <!-- ── SCREENSHOT PLACEHOLDER ──
+               Replace this entire <div class="phone-screen"> with:
+               <img src="images/app-screenshot.png" class="rounded-[2rem] w-full h-full object-cover object-top" alt="Canopy app">
+               once you have a screenshot. -->
+          <div class="phone-screen gap-1.5 p-3">
+            <!-- Nav bar -->
+            <div class="mock-bar h-2 w-24 mx-auto mb-2" style="background:#1b4332;border-radius:4px;opacity:0.8;"></div>
+            <!-- Calendar header -->
+            <div class="flex justify-between items-center mb-1">
+              <div class="mock-bar h-2 w-10"></div>
+              <div class="mock-bar h-2 w-14"></div>
+              <div class="mock-bar h-2 w-10"></div>
+            </div>
+            <!-- Calendar grid (7 cols × 6 rows = 42 cells) -->
+            <div class="grid grid-cols-7 gap-0.5 mb-2">
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.4;"></div>
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.4;"></div>
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.4;"></div>
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.4;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#74c69d;border-radius:3px;opacity:0.5;"></div>
+              <div class="aspect-square" style="background:#74c69d;border-radius:3px;opacity:0.5;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#74c69d;border-radius:3px;opacity:0.5;"></div>
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.6;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#2d6a4f;border-radius:3px;opacity:0.7;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#1b4332;border-radius:3px;opacity:0.9;"></div>
+              <div class="aspect-square" style="background:#74c69d;border-radius:3px;opacity:0.5;"></div>
+              <div class="aspect-square" style="background:#74c69d;border-radius:3px;opacity:0.5;"></div>
+              <div class="aspect-square" style="background:#d8f3dc;border-radius:3px;opacity:0.4;"></div>
+            </div>
+            <!-- Event items -->
+            <div class="space-y-1.5 flex-1">
+              <div class="mock-cell p-1.5" style="background:#d8f3dc;">
+                <div class="mock-bar h-1.5 w-20 mb-1" style="background:#2d6a4f;opacity:0.7;"></div>
+                <div class="mock-bar h-1 w-28" style="background:#52b788;opacity:0.5;"></div>
+              </div>
+              <div class="mock-cell p-1.5" style="background:#e8f5e9;">
+                <div class="mock-bar h-1.5 w-16 mb-1" style="background:#2d6a4f;opacity:0.5;"></div>
+                <div class="mock-bar h-1 w-24" style="background:#74c69d;opacity:0.4;"></div>
+              </div>
+              <div class="mock-cell p-1.5" style="background:#d8f3dc;">
+                <div class="mock-bar h-1.5 w-24 mb-1" style="background:#2d6a4f;opacity:0.7;"></div>
+                <div class="mock-bar h-1 w-20" style="background:#52b788;opacity:0.5;"></div>
+              </div>
+            </div>
+            <!-- Bottom nav dots -->
+            <div class="flex justify-center gap-3 mt-2">
+              <div style="width:5px;height:5px;background:#1b4332;border-radius:50%;"></div>
+              <div style="width:5px;height:5px;background:#d8f3dc;border-radius:50%;"></div>
+              <div style="width:5px;height:5px;background:#d8f3dc;border-radius:50%;"></div>
+              <div style="width:5px;height:5px;background:#d8f3dc;border-radius:50%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Social proof strip ── -->
+  <div class="bg-canopy-deep py-5 px-5">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-8 text-canopy-mist text-sm">
+      <span>📱 Installs as a home screen app</span>
+      <span>🔒 End-to-end encrypted</span>
+      <span>📧 AI email parsing</span>
+      <span>📄 Court-ready records</span>
+    </div>
+  </div>
+
+  <!-- ── Features ── -->
+  <section id="features" class="py-20 px-5 bg-white">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Everything your family needs</h2>
+        <p class="text-gray-500 text-lg max-w-xl mx-auto">All the tools to stay organised, informed, and connected — in one private place.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">📧</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">School emails → calendar</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Forward newsletters and letters to your family's Canopy address. AI extracts events, term dates, and appointments automatically — no manual entry.</p>
+        </div>
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">📅</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">Shared family calendar</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">A colour-coded calendar everyone shares. Sync with Apple Calendar and Google Calendar. Schedule changes, term dates, clubs, and family events all in one view.</p>
+        </div>
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">📌</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">Family notice board</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Post updates, photos, and reminders. Tagged by topic — school, health, clubs. Push notifications for everything. Read receipts so nothing gets missed.</p>
+        </div>
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">📋</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">Children's info bank</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Medical details, school contacts, GP, dentist, accounts, and documents — stored per child. Tap to call or email contacts directly from the app.</p>
+        </div>
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">⚖️</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">Court-ready records</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Export a tamper-proof, timestamped record of all activity — formatted for legal proceedings. Upload your court order and Canopy flags potential compliance issues.</p>
+        </div>
+
+        <div class="feature-card bg-canopy-frost border border-canopy-mist rounded-2xl p-6">
+          <div class="w-12 h-12 bg-canopy-deep rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">🔒</div>
+          <h3 class="font-bold text-gray-900 text-lg mb-2">Secure document vault</h3>
+          <p class="text-gray-600 text-sm leading-relaxed">Passports, medical records, school reports — stored encrypted and accessible to all family members. Organised by child, always at hand.</p>
+        </div>
+
+      </div>
+
+      <!-- Secondary features -->
+      <div class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-gray-50 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🎂</div>
+          <p class="text-xs font-semibold text-gray-700">Birthday reminders</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🐾</div>
+          <p class="text-xs font-semibold text-gray-700">Pet information</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🔔</div>
+          <p class="text-xs font-semibold text-gray-700">SMS notifications</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">👁️</div>
+          <p class="text-xs font-semibold text-gray-700">Read-only access</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Screenshot section (placeholder, add real screenshots later) ── -->
+  <!--
+  <section class="py-20 px-5 bg-canopy-frost">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-3xl font-bold text-center mb-12">See it in action</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <img src="images/screenshot-calendar.png" class="rounded-2xl shadow-lg" alt="Calendar view">
+        <img src="images/screenshot-noticeboard.png" class="rounded-2xl shadow-lg" alt="Notice board">
+        <img src="images/screenshot-infobank.png" class="rounded-2xl shadow-lg" alt="Info bank">
+      </div>
+    </div>
+  </section>
+  -->
+
+  <!-- ── How it works ── -->
+  <section class="py-20 px-5 bg-canopy-deep text-white">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-bold mb-3">Up and running in minutes</h2>
+        <p class="text-canopy-mist text-lg">No training required. Designed to just work.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-5"
+               style="background:rgba(255,255,255,0.1);">1</div>
+          <h3 class="font-bold text-xl mb-3">Create your family</h3>
+          <p class="text-canopy-mist text-sm leading-relaxed">Sign up, add your children's names, and configure your parenting schedule — weekly, fortnightly, or custom.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-5"
+               style="background:rgba(255,255,255,0.1);">2</div>
+          <h3 class="font-bold text-xl mb-3">Invite everyone</h3>
+          <p class="text-canopy-mist text-sm leading-relaxed">Send an invite link to your partner. Grant grandparents or carers read-only access to see schedules without being able to make changes.</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-5"
+               style="background:rgba(255,255,255,0.1);">3</div>
+          <h3 class="font-bold text-xl mb-3">Stay in sync</h3>
+          <p class="text-canopy-mist text-sm leading-relaxed">Forward school emails, post to the notice board, and let Canopy keep everyone updated in real time with push notifications.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pricing ── -->
+  <section id="pricing" class="py-20 px-5 bg-canopy-frost">
+    <div class="max-w-md mx-auto">
+      <div class="text-center mb-10">
+        <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Simple, honest pricing</h2>
+        <p class="text-gray-500">One price covers the whole family — no per-person charges, no hidden fees.</p>
+      </div>
+
+      <div class="bg-white rounded-3xl shadow-xl p-8" style="border: 2px solid #d8f3dc;">
+        <p class="text-canopy-mid font-bold text-xs uppercase tracking-widest mb-3 text-center">Family plan</p>
+        <div class="flex items-end justify-center gap-1.5 mb-1">
+          <span class="text-6xl font-bold text-gray-900">£8.99</span>
+          <span class="text-gray-400 mb-2 text-lg">/month</span>
+        </div>
+        <p class="text-sm text-gray-400 text-center mb-8">Both parents + unlimited read-only members</p>
+
+        <ul class="space-y-3 mb-8">
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Shared family calendar + parenting schedule management</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>AI email parsing — school newsletters become calendar events automatically</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Family notice board with push notifications and read receipts</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Children's info bank — medical, school, contacts, accounts</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Secure document vault — passports, reports, anything important</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Court-ready tamper-proof export + court order compliance checking</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Apple Calendar and Google Calendar sync</span>
+          </li>
+          <li class="flex items-start gap-3 text-sm text-gray-700">
+            <span class="mt-0.5 text-canopy-green font-bold text-base flex-shrink-0">✓</span>
+            <span>Installs on any phone as a home screen app — no app store required</span>
+          </li>
+        </ul>
+
+        <!-- ──────────────────────────────────────────────────────────────────
+             TO WIRE UP STRIPE:
+             1. Create a Stripe account at stripe.com
+             2. Go to Products → Add product: "Canopy Family Plan", £8.99/month
+             3. Go to Payment Links → Create link for that product
+             4. Set success URL to: https://app.mycanopymail.com
+             5. Replace href="#" with your Stripe Payment Link URL
+             ────────────────────────────────────────────────────────────────── -->
+        <a href="#"
+           class="block w-full text-center text-white font-bold py-4 rounded-2xl text-base transition-colors"
+           style="background:#1b4332;box-shadow:0 8px 20px rgba(27,67,50,0.25);"
+           onmouseover="this.style.background='#2d6a4f'"
+           onmouseout="this.style.background='#1b4332'">
+          Get started
+        </a>
+        <p class="text-xs text-gray-400 text-center mt-3">No contract. Cancel anytime from your account settings.</p>
+      </div>
+
+      <!-- Comparison callout -->
+      <div class="mt-6 bg-white rounded-2xl border border-canopy-mist p-5">
+        <p class="text-sm text-gray-500 text-center leading-relaxed">
+          <span class="font-semibold text-gray-700">How does Canopy compare?</span><br>
+          OurFamilyWizard charges £19+/month <em>per parent</em>. Canopy is one price for the whole family — with AI features they don't have.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA Banner ── -->
+  <section class="py-16 px-5 text-white text-center" style="background:#1b4332;">
+    <h2 class="text-3xl sm:text-4xl font-bold mb-3">Ready to get organised?</h2>
+    <p class="mb-8 text-lg max-w-md mx-auto" style="color:#d8f3dc;">Join families who've already made the switch to Canopy.</p>
+    <a href="#pricing"
+       class="inline-block bg-white font-bold px-8 py-4 rounded-2xl text-base transition-colors"
+       style="color:#1b4332;"
+       onmouseover="this.style.background='#f4fbf4'"
+       onmouseout="this.style.background='white'">
+      Get started — £8.99/month
+    </a>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer style="background:#111827;color:#9ca3af;" class="py-10 px-5">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div>
+        <p class="text-white font-bold text-lg">Canopy</p>
+        <p class="text-sm mt-0.5">Share what matters.</p>
+      </div>
+      <div class="flex gap-6 text-sm">
+        <a href="privacy.html" class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="terms.html"   class="hover:text-white transition-colors">Terms of Use</a>
+        <a href="https://canopy-production-4239.up.railway.app" class="hover:text-white transition-colors">Sign in</a>
+      </div>
+      <p class="text-sm">© 2026 Canopy. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

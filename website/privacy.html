@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Canopy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canopy: { deep:'#1b4332', mid:'#2d6a4f', mist:'#d8f3dc', frost:'#f4fbf4' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-white text-gray-900" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <!-- Nav -->
+  <nav class="bg-canopy-deep py-4 px-5">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <a href="index.html" class="text-white font-bold text-xl">Canopy</a>
+      <a href="index.html" class="text-canopy-mist hover:text-white text-sm transition-colors">← Back to home</a>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main class="max-w-3xl mx-auto px-5 py-16">
+    <h1 class="text-4xl font-bold text-gray-900 mb-2">Privacy Policy</h1>
+    <p class="text-gray-400 text-sm mb-10">Last updated: June 2026 · This is a placeholder — full policy coming soon.</p>
+
+    <!-- PLACEHOLDER NOTICE -->
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-10">
+      <p class="text-amber-800 font-semibold text-sm mb-1">Placeholder document</p>
+      <p class="text-amber-700 text-sm">This privacy policy is a placeholder. It will be replaced with a full legally reviewed policy before public launch. If you have any questions about how your data is handled in the meantime, contact <a href="mailto:hello@mycanopymail.com" class="underline">hello@mycanopymail.com</a>.</p>
+    </div>
+
+    <div class="prose prose-sm max-w-none space-y-8 text-gray-700">
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">1. Who we are</h2>
+        <p>Canopy ("we", "us", "our") is a family organisation application operated from the United Kingdom. Our service is accessible at <a href="https://mycanopymail.com" class="text-canopy-mid hover:underline">mycanopymail.com</a>.</p>
+        <p class="mt-2">For questions about this policy, contact us at <a href="mailto:hello@mycanopymail.com" class="text-canopy-mid hover:underline">hello@mycanopymail.com</a>.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">2. What data we collect</h2>
+        <p>We collect information you provide directly, including:</p>
+        <ul class="list-disc pl-5 mt-2 space-y-1">
+          <li>Account information: name, email address, password (stored hashed)</li>
+          <li>Family information: children's names, dates of birth, and parenting schedule</li>
+          <li>Content you create: calendar events, notice board posts, info bank entries, uploaded documents</li>
+          <li>Communications: emails forwarded to your Canopy family address for AI processing</li>
+          <li>Payment information: processed by Stripe — we do not store card details</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">3. How we use your data</h2>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>To provide the Canopy service and keep your family's information in sync</li>
+          <li>To process emails and extract calendar events using AI</li>
+          <li>To send push notifications and (where enabled) SMS alerts</li>
+          <li>To process subscription payments via Stripe</li>
+          <li>To generate exports you request (e.g. court-ready records)</li>
+        </ul>
+        <p class="mt-3">We do not sell your data to third parties. We do not use your family's information for advertising.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">4. Data storage and security</h2>
+        <p>Your data is stored in a Supabase-hosted PostgreSQL database. Data at rest is encrypted. Documents in the vault are stored in encrypted cloud storage. Access is controlled by row-level security — family members can only access their own family's data.</p>
+        <p class="mt-2">AI email processing is performed by a large language model. Email content is sent to the AI provider for event extraction and is not retained by the AI provider beyond the processing window.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">5. Data sharing</h2>
+        <p>We share data with the following third parties only as necessary to operate the service:</p>
+        <ul class="list-disc pl-5 mt-2 space-y-1">
+          <li><strong>Supabase</strong> — database and authentication hosting</li>
+          <li><strong>Resend</strong> — transactional email delivery</li>
+          <li><strong>Stripe</strong> — payment processing</li>
+          <li><strong>AI provider</strong> — email event extraction (email content only, not stored)</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">6. Your rights</h2>
+        <p>Under UK GDPR you have the right to:</p>
+        <ul class="list-disc pl-5 mt-2 space-y-1">
+          <li>Access the personal data we hold about you</li>
+          <li>Correct inaccurate data</li>
+          <li>Request deletion of your account and associated data</li>
+          <li>Export your data in a machine-readable format</li>
+          <li>Withdraw consent at any time (which may affect your ability to use the service)</li>
+        </ul>
+        <p class="mt-3">To exercise any of these rights, email <a href="mailto:hello@mycanopymail.com" class="text-canopy-mid hover:underline">hello@mycanopymail.com</a>.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">7. Children's data</h2>
+        <p>Canopy stores information about children (names, dates of birth, medical and school details) as entered by a parent or guardian. This data is controlled by the family account holder. Canopy does not permit children to create accounts directly. All children's data is accessible only to verified members of the family.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">8. Cookies</h2>
+        <p>The Canopy app uses session cookies for authentication only. The marketing website (this site) uses no third-party tracking or advertising cookies.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">9. Changes to this policy</h2>
+        <p>We will notify active subscribers of any material changes to this policy by email before the changes take effect.</p>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-bold text-gray-900 mb-3">10. Contact</h2>
+        <p>Questions? Email us at <a href="mailto:hello@mycanopymail.com" class="text-canopy-mid hover:underline">hello@mycanopymail.com</a>.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer style="background:#111827;color:#9ca3af;" class="py-8 px-5 text-center text-sm">
+    <a href="index.html" class="text-white font-bold">Canopy</a>
+    <span class="mx-3">·</span>
+    <a href="terms.html" class="hover:text-white transition-colors">Terms of Use</a>
+    <span class="mx-3">·</span>
+    <span>© 2026 Canopy</span>
+  </footer>
+
+</body>
+</html>

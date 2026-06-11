@@ -1,0 +1,7 @@
+# Cloudflare Pages redirects
+
+# Once the app moves to app.mycanopymail.com, redirect /app to it:
+# /app https://app.mycanopymail.com 302
+
+# Optional: redirect bare www to root
+# https://www.mycanopymail.com/* https://mycanopymail.com/:splat 301
