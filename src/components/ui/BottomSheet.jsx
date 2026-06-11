@@ -28,7 +28,7 @@ export default function BottomSheet({ open, onClose, title, children, height = '
 
       {/* Sheet */}
       <div
-        className={`relative bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden ${height}`}
+        className={`relative bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden w-full ${height}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
