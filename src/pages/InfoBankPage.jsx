@@ -278,7 +278,7 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{label}</label>
       <div className={actionHref ? 'flex items-center gap-2 w-full min-w-0' : ''}>
         <input
