@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { formatDate } from '../lib/scheduleEngine'
@@ -14,6 +15,7 @@ const SECTION_OPTIONS = [
 ]
 
 export default function ExportPage() {
+  const navigate = useNavigate()
   const { isParent } = useFamily()
   const isIOS     = useMemo(() => /iphone|ipad|ipod/i.test(navigator.userAgent), [])
   const isAndroid = useMemo(() => /android/i.test(navigator.userAgent), [])
@@ -86,8 +88,15 @@ export default function ExportPage() {
   return (
     <div className="px-4 py-5 space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Export records</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Export records</h1>
+        </div>
+        <p className="text-sm text-gray-500 mt-1 ml-10">
           Generate a court-ready PDF of your family's communication and scheduling history.
         </p>
       </div>
