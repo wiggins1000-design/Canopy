@@ -38,7 +38,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
-            <img src="/logo.png" alt="Canopy" className="h-12" />
+            <img src="/CanopyWhiteLogo.gif" alt="Canopy" className="h-12" />
           </div>
           <h2 className="text-lg font-semibold text-gray-700">Set new password</h2>
         </div>

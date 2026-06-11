@@ -50,7 +50,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
-            <img src="/logo.png" alt="Canopy" className="h-12" />
+            <img src="/CanopyWhiteLogo.gif" alt="Canopy" className="h-12" />
           </div>
           <p className="text-gray-500 text-sm">Share what matters.</p>
         </div>
