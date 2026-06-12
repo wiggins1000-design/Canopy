@@ -20,6 +20,8 @@ import InfoBankPage from './pages/InfoBankPage'
 import ExportPage from './pages/ExportPage'
 import CourtOrderPage from './pages/CourtOrderPage'
 import AdminFamilyPage from './pages/admin/AdminFamilyPage'
+import MessagesPage from './pages/MessagesPage'
+import ThreadPage from './pages/ThreadPage'
 
 export default function App() {
   return (
@@ -54,6 +56,8 @@ export default function App() {
             <Route path="/info" element={<InfoBankPage />} />
             <Route path="/export" element={<ExportPage />} />
             <Route path="/court-order" element={<CourtOrderPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/messages/:threadId" element={<ThreadPage />} />
           </Route>
         </Routes>
       </FamilyProvider>

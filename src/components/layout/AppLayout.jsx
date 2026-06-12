@@ -34,8 +34,8 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <main className="flex-1 max-w-lg mx-auto w-full pb-24 overflow-x-hidden">
+    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0">
         <Outlet />
       </main>
       <BottomNav />

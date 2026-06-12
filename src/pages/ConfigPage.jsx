@@ -547,6 +547,18 @@ export default function ConfigPage() {
         <CalendarSyncSection />
       </AccordionGroup>
 
+      {/* ── Features ── */}
+      {isParent && (
+        <AccordionGroup label="Features">
+          <ToggleRow
+            label="Direct messaging"
+            description="Private topic threads between parents. Not visible to read-only members."
+            enabled={!!family?.config?.messaging_enabled}
+            onToggle={() => updateFamilyConfig({ messaging_enabled: !family?.config?.messaging_enabled })}
+          />
+        </AccordionGroup>
+      )}
+
       {/* ── Legal ── */}
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
@@ -638,6 +650,23 @@ function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, o
       </div>
       <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${pushEnabled ? 'bg-canopy-mid' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+      </div>
+    </button>
+  )
+}
+
+function ToggleRow({ label, description, enabled, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
+    >
+      <div>
+        <p className="text-sm font-medium text-gray-800 text-left">{label}</p>
+        {description && <p className="text-xs text-gray-400 mt-0.5 text-left">{description}</p>}
+      </div>
+      <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${enabled ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
       </div>
     </button>
   )
