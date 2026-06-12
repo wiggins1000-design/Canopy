@@ -154,7 +154,9 @@ Deno.serve(async (req) => {
       }).join('\n')
     : ''
 
-  const subject: string    = payload.Subject || '(no subject)'
+  const rawSubject: string  = payload.Subject || '(no subject)'
+  // Strip Re:/Fwd:/Fw: chains (case-insensitive, repeated)
+  const subject: string    = rawSubject.replace(/^(\s*(re|fwd?)\s*:\s*)*/i, '').trim() || rawSubject.trim()
   const attachments: any[] = payload.Attachments || []
 
   // Detect raw MIME emails (Cloudflare Worker forwards the full raw email as TextBody)
