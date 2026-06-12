@@ -77,7 +77,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="bg-white border-t border-gray-200 pb-safe shrink-0 z-30">
+    <nav className="relative bg-white border-t border-gray-200 pb-safe shrink-0 z-30">
       <div className="max-w-lg mx-auto flex">
         {visibleNav.map(({ to, label, icon }) => (
           <NavLink

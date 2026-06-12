@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
-import { useExpenses } from '../../hooks/useExpenses'
 import { useAuth } from '../../context/AuthContext'
 import { formatDate } from '../../lib/scheduleEngine'
 import BottomSheet from '../ui/BottomSheet'
@@ -20,10 +19,9 @@ const CATEGORIES = [
   { value: 'other',      label: 'Other'      },
 ]
 
-export default function NewExpenseSheet({ open, onClose }) {
+export default function NewExpenseSheet({ open, onClose, createExpense, otherShare, myShare }) {
   const { family, members, userRole } = useFamily()
   const { user } = useAuth()
-  const { createExpense, otherShare, myShare } = useExpenses()
 
   const [amountStr, setAmountStr]   = useState('')
   const [description, setDescription] = useState('')

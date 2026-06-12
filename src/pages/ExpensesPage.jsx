@@ -46,7 +46,7 @@ function monthLabel(yyyyMM) {
 }
 
 export default function ExpensesPage() {
-  const { unsettled, settled, loading, balancePence, otherParent, settleExpenses } = useExpenses()
+  const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
   const { members } = useFamily()
   const { user } = useAuth()
   const [tab, setTab] = useState('outstanding')
@@ -162,7 +162,13 @@ export default function ExpensesPage() {
         </svg>
       </button>
 
-      <NewExpenseSheet open={showNew} onClose={() => setShowNew(false)} />
+      <NewExpenseSheet
+        open={showNew}
+        onClose={() => setShowNew(false)}
+        createExpense={createExpense}
+        otherShare={otherShare}
+        myShare={myShare}
+      />
     </div>
   )
 }

@@ -13,6 +13,7 @@ import ScheduleChangePanel from '../components/calendar/ScheduleChangePanel'
 import FirstRefusalPanel from '../components/calendar/FirstRefusalPanel'
 import NewEventSheet from '../components/calendar/NewEventSheet'
 import SetupChecklist from '../components/calendar/SetupChecklist'
+import WeekAheadPanel from '../components/calendar/WeekAheadPanel'
 
 export default function CalendarPage() {
   const { calendarDays, viewDate, prevMonth, nextMonth, loading } = useCalendar()
@@ -31,6 +32,7 @@ export default function CalendarPage() {
   const [showSchoolDates, setShowSchoolDates] = useState(
     () => localStorage.getItem('canopy-show-school-dates') !== '0'
   )
+  const [showWeekAhead, setShowWeekAhead] = useState(false)
 
   const [selectedDateStr, setSelectedDateStr] = useState(null)
   const selectedDay = selectedDateStr ? (calendarDays.find((d) => d.dateStr === selectedDateStr) ?? null) : null
@@ -161,6 +163,26 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* View toggle */}
+      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mb-4">
+        <button
+          onClick={() => setShowWeekAhead(false)}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            !showWeekAhead ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          Month
+        </button>
+        <button
+          onClick={() => setShowWeekAhead(true)}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            showWeekAhead ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          Week ahead
+        </button>
+      </div>
+
       <SetupChecklist />
 
       {/* Legend */}
@@ -188,7 +210,9 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {loading ? (
+      {showWeekAhead ? (
+        <WeekAheadPanel />
+      ) : loading ? (
         <div className="flex justify-center py-16">
           <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
