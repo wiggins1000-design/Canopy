@@ -1,4 +1,4 @@
-import { useSubscription } from '../../hooks/useSubscription'
+﻿import { useSubscription } from '../../hooks/useSubscription'
 import { useSubscribeAction } from './useSubscribeAction'
 
 const FEATURES = [
@@ -7,7 +7,7 @@ const FEATURES = [
   'Notice board & messaging',
   'Info bank & document storage',
   'Expense tracking & receipt scanning',
-  'Both parents included — one price',
+  'Both parents included â€” one price',
 ]
 
 export default function PaywallOverlay() {
@@ -38,7 +38,7 @@ export default function PaywallOverlay() {
         <div className="w-full rounded-3xl border-2 border-canopy-light bg-canopy-frost p-6 mb-6">
           <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-3">Family plan</p>
           <div className="flex items-end justify-center gap-1 mb-1">
-            <span className="text-5xl font-bold text-gray-900">£11.99</span>
+            <span className="text-5xl font-bold text-gray-900">Â£12.99</span>
             <span className="text-gray-400 mb-1.5">/month</span>
           </div>
           <p className="text-center text-sm text-canopy-deep font-medium mb-5">Both parents included</p>
@@ -59,7 +59,7 @@ export default function PaywallOverlay() {
           disabled={loading}
           className="w-full py-4 rounded-2xl bg-canopy-deep hover:bg-canopy-mid text-white font-bold text-base transition-colors shadow-lg disabled:opacity-60"
         >
-          {loading ? 'Redirecting…' : 'Subscribe — £11.99/month'}
+          {loading ? 'Redirectingâ€¦' : 'Subscribe â€” Â£12.99/month'}
         </button>
 
         <p className="text-xs text-gray-400 text-center mt-4">
