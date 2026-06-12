@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
+import { formatDate } from '../lib/scheduleEngine'
 
 function expandRecurring(ev, from, to) {
   const instances = []
@@ -26,7 +27,7 @@ function expandRecurring(ev, from, to) {
   while (cur <= limit && iters < 100) {
     iters++
     if (cur >= from) {
-      instances.push({ ...ev, event_date: cur.toISOString().split('T')[0] })
+      instances.push({ ...ev, event_date: formatDate(cur) })
     }
     const prev = +cur
     if (ev.recurrence === 'weekly')           cur.setDate(cur.getDate() + 7)
