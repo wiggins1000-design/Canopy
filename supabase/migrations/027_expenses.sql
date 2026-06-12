@@ -24,9 +24,13 @@ CREATE TABLE IF NOT EXISTS public.expense_settlements (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.expenses
-  ADD CONSTRAINT IF NOT EXISTS expenses_settlement_fkey
-  FOREIGN KEY (settlement_id) REFERENCES public.expense_settlements(id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'expenses_settlement_fkey') THEN
+    ALTER TABLE public.expenses
+      ADD CONSTRAINT expenses_settlement_fkey
+      FOREIGN KEY (settlement_id) REFERENCES public.expense_settlements(id);
+  END IF;
+END $$;
 
 -- RLS
 ALTER TABLE public.expenses           ENABLE ROW LEVEL SECURITY;
