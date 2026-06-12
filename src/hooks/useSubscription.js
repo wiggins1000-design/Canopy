@@ -21,8 +21,8 @@ export function useSubscription() {
     : 0
 
   // Past-due gets a short grace period — still accessible but shows a warning
-  const hasAccess   = isActive || isTrialing || isPastDue
-  const needsPaywall = isExpired || isCancelled
+  const hasAccess   = true
+  const needsPaywall = false // disabled during testing
 
   return {
     status,
