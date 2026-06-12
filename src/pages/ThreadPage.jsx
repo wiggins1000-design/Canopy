@@ -13,7 +13,7 @@ export default function ThreadPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { members, member, userRole, isParent, parentA, parentB, family } = useFamily()
-  const { messages, loading, sendMessage, markRead } = useThread(threadId)
+  const { messages, threadReads, loading, sendMessage, markRead } = useThread(threadId)
   const [thread, setThread] = useState(null)
   const [text, setText]     = useState('')
   const [sending, setSending] = useState(false)
@@ -79,6 +79,24 @@ export default function ThreadPage() {
 
   function isOwn(msg) {
     return msg.sender_id === user?.id
+  }
+
+  // ID of the last message the current user sent (for seen-by placement)
+  const lastOwnMsgId = [...messages].reverse().find((m) => m.sender_id === user?.id)?.id
+
+  // Members (excluding self) who have read up to a given message's sent_at
+  function seenByFor(msg) {
+    if (msg.id !== lastOwnMsgId) return []
+    return members.filter((m) => {
+      if (m.user_id === user?.id) return false
+      const readAt = threadReads[m.user_id]
+      return readAt && new Date(readAt) >= new Date(msg.sent_at)
+    })
+  }
+
+  const ROLE_DISC = {
+    parent_a: 'bg-pa-400',
+    parent_b: 'bg-pb-400',
   }
 
   // Group messages by date
@@ -148,6 +166,7 @@ export default function ThreadPage() {
             const { msg } = item
             const own    = isOwn(msg)
             const sender = senderOf(msg)
+            const seenBy = seenByFor(msg)
 
             return (
               <div key={msg.id} className={`flex flex-col ${own ? 'items-end' : 'items-start'} mb-1`}>
@@ -167,6 +186,20 @@ export default function ThreadPage() {
                 <p className="text-[10px] text-gray-400 mt-0.5 mx-1">
                   {format(new Date(msg.sent_at), 'HH:mm')}
                 </p>
+                {seenBy.length > 0 && (
+                  <div className="flex items-center gap-1 mt-0.5 mx-1">
+                    <span className="text-[10px] text-gray-400">Seen by</span>
+                    {seenBy.map((m) => (
+                      <div
+                        key={m.user_id}
+                        title={m.display_name}
+                        className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold ${ROLE_DISC[m.role] ?? 'bg-gray-300'}`}
+                      >
+                        {(m.display_name ?? '?')[0].toUpperCase()}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })

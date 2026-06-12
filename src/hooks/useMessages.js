@@ -81,24 +81,34 @@ export function useMessages() {
 
 export function useThread(threadId) {
   const { user } = useAuth()
-  const [messages, setMessages] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [messages, setMessages]     = useState([])
+  const [threadReads, setThreadReads] = useState({}) // { [userId]: last_read_at }
+  const [loading, setLoading]       = useState(true)
 
   const loadMessages = useCallback(async () => {
     if (!threadId) return
     setLoading(true)
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('thread_id', threadId)
-      .order('sent_at', { ascending: true })
-    setMessages(data ?? [])
+    const [{ data: msgData }, { data: readsData }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', threadId)
+        .order('sent_at', { ascending: true }),
+      supabase
+        .from('message_reads')
+        .select('user_id, last_read_at')
+        .eq('thread_id', threadId),
+    ])
+    setMessages(msgData ?? [])
+    const readsMap = {}
+    for (const r of readsData ?? []) readsMap[r.user_id] = r.last_read_at
+    setThreadReads(readsMap)
     setLoading(false)
   }, [threadId])
 
   useEffect(() => { loadMessages() }, [loadMessages])
 
-  // Realtime: new messages
+  // Realtime: new messages + read receipts
   useEffect(() => {
     if (!threadId) return
     const ch = supabase
@@ -108,6 +118,13 @@ export function useThread(threadId) {
         filter: `thread_id=eq.${threadId}`,
       }, (payload) => {
         setMessages((prev) => [...prev, payload.new])
+      })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'message_reads',
+        filter: `thread_id=eq.${threadId}`,
+      }, (payload) => {
+        const { user_id, last_read_at } = payload.new
+        setThreadReads((prev) => ({ ...prev, [user_id]: last_read_at }))
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
@@ -126,5 +143,5 @@ export function useThread(threadId) {
     await supabase.rpc('mark_thread_read', { p_thread_id: threadId })
   }
 
-  return { messages, loading, sendMessage, markRead }
+  return { messages, threadReads, loading, sendMessage, markRead }
 }
