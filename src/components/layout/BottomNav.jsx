@@ -77,7 +77,7 @@ export default function BottomNav() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-0.5 py-3 text-xs font-medium ${isActive ? 'text-canopy-mid' : 'text-gray-400'}`
+              `flex-1 min-w-0 flex flex-col items-center gap-0.5 py-3 text-xs font-medium overflow-hidden ${isActive ? 'text-canopy-mid' : 'text-gray-400'}`
             }
           >
             {({ isActive }) => (
