@@ -55,10 +55,13 @@ export default function BottomNav() {
   const { family, isParent } = useFamily()
   if (!family) return null
 
-  const messagingEnabled = isParent && !!family?.config?.messaging_enabled
+  const noticeboardEnabled = family?.config?.noticeboard_enabled !== false
+  const messagingEnabled   = isParent && !!family?.config?.messaging_enabled
+
+  const baseNav = noticeboardEnabled ? NAV : NAV.filter((n) => n.to !== '/board')
 
   const visibleNav = messagingEnabled
-    ? [...NAV, {
+    ? [...baseNav, {
         to: '/messages',
         label: 'Messages',
         icon: (active) => (
@@ -67,7 +70,7 @@ export default function BottomNav() {
           </svg>
         ),
       }]
-    : NAV
+    : baseNav
 
   return (
     <nav className="bg-white border-t border-gray-200 pb-safe shrink-0 z-30">

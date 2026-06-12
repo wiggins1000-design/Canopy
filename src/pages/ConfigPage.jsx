@@ -688,6 +688,12 @@ export default function ConfigPage() {
       {isParent && (
         <AccordionGroup label="Features">
           <ToggleRow
+            label="Notice Board"
+            description="Shared pinboard for both parents. Disable to hide it from the navigation."
+            enabled={family?.config?.noticeboard_enabled !== false}
+            onToggle={() => updateFamilyConfig({ noticeboard_enabled: family?.config?.noticeboard_enabled === false })}
+          />
+          <ToggleRow
             label="Direct messaging"
             description="Private topic threads between parents. Not visible to read-only members."
             enabled={!!family?.config?.messaging_enabled}
