@@ -31,6 +31,10 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+function isTermDateLike(title: string): boolean {
+  return /half.?term|end of term|last day of term|first day of term|term\s+start|term\s+end|term\s+begin|school\s+holiday|school\s+break|school\s+clos|school\s+returns?|inset\s+day|christmas\s+holid|easter\s+holid|summer\s+holid|spring\s+holid|autumn\s+holid/i.test(title)
+}
+
 function deriveKeyStage(yearGroup: string | undefined): string | null {
   if (!yearGroup) return null
   const lower = yearGroup.toLowerCase().trim()
@@ -134,13 +138,24 @@ Deno.serve(async (req) => {
   // Look back 14 days so we catch recently-added events that might be duplicated
   const lookbackDate = new Date()
   lookbackDate.setDate(lookbackDate.getDate() - 14)
-  const { data: existingEvents } = await supabase
-    .from('family_events')
-    .select('id, title, event_date, end_date, event_time, notes')
-    .eq('family_id', family.id)
-    .gte('event_date', lookbackDate.toISOString().split('T')[0])
-    .order('event_date', { ascending: true })
-    .limit(100)
+  const [
+    { data: existingEvents },
+    { count: termDatesCount },
+  ] = await Promise.all([
+    supabase
+      .from('family_events')
+      .select('id, title, event_date, end_date, event_time, notes')
+      .eq('family_id', family.id)
+      .gte('event_date', lookbackDate.toISOString().split('T')[0])
+      .order('event_date', { ascending: true })
+      .limit(100),
+    supabase
+      .from('family_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('family_id', family.id)
+      .eq('source', 'term_dates'),
+  ])
+  const hasTermDates = (termDatesCount ?? 0) > 0
 
   const existingEventsContext = existingEvents && existingEvents.length > 0
     ? '\n\nExisting calendar events (check for duplicates):\n' +
@@ -362,6 +377,7 @@ Rules:
   for (const ev of events) {
     if (!ev.title || !ev.date) continue
     if (ev.date < cutoff) continue  // skip events more than 1 month in the past
+    if (hasTermDates && isTermDateLike(ev.title)) continue  // official term dates already loaded
 
     if (ev.existing_id) {
       // Duplicate detected by Claude

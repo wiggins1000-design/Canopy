@@ -22,6 +22,7 @@ import CourtOrderPage from './pages/CourtOrderPage'
 import AdminFamilyPage from './pages/admin/AdminFamilyPage'
 import MessagesPage from './pages/MessagesPage'
 import ThreadPage from './pages/ThreadPage'
+import ExpensesPage from './pages/ExpensesPage'
 
 export default function App() {
   return (
@@ -58,6 +59,7 @@ export default function App() {
             <Route path="/court-order" element={<CourtOrderPage />} />
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/messages/:threadId" element={<ThreadPage />} />
+            <Route path="/expenses" element={<ExpensesPage />} />
           </Route>
         </Routes>
       </FamilyProvider>

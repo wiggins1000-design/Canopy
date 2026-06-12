@@ -154,6 +154,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       if (added > 0) {
         await postTermDatesNotice(familyId, added, (cached as any)?.school_name)
       }
+      await cleanTermDateDuplicates(familyId)
       totalAdded += added
     }
 
@@ -612,6 +613,28 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
   }
 
   return added
+}
+
+// ── Clean up email-AI events that duplicate official term dates ───────────────
+
+async function cleanTermDateDuplicates(familyId: string): Promise<void> {
+  const patterns = [
+    '%half term%', '%half-term%',
+    '%end of term%', '%last day of term%', '%first day of term%',
+    '%term start%', '%term end%', '%term begin%',
+    '%school holiday%', '%school break%', '%school closed%', '%school closes%', '%school returns%',
+    '%inset day%',
+    '%christmas holid%', '%easter holid%', '%summer holid%',
+    '%spring holid%', '%autumn holid%',
+  ]
+  const { error } = await supabase
+    .from('family_events')
+    .delete()
+    .eq('family_id', familyId)
+    .eq('source', 'email_ai')
+    .or(patterns.map(p => `title.ilike.${p}`).join(','))
+  if (error) console.error('cleanTermDateDuplicates error:', error)
+  else console.log(`Cleaned up email_ai term date duplicates for family ${familyId}`)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

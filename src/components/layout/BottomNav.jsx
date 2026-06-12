@@ -31,15 +31,6 @@ const NAV = [
     ),
   },
   {
-    to: '/invite',
-    label: 'People',
-    icon: (active) => (
-      <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-      </svg>
-    ),
-  },
-  {
     to: '/config',
     label: 'Settings',
     icon: (active) => (
@@ -57,20 +48,33 @@ export default function BottomNav() {
 
   const noticeboardEnabled = family?.config?.noticeboard_enabled !== false
   const messagingEnabled   = isParent && !!family?.config?.messaging_enabled
+  const expensesEnabled    = isParent && !!family?.config?.expenses_enabled
 
-  const baseNav = noticeboardEnabled ? NAV : NAV.filter((n) => n.to !== '/board')
+  let visibleNav = noticeboardEnabled ? NAV : NAV.filter((n) => n.to !== '/board')
 
-  const visibleNav = messagingEnabled
-    ? [...baseNav, {
-        to: '/messages',
-        label: 'Messages',
-        icon: (active) => (
-          <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-          </svg>
-        ),
-      }]
-    : baseNav
+  if (messagingEnabled) {
+    visibleNav = [...visibleNav, {
+      to: '/messages',
+      label: 'Messages',
+      icon: (active) => (
+        <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+        </svg>
+      ),
+    }]
+  }
+
+  if (expensesEnabled) {
+    visibleNav = [...visibleNav, {
+      to: '/expenses',
+      label: 'Expenses',
+      icon: (active) => (
+        <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    }]
+  }
 
   return (
     <nav className="bg-white border-t border-gray-200 pb-safe shrink-0 z-30">

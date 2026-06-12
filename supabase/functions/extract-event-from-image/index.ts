@@ -91,8 +91,68 @@ For voice notes like "football on Monday is now at 4:40" interpret relative days
       role: 'user',
       content: `Extract the calendar event from this voice note: "${transcript}"`,
     }]
+  } else if (body.type === 'receipt') {
+    const { image_base64, media_type } = body
+    if (!image_base64) return new Response('Missing image_base64', { status: 400, headers: CORS })
+
+    // Override system prompt for receipt extraction
+    const RECEIPT_PROMPT = `You are a helpful assistant that extracts expense details from receipt photos or images.
+Today's date is ${today}.
+Return ONLY valid JSON — no markdown fences, no explanation:
+{
+  "amount_pence": 1234,
+  "date": "YYYY-MM-DD",
+  "description": "merchant name or brief description",
+  "category": "education|health|clothing|activities|travel|food|other"
+}
+amount_pence is the total amount in pence (integer, e.g. £12.34 = 1234). Use 0 if not found.
+For date, use today if not visible. For category, infer from the merchant or items.`
+
+    claudeMessages = [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type:       'base64',
+            media_type: media_type ?? 'image/jpeg',
+            data:       image_base64,
+          },
+        },
+        { type: 'text', text: 'Extract the expense details from this receipt.' },
+      ],
+    }]
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key':         apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type':      'application/json',
+        },
+        signal: AbortSignal.timeout(25000),
+        body: JSON.stringify({
+          model:      'claude-haiku-4-5-20251001',
+          max_tokens: 256,
+          system:     RECEIPT_PROMPT,
+          messages:   claudeMessages,
+        }),
+      })
+      if (!res.ok) return new Response('AI extraction failed', { status: 500, headers: CORS })
+      const data   = await res.json()
+      const raw    = data.content?.[0]?.text ?? ''
+      const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim())
+      return new Response(JSON.stringify({ ok: true, receipt: parsed }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    } catch (e: any) {
+      return new Response(JSON.stringify({ ok: false, error: e.message }), {
+        status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
   } else {
-    return new Response('type must be image or voice', { status: 400, headers: CORS })
+    return new Response('type must be image, voice or receipt', { status: 400, headers: CORS })
   }
 
   try {

@@ -684,6 +684,11 @@ export default function ConfigPage() {
         <CalendarSyncSection />
       </AccordionGroup>
 
+      {/* ── People ── */}
+      <AccordionGroup label="Family members">
+        <NavRow label="Manage family" description="Invite parents or read-only members" onPress={() => navigate('/invite')} />
+      </AccordionGroup>
+
       {/* ── Features ── */}
       {isParent && (
         <AccordionGroup label="Features">
@@ -699,6 +704,21 @@ export default function ConfigPage() {
             enabled={!!family?.config?.messaging_enabled}
             onToggle={() => updateFamilyConfig({ messaging_enabled: !family?.config?.messaging_enabled })}
           />
+          <ToggleRow
+            label="Expenses"
+            description="Track and split shared costs. Appears in the navigation when enabled."
+            enabled={!!family?.config?.expenses_enabled}
+            onToggle={() => updateFamilyConfig({ expenses_enabled: !family?.config?.expenses_enabled })}
+          />
+          {!!family?.config?.expenses_enabled && (
+            <ExpenseSplitRow
+              userRole={userRole}
+              splitPct={family?.config?.expense_split_pct ?? 50}
+              onSave={(pct) => updateFamilyConfig({ expense_split_pct: pct })}
+              pa={pa}
+              pb={pb}
+            />
+          )}
         </AccordionGroup>
       )}
 
@@ -812,6 +832,56 @@ function ToggleRow({ label, description, enabled, onToggle }) {
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
       </div>
     </button>
+  )
+}
+
+function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
+  // splitPct = Parent A's share (0–100)
+  const myShare    = userRole === 'parent_a' ? splitPct : (100 - splitPct)
+  const otherShare = 100 - myShare
+  const myName     = userRole === 'parent_a' ? pa : pb
+  const otherName  = userRole === 'parent_a' ? pb : pa
+
+  const [draft, setDraft]   = useState(myShare)
+  const [saved, setSaved]   = useState(false)
+
+  async function handleSave() {
+    // Convert back to Parent A's share before saving
+    const newPaShare = userRole === 'parent_a' ? draft : (100 - draft)
+    await onSave(newPaShare)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="px-4 py-3 space-y-3 border-t border-gray-100">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Default expense split</p>
+      <p className="text-xs text-gray-400">How shared expenses are split by default. You can change it per expense when logging.</p>
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-gray-700">Your share ({myName})</span>
+        <span className="text-sm font-bold text-gray-900">{draft}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={draft}
+        onChange={(e) => setDraft(Number(e.target.value))}
+        className="w-full accent-canopy-mid"
+      />
+      <div className="flex justify-between text-xs text-gray-400">
+        <span>{myName} 0% / {otherName} 100%</span>
+        <span>{myName} 100% / {otherName} 0%</span>
+      </div>
+      <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">
+        <span>{myName}: {draft}%</span>
+        <span>{otherName}: {100 - draft}%</span>
+      </div>
+      <Button className="w-full py-2.5 text-sm" onClick={handleSave}>
+        {saved ? '✓ Saved' : 'Save split'}
+      </Button>
+    </div>
   )
 }
 
