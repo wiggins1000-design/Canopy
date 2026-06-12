@@ -36,11 +36,16 @@ END $$;
 ALTER TABLE public.expenses           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expense_settlements ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "expenses_select" ON public.expenses
-  FOR SELECT USING (family_id = public.my_family_id());
-
-CREATE POLICY IF NOT EXISTS "settlements_select" ON public.expense_settlements
-  FOR SELECT USING (family_id = public.my_family_id());
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'expenses_select' AND tablename = 'expenses') THEN
+    CREATE POLICY "expenses_select" ON public.expenses
+      FOR SELECT USING (family_id = public.my_family_id());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'settlements_select' AND tablename = 'expense_settlements') THEN
+    CREATE POLICY "settlements_select" ON public.expense_settlements
+      FOR SELECT USING (family_id = public.my_family_id());
+  END IF;
+END $$;
 
 -- ── RPCs ──────────────────────────────────────────────────────────────────────
 
