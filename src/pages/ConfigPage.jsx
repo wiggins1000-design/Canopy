@@ -871,8 +871,8 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
         className="w-full accent-canopy-mid"
       />
       <div className="flex justify-between text-xs text-gray-400">
-        <span>{myName} 0% / {otherName} 100%</span>
-        <span>{myName} 100% / {otherName} 0%</span>
+        <span>0%</span>
+        <span>100%</span>
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">
         <span>{myName}: {draft}%</span>
