@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { supabase, registerPushSubscription, unregisterPushSubscription } from '../lib/supabase'
+import { supabase, registerPushSubscription, unregisterPushSubscription, sendPushNotification } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../lib/scheduleEngine'
@@ -12,7 +12,7 @@ import CalendarSyncSection from '../components/calendar/CalendarSyncSection'
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
-  const { schedule, saveSchedule, updateFamilyConfig, family, member, parentA, parentB, isParent, reload } = useFamily()
+  const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
   const { user, signOut } = useAuth()
   const emailDomain = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
   const familyEmail = family?.email_key ? `${family.email_key}@${emailDomain}` : null
@@ -27,6 +27,7 @@ export default function ConfigPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
+  const [responding, setResponding] = useState(false)
 
   const [children, setChildren] = useState([])
   const [childrenSaving, setChildrenSaving] = useState(false)
@@ -110,22 +111,55 @@ export default function ConfigPage() {
     }
 
     try {
-      const { error: err } = await saveSchedule({
-        pattern_type:    patternType,
-        pattern_data:    patternData,
-        start_date:      startDate,
-        starting_parent: startingParent,
-      })
+      if (schedule) {
+        // Existing schedule: propose the change for the other parent to approve
+        const { error: err } = await proposePendingSchedule({
+          pattern_type:    patternType,
+          pattern_data:    patternData,
+          start_date:      startDate,
+          starting_parent: startingParent,
+        })
+        if (err) { setError(err.message); setSaving(false); return }
 
-      if (err) { setError(err.message); setSaving(false); return }
+        // Changeover settings save immediately (not subject to approval)
+        await updateFamilyConfig({
+          changeover_time: changeoverTime || null,
+          changeover_location: changeoverLocation.trim() || null,
+        })
 
-      await updateFamilyConfig({
-        changeover_time: changeoverTime || null,
-        changeover_location: changeoverLocation.trim() || null,
-      })
+        const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
+        const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
+        if (recipientMember && family?.id) {
+          await sendPushNotification({
+            familyId:      family.id,
+            recipientRole,
+            title:         'Schedule change proposed',
+            body:          `${member?.display_name ?? 'A parent'} proposed a new parenting schedule — open Settings to review`,
+            url:           '/config',
+          })
+        }
 
-      setSaved(true)
-      setTimeout(() => navigate('/calendar'), 1200)
+        setSaved(true)
+        setSaving(false)
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        // First-time setup: save directly, no approval needed
+        const { error: err } = await saveSchedule({
+          pattern_type:    patternType,
+          pattern_data:    patternData,
+          start_date:      startDate,
+          starting_parent: startingParent,
+        })
+        if (err) { setError(err.message); setSaving(false); return }
+
+        await updateFamilyConfig({
+          changeover_time: changeoverTime || null,
+          changeover_location: changeoverLocation.trim() || null,
+        })
+
+        setSaved(true)
+        setTimeout(() => navigate('/calendar'), 1200)
+      }
     } catch (e) {
       setError('Failed to save — check your connection and try again.')
       setSaving(false)
@@ -272,6 +306,12 @@ export default function ConfigPage() {
   const pa = parentA?.display_name ?? 'Parent A'
   const pb = parentB?.display_name ?? 'Parent B'
 
+  // Pending schedule proposal state
+  const hasPendingProposal = !!schedule?.pending_proposed_by
+  const isMyProposal       = schedule?.pending_proposed_by === user?.id
+  const proposerName       = members.find((m) => m.user_id === schedule?.pending_proposed_by)?.display_name ?? 'A parent'
+  const otherParentName    = userRole === 'parent_a' ? pb : pa
+
   if (!isParent) {
     return (
       <div className="px-4 py-5 space-y-2">
@@ -374,90 +414,191 @@ export default function ConfigPage() {
       {/* ── Parenting Schedule ── */}
       <AccordionGroup label="Parenting Schedule">
         <div className="px-4 py-3 space-y-4">
-          {/* Pattern picker */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Rotation pattern</label>
-            <div className="space-y-1.5">
-              {PATTERNS.map((p) => (
-                <label
-                  key={p}
-                  className="flex items-center gap-3 rounded-xl border px-4 py-2.5 cursor-pointer transition-colors"
-                  style={{ borderColor: patternType === p ? '#3b82f6' : '#e5e7eb', background: patternType === p ? '#eff6ff' : '#f9fafb' }}
+
+          {/* Pending proposal — shown to the OTHER parent */}
+          {hasPendingProposal && !isMyProposal && (
+            <div className="bg-canopy-frost border border-canopy-mist rounded-xl p-3 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-canopy-deep">{proposerName} proposed a new schedule</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {PATTERN_LABELS[schedule.pending_pattern_type]} · from {schedule.pending_start_date}
+                </p>
+              </div>
+              <SchedulePreview
+                patternType={schedule.pending_pattern_type}
+                startingParent={schedule.pending_starting_parent}
+                customCycle={schedule.pending_pattern_data?.cycle ?? []}
+                startDate={schedule.pending_start_date}
+                pa={pa} pb={pb}
+              />
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 text-xs py-2 bg-green-600 hover:bg-green-700"
+                  loading={responding}
+                  onClick={async () => {
+                    setResponding(true)
+                    await respondToScheduleProposal(true)
+                    const recipientRole = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
+                    const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
+                    if (recipientMember && family?.id) {
+                      await sendPushNotification({
+                        familyId:      family.id,
+                        recipientRole,
+                        title:         'Schedule change accepted',
+                        body:          `${member?.display_name ?? 'A parent'} accepted your proposed schedule`,
+                        url:           '/calendar',
+                      })
+                    }
+                    setResponding(false)
+                  }}
                 >
-                  <input type="radio" name="pattern" value={p} checked={patternType === p} onChange={() => setPatternType(p)} className="accent-canopy-mid" />
-                  <span className="text-sm font-medium text-gray-800">{PATTERN_LABELS[p]}</span>
+                  Accept
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="flex-1 text-xs py-2 text-red-600"
+                  loading={responding}
+                  onClick={async () => {
+                    setResponding(true)
+                    await respondToScheduleProposal(false)
+                    const recipientRole = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
+                    const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
+                    if (recipientMember && family?.id) {
+                      await sendPushNotification({
+                        familyId:      family.id,
+                        recipientRole,
+                        title:         'Schedule change declined',
+                        body:          `${member?.display_name ?? 'A parent'} declined your proposed schedule`,
+                        url:           '/config',
+                      })
+                    }
+                    setResponding(false)
+                  }}
+                >
+                  Decline
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending proposal — shown to the proposer */}
+          {hasPendingProposal && isMyProposal && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-semibold text-amber-800">Waiting for {otherParentName} to approve</p>
+              <p className="text-xs text-amber-700">
+                {PATTERN_LABELS[schedule.pending_pattern_type]} · from {schedule.pending_start_date}
+              </p>
+              <Button
+                variant="secondary"
+                className="text-xs py-1.5 w-full text-amber-700 border-amber-300"
+                loading={responding}
+                onClick={async () => {
+                  setResponding(true)
+                  await respondToScheduleProposal(false)
+                  setResponding(false)
+                }}
+              >
+                Cancel proposal
+              </Button>
+            </div>
+          )}
+
+          {/* Edit form — hidden while a proposal is pending */}
+          {!hasPendingProposal && (
+            <>
+              {/* Pattern picker */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Rotation pattern</label>
+                <div className="space-y-1.5">
+                  {PATTERNS.map((p) => (
+                    <label
+                      key={p}
+                      className="flex items-center gap-3 rounded-xl border px-4 py-2.5 cursor-pointer transition-colors"
+                      style={{ borderColor: patternType === p ? '#3b82f6' : '#e5e7eb', background: patternType === p ? '#eff6ff' : '#f9fafb' }}
+                    >
+                      <input type="radio" name="pattern" value={p} checked={patternType === p} onChange={() => setPatternType(p)} className="accent-canopy-mid" />
+                      <span className="text-sm font-medium text-gray-800">{PATTERN_LABELS[p]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Starting parent */}
+              {patternType !== 'custom' && (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">First period goes to</label>
+                  <div className="flex gap-2">
+                    {[{ role: 'parent_a', name: pa }, { role: 'parent_b', name: pb }].map(({ role, name }) => (
+                      <button
+                        key={role}
+                        onClick={() => setStartingParent(role)}
+                        className={['flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all',
+                          startingParent === role
+                            ? role === 'parent_a' ? 'border-pa-700 bg-pa-100 text-pa-900' : 'border-pb-700 bg-pb-100 text-pb-900'
+                            : 'border-gray-200 bg-gray-50 text-gray-600',
+                        ].join(' ')}
+                      >{name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom cycle */}
+              {patternType === 'custom' && (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+                    Custom cycle ({customCycle.length} day{customCycle.length !== 1 ? 's' : ''})
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 min-h-12 bg-gray-50 rounded-xl p-3 border border-dashed border-gray-300">
+                    {customCycle.map((owner, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCustomCycle((prev) => prev.filter((_, idx) => idx !== i))}
+                        className={['px-2.5 py-1 rounded-lg text-xs font-semibold border',
+                          owner === 'parent_a' ? 'bg-pa-100 border-pa-300 text-pa-800' : 'bg-pb-100 border-pb-300 text-pb-800',
+                        ].join(' ')}
+                      >{owner === 'parent_a' ? pa.charAt(0) : pb.charAt(0)}</button>
+                    ))}
+                    {customCycle.length === 0 && <span className="text-xs text-gray-400 italic">Use the buttons below to build your cycle</span>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" className="flex-1 text-xs" onClick={() => setCustomCycle((p) => [...p, 'parent_a'])}>+ {pa}</Button>
+                    <Button variant="secondary" className="flex-1 text-xs" onClick={() => setCustomCycle((p) => [...p, 'parent_b'])}>+ {pb}</Button>
+                    {customCycle.length > 0 && <Button variant="ghost" className="text-xs text-red-500" onClick={() => setCustomCycle([])}>Clear</Button>}
+                  </div>
+                </div>
+              )}
+
+              {/* Start date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+                  {schedule ? 'Change takes effect from' : 'Schedule start date'}
                 </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Starting parent */}
-          {patternType !== 'custom' && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">First period goes to</label>
-              <div className="flex gap-2">
-                {[{ role: 'parent_a', name: pa }, { role: 'parent_b', name: pb }].map(({ role, name }) => (
-                  <button
-                    key={role}
-                    onClick={() => setStartingParent(role)}
-                    className={['flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all',
-                      startingParent === role
-                        ? role === 'parent_a' ? 'border-pa-700 bg-pa-100 text-pa-900' : 'border-pb-700 bg-pb-100 text-pb-900'
-                        : 'border-gray-200 bg-gray-50 text-gray-600',
-                    ].join(' ')}
-                  >{name}</button>
-                ))}
+                <input
+                  type="date"
+                  value={startDate}
+                  min={schedule ? formatDate(new Date()) : undefined}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+                />
+                <p className="text-xs text-gray-400">
+                  {schedule ? 'Must be today or in the future.' : 'The pattern repeats from this date indefinitely.'}
+                </p>
               </div>
-            </div>
+
+              <SchedulePreview patternType={patternType} startingParent={startingParent} customCycle={customCycle} startDate={startDate} pa={pa} pb={pb} />
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <Button className="w-full py-3" loading={saving} onClick={handleSave}>
+                {saved
+                  ? (schedule ? '✓ Proposal sent' : '✓ Saved')
+                  : schedule ? `Propose change to ${otherParentName}` : 'Save schedule'}
+              </Button>
+            </>
           )}
 
-          {/* Custom cycle */}
-          {patternType === 'custom' && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
-                Custom cycle ({customCycle.length} day{customCycle.length !== 1 ? 's' : ''})
-              </label>
-              <div className="flex flex-wrap gap-1.5 min-h-12 bg-gray-50 rounded-xl p-3 border border-dashed border-gray-300">
-                {customCycle.map((owner, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCustomCycle((prev) => prev.filter((_, idx) => idx !== i))}
-                    className={['px-2.5 py-1 rounded-lg text-xs font-semibold border',
-                      owner === 'parent_a' ? 'bg-pa-100 border-pa-300 text-pa-800' : 'bg-pb-100 border-pb-300 text-pb-800',
-                    ].join(' ')}
-                  >{owner === 'parent_a' ? pa.charAt(0) : pb.charAt(0)}</button>
-                ))}
-                {customCycle.length === 0 && <span className="text-xs text-gray-400 italic">Use the buttons below to build your cycle</span>}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="secondary" className="flex-1 text-xs" onClick={() => setCustomCycle((p) => [...p, 'parent_a'])}>+ {pa}</Button>
-                <Button variant="secondary" className="flex-1 text-xs" onClick={() => setCustomCycle((p) => [...p, 'parent_b'])}>+ {pb}</Button>
-                {customCycle.length > 0 && <Button variant="ghost" className="text-xs text-red-500" onClick={() => setCustomCycle([])}>Clear</Button>}
-              </div>
-            </div>
-          )}
-
-          {/* Start date */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
-              {schedule ? 'Change takes effect from' : 'Schedule start date'}
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              min={schedule ? formatDate(new Date()) : undefined}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
-            />
-            <p className="text-xs text-gray-400">
-              {schedule ? 'Must be today or in the future.' : 'The pattern repeats from this date indefinitely.'}
-            </p>
-          </div>
-
-          <SchedulePreview patternType={patternType} startingParent={startingParent} customCycle={customCycle} startDate={startDate} pa={pa} pb={pb} />
-
-          {/* Changeover */}
-          <div className="space-y-1.5">
+          {/* Changeover — always editable, not subject to approval */}
+          <div className="space-y-1.5 pt-2 border-t border-gray-100">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Default changeover</label>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -472,10 +613,6 @@ export default function ConfigPage() {
             <p className="text-xs text-gray-400">Individual days can be overridden from the calendar.</p>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button className="w-full py-3" loading={saving} onClick={handleSave}>
-            {saved ? '✓ Saved' : 'Save schedule'}
-          </Button>
         </div>
       </AccordionGroup>
 

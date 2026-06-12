@@ -137,11 +137,30 @@ export function FamilyProvider({ children }) {
     return { error }
   }
 
+  async function proposePendingSchedule({ pattern_type, pattern_data, start_date, starting_parent }) {
+    const { error } = await supabase.rpc('propose_schedule_change', {
+      p_pattern_type:    pattern_type,
+      p_pattern_data:    pattern_data,
+      p_start_date:      start_date,
+      p_starting_parent: starting_parent,
+    })
+    if (!error) await loadFamily()
+    return { error }
+  }
+
+  async function respondToScheduleProposal(accept) {
+    const { error } = await supabase.rpc('respond_to_schedule_proposal', { p_accept: accept })
+    if (!error) await loadFamily()
+    return { error }
+  }
+
   return (
     <FamilyContext.Provider value={{
       family, member, members, schedule, loading,
       userRole, isParent, parentA, parentB,
-      createFamily, joinFamily, generateInvite, saveSchedule, updateFamilyConfig, reload: loadFamily,
+      createFamily, joinFamily, generateInvite, saveSchedule,
+      proposePendingSchedule, respondToScheduleProposal,
+      updateFamilyConfig, reload: loadFamily,
     }}>
       {children}
     </FamilyContext.Provider>
