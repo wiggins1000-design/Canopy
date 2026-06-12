@@ -3,7 +3,9 @@ import { useFamily } from '../context/FamilyContext'
 export function useSubscription() {
   const { family } = useFamily()
 
-  const status      = family?.subscription_status ?? 'trialing'
+  // Default to 'active' if column doesn't exist yet (pre-migration 028)
+  // so the paywall never triggers accidentally before the migration is run.
+  const status      = family?.subscription_status ?? 'active'
   const trialEndsAt = family?.trial_ends_at ? new Date(family.trial_ends_at) : null
   const periodEnd   = family?.subscription_period_end ? new Date(family.subscription_period_end) : null
   const now         = new Date()

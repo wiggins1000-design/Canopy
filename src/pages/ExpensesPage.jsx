@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useExpenses } from '../hooks/useExpenses'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
@@ -180,12 +180,11 @@ function ExpenseCard({ expense, members, userId, otherName }) {
   const owedPence = Math.round(expense.amount_pence * expense.split_pct / 100)
   const [imgUrl, setImgUrl] = useState(null)
 
-  // Lazy-load receipt signed URL
-  useState(() => {
+  useEffect(() => {
     if (!expense.receipt_url) return
-    supabase.storage.from('receipts').createSignedUrl(expense.receipt_url, 3600)
+    supabase.storage.from('notice-attachments').createSignedUrl(expense.receipt_url, 3600)
       .then(({ data }) => { if (data?.signedUrl) setImgUrl(data.signedUrl) })
-  })
+  }, [expense.receipt_url])
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 shadow-sm">
