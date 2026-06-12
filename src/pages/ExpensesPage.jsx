@@ -32,7 +32,7 @@ function formatPounds(pence) {
 function groupByMonth(expenses) {
   const groups = {}
   for (const e of expenses) {
-    const key = e.expense_date.slice(0, 7) // YYYY-MM
+    const key = e.expense_date.slice(0, 7)
     if (!groups[key]) groups[key] = []
     groups[key].push(e)
   }
@@ -61,113 +61,106 @@ export default function ExpensesPage() {
 
   const displayList = tab === 'outstanding' ? unsettled : settled
   const groups = groupByMonth(displayList)
-
   const otherName = otherParent?.display_name ?? 'Other parent'
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 shrink-0">
-        <h1 className="text-xl font-bold text-gray-900 mb-3">Expenses</h1>
+    <div className="px-4 pt-4 pb-24">
 
-        {/* Balance banner */}
-        {!loading && (
-          <div className={`rounded-2xl px-4 py-3.5 mb-3 ${
-            balancePence > 0
-              ? 'bg-canopy-frost border border-canopy-mist'
-              : balancePence < 0
-              ? 'bg-amber-50 border border-amber-200'
-              : 'bg-gray-50 border border-gray-200'
-          }`}>
-            {balancePence === 0 ? (
-              <p className="text-sm font-semibold text-gray-500 text-center">All settled up</p>
-            ) : (
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className={`text-lg font-bold ${balancePence > 0 ? 'text-canopy-deep' : 'text-amber-800'}`}>
-                    {formatPounds(balancePence)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {balancePence > 0
-                      ? `${otherName} owes you`
-                      : `You owe ${otherName}`}
-                    {unsettled.length > 0 && ` · ${unsettled.length} expense${unsettled.length !== 1 ? 's' : ''}`}
-                  </p>
-                </div>
-                {unsettled.length > 0 && (
-                  <button
-                    onClick={handleSettle}
-                    disabled={settling}
-                    className="shrink-0 bg-canopy-mid text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    {settling ? 'Settling…' : 'Settle up'}
-                  </button>
-                )}
+      <h1 className="text-xl font-bold text-gray-900 mb-3">Expenses</h1>
+
+      {/* Balance banner */}
+      {!loading && (
+        <div className={`rounded-2xl px-4 py-3.5 mb-3 ${
+          balancePence > 0
+            ? 'bg-canopy-frost border border-canopy-mist'
+            : balancePence < 0
+            ? 'bg-amber-50 border border-amber-200'
+            : 'bg-gray-50 border border-gray-200'
+        }`}>
+          {balancePence === 0 ? (
+            <p className="text-sm font-semibold text-gray-500 text-center">All settled up</p>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className={`text-lg font-bold ${balancePence > 0 ? 'text-canopy-deep' : 'text-amber-800'}`}>
+                  {formatPounds(balancePence)}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {balancePence > 0
+                    ? `${otherName} owes you`
+                    : `You owe ${otherName}`}
+                  {unsettled.length > 0 && ` · ${unsettled.length} expense${unsettled.length !== 1 ? 's' : ''}`}
+                </p>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-          {['outstanding', 'history'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${
-                tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-              }`}
-            >
-              {t === 'outstanding' ? `Outstanding${unsettled.length > 0 ? ` (${unsettled.length})` : ''}` : 'History'}
-            </button>
-          ))}
+              {unsettled.length > 0 && (
+                <button
+                  onClick={handleSettle}
+                  disabled={settling}
+                  className="shrink-0 bg-canopy-mid text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {settling ? 'Settling…' : 'Settle up'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mb-4">
+        {['outstanding', 'history'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${
+              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {t === 'outstanding' ? `Outstanding${unsettled.length > 0 ? ` (${unsettled.length})` : ''}` : 'History'}
+          </button>
+        ))}
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-4xl mb-3">💸</p>
-            <p className="text-sm font-semibold text-gray-700">
-              {tab === 'outstanding' ? 'No outstanding expenses' : 'No history yet'}
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : groups.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-4xl mb-3">💸</p>
+          <p className="text-sm font-semibold text-gray-700">
+            {tab === 'outstanding' ? 'No outstanding expenses' : 'No history yet'}
+          </p>
+          {tab === 'outstanding' && (
+            <p className="text-xs text-gray-400 mt-1">Tap + to log a shared cost</p>
+          )}
+        </div>
+      ) : (
+        groups.map(([month, items]) => (
+          <div key={month} className="mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">
+              {monthLabel(month)}
             </p>
-            {tab === 'outstanding' && (
-              <p className="text-xs text-gray-400 mt-1">Tap + to log a shared cost</p>
-            )}
-          </div>
-        ) : (
-          groups.map(([month, items]) => (
-            <div key={month} className="mb-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">
-                {monthLabel(month)}
-              </p>
-              <div className="space-y-2">
-                {items.map((e) => (
-                  <ExpenseCard key={e.id} expense={e} members={members} userId={user?.id} otherName={otherName} />
-                ))}
-              </div>
+            <div className="space-y-2">
+              {items.map((e) => (
+                <ExpenseCard key={e.id} expense={e} members={members} userId={user?.id} otherName={otherName} />
+              ))}
             </div>
-          ))
-        )}
-      </div>
+          </div>
+        ))
+      )}
 
       {/* Add button */}
-      <div className="px-4 pb-4 shrink-0">
-        <button
-          onClick={() => setShowNew(true)}
-          className="w-full flex items-center justify-center gap-2 bg-canopy-mid text-white font-semibold py-3 rounded-2xl hover:bg-canopy-deep active:scale-95 transition-all text-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Log expense
-        </button>
-      </div>
+      <button
+        onClick={() => setShowNew(true)}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-canopy-mid hover:bg-canopy-deep text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-20"
+        aria-label="Log expense"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
 
       <NewExpenseSheet open={showNew} onClose={() => setShowNew(false)} />
     </div>
