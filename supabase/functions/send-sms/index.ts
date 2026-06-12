@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'SMS not configured' }), { status: 500, headers: CORS })
   }
 
-  const text = `${author_name} has posted an urgent notice on Canopy. Open the app to read it: ${app_url ?? 'https://canopy-production-4239.up.railway.app/board'}`
+  const text = `${author_name} has posted an urgent notice on Canopy. Open the app to read it: ${app_url ?? 'https://my.canopy-app.app/board'}`
 
   const res = await fetch('https://api.telnyx.com/v2/messages', {
     method: 'POST',
