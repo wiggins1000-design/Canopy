@@ -145,7 +145,7 @@ export function getDayState(dateStr, { schedule, changes = [], offers = [] }) {
 // ── Calendar grid ─────────────────────────────────────────────
 
 /**
- * Returns 42 day objects for a 6-row, Monday-first calendar grid.
+ * Returns day objects for a Monday-first calendar grid (5 or 6 rows as needed).
  * Each: { date: Date, current: boolean }
  */
 export function getCalendarMonthDays(year, month) {
@@ -161,8 +161,9 @@ export function getCalendarMonthDays(year, month) {
   for (let d = 1; d <= lastDay.getDate(); d++) {
     days.push({ date: new Date(year, month, d), current: true })
   }
+  const target = days.length <= 35 ? 35 : 42
   let pad = 1
-  while (days.length < 42) {
+  while (days.length < target) {
     days.push({ date: new Date(year, month + 1, pad++), current: false })
   }
   return days

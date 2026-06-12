@@ -36,7 +36,9 @@ export default function AppLayout() {
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0">
-        <Outlet />
+        <div className="h-full">
+          <Outlet />
+        </div>
       </main>
       <BottomNav />
       <PWAInstallPrompt />
