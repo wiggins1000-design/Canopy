@@ -29,11 +29,9 @@ function AppLayoutInner({ showSuccessToast, onToastDone }) {
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
       <PaywallOverlay />
-      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0 flex flex-col">
-        {!needsPaywall && <TrialBanner />}
-        <div className="flex-1">
-          <Outlet />
-        </div>
+      {!needsPaywall && <TrialBanner />}
+      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0">
+        <Outlet />
       </main>
       <BottomNav />
       <PWAInstallPrompt />
