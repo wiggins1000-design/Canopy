@@ -2,7 +2,7 @@
 -- expenses table + expense_settlements table + RPCs
 -- Run in Supabase SQL editor
 
-CREATE TABLE public.expenses (
+CREATE TABLE IF NOT EXISTS public.expenses (
   id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id     uuid        NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
   paid_by       uuid        NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE public.expenses (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.expense_settlements (
+CREATE TABLE IF NOT EXISTS public.expense_settlements (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id  uuid        NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
   settled_by uuid        NOT NULL,
@@ -25,17 +25,17 @@ CREATE TABLE public.expense_settlements (
 );
 
 ALTER TABLE public.expenses
-  ADD CONSTRAINT expenses_settlement_fkey
+  ADD CONSTRAINT IF NOT EXISTS expenses_settlement_fkey
   FOREIGN KEY (settlement_id) REFERENCES public.expense_settlements(id);
 
 -- RLS
 ALTER TABLE public.expenses           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expense_settlements ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "expenses_select" ON public.expenses
+CREATE POLICY IF NOT EXISTS "expenses_select" ON public.expenses
   FOR SELECT USING (family_id = public.my_family_id());
 
-CREATE POLICY "settlements_select" ON public.expense_settlements
+CREATE POLICY IF NOT EXISTS "settlements_select" ON public.expense_settlements
   FOR SELECT USING (family_id = public.my_family_id());
 
 -- ── RPCs ──────────────────────────────────────────────────────────────────────
