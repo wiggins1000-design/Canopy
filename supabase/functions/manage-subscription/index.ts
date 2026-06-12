@@ -1,4 +1,4 @@
-// Canopy — manage-subscription
+﻿// Canopy â€” manage-subscription
 // Creates a Stripe Customer Portal session so the user can cancel, update
 // payment details, or view invoices.
 
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
 
   let body: any = {}
   try { body = await req.json() } catch { /* empty body is fine */ }
-  const appUrl = body.app_url ?? 'https://app.canopy-app.app'
+  const appUrl = body.app_url ?? 'https://my.canopy-app.app'
 
   const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 

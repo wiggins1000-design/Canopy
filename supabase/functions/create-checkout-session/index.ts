@@ -1,4 +1,4 @@
-// Canopy — create-checkout-session
+﻿// Canopy â€” create-checkout-session
 // Creates a Stripe Checkout session for the family subscription.
 // Preserves any remaining trial days from the family's trial_ends_at.
 
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
   if (!family) return new Response('Family not found', { status: 400, headers: CORS })
 
-  // Already active — no need to create a new session
+  // Already active â€” no need to create a new session
   if (family.subscription_status === 'active') {
     return new Response(JSON.stringify({ already_active: true }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
   let body: any = {}
   try { body = await req.json() } catch { /* empty body is fine */ }
-  const appUrl = body.app_url ?? 'https://app.canopy-app.app'
+  const appUrl = body.app_url ?? 'https://my.canopy-app.app'
 
   const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
