@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
     setError(null)
     const { error } = await signInWithEmail(email, password)
     if (error) { setError(error.message); setLoading(false) }
-    // On success, session changes → useEffect above verifies admin status
+    // On success, session changes â†’ useEffect above verifies admin status
   }
 
   return (
@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-slate-700 text-white text-2xl mb-4">
-            🌿
+            ðŸŒ¿
           </div>
           <h1 className="text-2xl font-bold text-white">Canopy Admin</h1>
           <p className="text-slate-500 text-sm mt-1">Authorised access only</p>
@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@mycanopymail.com"
+                placeholder="admin@canopy-app.app"
                 required
                 autoComplete="username"
                 className="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green"
@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
               label="Password"
               value={password}
               onChange={setPassword}
-              placeholder="••••••••"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
               required
               dark
             />

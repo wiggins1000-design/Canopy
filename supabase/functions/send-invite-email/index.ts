@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Canopy <noreply@mycanopymail.com>',
+      from: 'Canopy <noreply@canopy-app.app>',
       to: [recipientEmail],
       subject: `${senderName} invited you to join Canopy`,
       html,
