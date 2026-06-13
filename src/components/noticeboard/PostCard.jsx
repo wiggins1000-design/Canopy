@@ -79,7 +79,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
             {author?.display_name ?? 'External'}
           </span>
           <span className="text-xs text-gray-400">
-            {new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(post.created_at))}
+            {new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(post.created_at))}
           </span>
         </div>
 
