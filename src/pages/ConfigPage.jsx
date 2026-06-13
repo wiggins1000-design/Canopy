@@ -59,6 +59,10 @@ export default function ConfigPage() {
   const [passwordSaved, setPasswordSaved]     = useState(false)
   const [passwordError, setPasswordError]     = useState(null)
 
+  const [twoFaGlobalEnabled, setTwoFaGlobalEnabled] = useState(false)
+  const [twoFaUserEnabled, setTwoFaUserEnabled]     = useState(false)
+  const [twoFaSaving, setTwoFaSaving]               = useState(false)
+
   useEffect(() => {
     if (!schedule) return
     setPatternType(schedule.pattern_type)
@@ -228,6 +232,17 @@ export default function ConfigPage() {
       .then(({ data }) => setAdditionalEmails(data ?? []))
   }, [user])
 
+  useEffect(() => {
+    if (!user) return
+    Promise.all([
+      supabase.from('app_settings').select('two_fa_enabled').single(),
+      supabase.from('family_members').select('two_fa_enabled').eq('user_id', user.id).maybeSingle(),
+    ]).then(([{ data: settings }, { data: memberData }]) => {
+      setTwoFaGlobalEnabled(!!settings?.two_fa_enabled)
+      setTwoFaUserEnabled(!!memberData?.two_fa_enabled)
+    })
+  }, [user])
+
   async function addEmail() {
     const trimmed = newEmail.trim().toLowerCase()
     if (!trimmed) return
@@ -303,6 +318,14 @@ export default function ConfigPage() {
     setTimeout(() => setPasswordSaved(false), 2500)
   }
 
+  async function toggleTwoFa() {
+    setTwoFaSaving(true)
+    const newVal = !twoFaUserEnabled
+    await supabase.from('family_members').update({ two_fa_enabled: newVal }).eq('user_id', user.id)
+    setTwoFaUserEnabled(newVal)
+    setTwoFaSaving(false)
+  }
+
   const pa = parentA?.display_name ?? 'Parent A'
   const pb = parentB?.display_name ?? 'Parent B'
 
@@ -336,6 +359,21 @@ export default function ConfigPage() {
             <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
               {passwordSaved ? 'âœ“ Password updated' : 'Update password'}
             </Button>
+            {twoFaGlobalEnabled && (
+              <button
+                onClick={!twoFaSaving ? toggleTwoFa : undefined}
+                disabled={twoFaSaving}
+                className={`w-full flex items-center justify-between hover:bg-gray-50 transition-colors py-2 rounded-lg ${twoFaSaving ? 'opacity-50' : ''}`}
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-800 text-left">Two-factor authentication</p>
+                  <p className="text-xs text-gray-400 mt-0.5 text-left">Require an email code each time you sign in.</p>
+                </div>
+                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${twoFaUserEnabled ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${twoFaUserEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+              </button>
+            )}
             <button onClick={signOut} className="w-full text-sm text-red-500 py-2 hover:underline">
               Sign out
             </button>
@@ -737,6 +775,21 @@ export default function ConfigPage() {
           <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
             {passwordSaved ? 'âœ“ Password updated' : 'Update password'}
           </Button>
+          {twoFaGlobalEnabled && (
+            <button
+              onClick={!twoFaSaving ? toggleTwoFa : undefined}
+              disabled={twoFaSaving}
+              className={`w-full flex items-center justify-between hover:bg-gray-50 transition-colors py-2 rounded-lg ${twoFaSaving ? 'opacity-50' : ''}`}
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-800 text-left">Two-factor authentication</p>
+                <p className="text-xs text-gray-400 mt-0.5 text-left">Require an email code each time you sign in.</p>
+              </div>
+              <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${twoFaUserEnabled ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${twoFaUserEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              </div>
+            </button>
+          )}
           <button
             onClick={signOut}
             className="w-full text-sm text-red-500 py-2 hover:underline"

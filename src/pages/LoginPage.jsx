@@ -5,7 +5,7 @@ import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 
 export default function LoginPage() {
-  const { session, signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth()
+  const { session, needsTwoFa, signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth()
   const location = useLocation()
   const [mode, setMode] = useState('signin') // 'signin' | 'signup' | 'forgot'
   const [email, setEmail] = useState('')
@@ -15,7 +15,8 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(location.state?.message ?? null)
 
-  if (session) return <Navigate to="/calendar" replace />
+  if (session && !needsTwoFa) return <Navigate to="/calendar" replace />
+  if (session && needsTwoFa) return <Navigate to="/2fa" replace />
 
   async function handleSubmit(e) {
     e.preventDefault()

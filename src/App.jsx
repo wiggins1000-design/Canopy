@@ -6,6 +6,7 @@ import AppLayout from './components/layout/AppLayout'
 import AdminRoute from './components/admin/AdminRoute'
 import AdminLayout from './components/admin/AdminLayout'
 import LoginPage from './pages/LoginPage'
+import TwoFAPage from './pages/TwoFAPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import JoinPage from './pages/JoinPage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
@@ -30,6 +31,7 @@ export default function App() {
       <FamilyProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/2fa" element={<TwoFAPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/join/:code" element={<JoinPage />} />
 

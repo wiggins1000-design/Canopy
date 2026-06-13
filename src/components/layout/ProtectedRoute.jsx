@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
 export default function ProtectedRoute({ children }) {
-  const { session } = useAuth()
+  const { session, needsTwoFa } = useAuth()
 
   if (session === undefined) {
     return (
@@ -13,6 +13,7 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!session) return <Navigate to="/login" replace />
+  if (needsTwoFa) return <Navigate to="/2fa" replace />
 
   return children
 }
