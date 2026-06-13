@@ -15,8 +15,7 @@ const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 export default function ConfigPage() {
   const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
   const { user, signOut } = useAuth()
-  const emailDomain = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
-  const familyEmail = family?.email_key ? `${family.email_key}@${emailDomain}` : null
+  const familyFeedAddress = 'familyfeed@canopy-app.app'
   const navigate    = useNavigate()
 
   const [patternType, setPatternType] = useState('alternating_weeks')
@@ -618,41 +617,37 @@ export default function ConfigPage() {
       </AccordionGroup>
 
       {/* â”€â”€ FamilyFeed â”€â”€ */}
-      {familyEmail && (
-        <>
-          <AccordionGroup label="FamilyFeed">
-            <div className="px-4 py-3 space-y-3">
-              <p className="text-xs text-gray-400">Forward school newsletters or appointment emails to this address â€” Canopy pulls out events and adds them to your calendar.</p>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                <span className="text-sm text-gray-800 flex-1 font-mono truncate">{familyEmail}</span>
-                <button onClick={() => navigator.clipboard.writeText(familyEmail)} className="text-xs text-canopy-mid font-medium shrink-0 hover:underline">Copy</button>
+      <AccordionGroup label=”FamilyFeed”>
+        <div className=”px-4 py-3 space-y-3”>
+          <p className=”text-xs text-gray-400”>Forward school newsletters or appointment emails to this address — Canopy pulls out events and adds them to your calendar automatically.</p>
+          <div className=”flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5”>
+            <span className=”text-sm text-gray-800 flex-1 font-mono truncate”>{familyFeedAddress}</span>
+            <button onClick={() => navigator.clipboard.writeText(familyFeedAddress)} className=”text-xs text-canopy-mid font-medium shrink-0 hover:underline”>Copy</button>
+          </div>
+          <div className=”border-t border-gray-100 pt-3 space-y-2”>
+            <p className=”text-xs font-semibold text-gray-500”>Your forwarding addresses</p>
+            <p className=”text-xs text-gray-400”>Add every email address you might forward from — your personal email, work email, or any other account. If we don't recognise the sender, the email won't be processed.</p>
+            {additionalEmails.map((e) => (
+              <div key={e.id} className=”flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5”>
+                <span className=”text-sm text-gray-800 flex-1 font-mono truncate”>{e.email}</span>
+                <button onClick={() => removeEmail(e.id)} className=”text-xs text-red-500 hover:underline shrink-0”>Remove</button>
               </div>
-              <div className="border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-500">Forwarding addresses</p>
-                <p className="text-xs text-gray-400">Add other email addresses you forward from so Canopy can attribute them correctly.</p>
-                {additionalEmails.map((e) => (
-                  <div key={e.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                    <span className="text-sm text-gray-800 flex-1 font-mono truncate">{e.email}</span>
-                    <button onClick={() => removeEmail(e.id)} className="text-xs text-red-500 hover:underline shrink-0">Remove</button>
-                  </div>
-                ))}
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
-                    onKeyDown={(e) => e.key === 'Enter' && addEmail()}
-                    placeholder="e.g. chris@work.com"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
-                  />
-                  <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
-                </div>
-                {emailError && <p className="text-sm text-red-600">{emailError}</p>}
-              </div>
+            ))}
+            <div className=”flex gap-2”>
+              <input
+                type=”email”
+                value={newEmail}
+                onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
+                onKeyDown={(e) => e.key === 'Enter' && addEmail()}
+                placeholder=”e.g. chris@work.com”
+                className=”flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green”
+              />
+              <Button variant=”secondary” loading={emailAdding} onClick={addEmail} className=”shrink-0”>Add</Button>
             </div>
-          </AccordionGroup>
-        </>
-      )}
+            {emailError && <p className=”text-sm text-red-600”>{emailError}</p>}
+          </div>
+        </div>
+      </AccordionGroup>
 
       {/* â”€â”€ Notifications â”€â”€ */}
       <AccordionGroup label="Notifications">

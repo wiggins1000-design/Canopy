@@ -66,52 +66,36 @@ Deno.serve(async (req) => {
 
   const payload = await req.json()
 
-
-  // ── Extract family from To: address ──────────────────────────────────────
-  // e.g. "abc123def456@canopy.app" → email_key = "abc123def456"
-  const toRaw: string = payload.To || payload.to || ''
-  const toAddress = toRaw.match(/<([^>]+)>/)?.[1] ?? toRaw.trim()
-  const emailKey = toAddress.split('@')[0].toLowerCase()
-
-  if (!emailKey) {
-    return new Response(JSON.stringify({ error: 'no to address' }), { status: 400, headers: CORS })
-  }
-
-  const { data: family, error: familyErr } = await supabase
-    .from('families')
-    .select('id, config')
-    .eq('email_key', emailKey)
-    .single()
-  if (familyErr) console.error('Family lookup error:', familyErr.message)
-
-  if (!family) {
-    console.log('No family found for email_key:', emailKey)
-    return new Response(JSON.stringify({ skipped: 'unknown family' }), { status: 200, headers: CORS })
-  }
-
-  // Identify the sender — try to match the From address to a family member
+  // ── Identify family from sender (From: address) ───────────────────────────
+  // familyfeed@canopy-app.app is a shared inbox — families are identified by
+  // who forwards the email, not by a unique per-family address.
+  // Only emails from registered addresses are processed; all others are dropped.
   const fromRaw: string = payload.From || payload.from || ''
   const fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
-  // Extract display name for external senders e.g. "St Mary's School <admin@school.com>" → "St Mary's School"
-  const fromDisplayName = fromRaw.match(/^([^<]+)</) ? fromRaw.match(/^([^<]+)</)?.[1].trim() : fromEmail
 
+  if (!fromEmail) {
+    return new Response(JSON.stringify({ error: 'no from address' }), { status: 400, headers: CORS })
+  }
+
+  let familyId: string | null = null
   let authorId: string | null = null
-  let isExternalSender = false
-  if (fromEmail) {
-    const { data: senderUserId } = await supabase.rpc('get_user_id_by_email', { p_email: fromEmail })
-    if (senderUserId) {
-      const { data: senderMember } = await supabase
-        .from('family_members')
-        .select('user_id')
-        .eq('family_id', family.id)
-        .eq('user_id', senderUserId)
-        .single()
-      if (senderMember) authorId = senderMember.user_id
+
+  // Check primary auth email
+  const { data: senderUserId } = await supabase.rpc('get_user_id_by_email', { p_email: fromEmail })
+  if (senderUserId) {
+    const { data: senderMember } = await supabase
+      .from('family_members')
+      .select('family_id, user_id')
+      .eq('user_id', senderUserId)
+      .single()
+    if (senderMember) {
+      familyId = senderMember.family_id
+      authorId = senderMember.user_id
     }
   }
 
-  // Secondary check — look up additional forwarding emails only if primary didn't match
-  if (!authorId && fromEmail) {
+  // Check additional registered forwarding emails
+  if (!familyId) {
     const { data: additionalEmail } = await supabase
       .from('member_additional_emails')
       .select('user_id')
@@ -120,18 +104,30 @@ Deno.serve(async (req) => {
     if (additionalEmail) {
       const { data: senderMember } = await supabase
         .from('family_members')
-        .select('user_id')
-        .eq('family_id', family.id)
+        .select('family_id, user_id')
         .eq('user_id', additionalEmail.user_id)
         .single()
-      if (senderMember) authorId = senderMember.user_id
+      if (senderMember) {
+        familyId = senderMember.family_id
+        authorId = senderMember.user_id
+      }
     }
   }
 
-  // Final fallback — external email (e.g. school newsletter), no family member identified
-  if (!authorId) {
-    isExternalSender = true
-    // authorId stays null — post will show as "External" in the UI
+  if (!familyId) {
+    console.log('Unrecognised sender — dropping email from:', fromEmail)
+    return new Response(JSON.stringify({ skipped: 'unrecognised sender' }), { status: 200, headers: CORS })
+  }
+
+  const { data: family, error: familyErr } = await supabase
+    .from('families')
+    .select('id, config')
+    .eq('id', familyId)
+    .single()
+  if (familyErr) console.error('Family lookup error:', familyErr.message)
+
+  if (!family) {
+    return new Response(JSON.stringify({ skipped: 'family not found' }), { status: 200, headers: CORS })
   }
 
   // ── Fetch existing events for duplicate detection ─────────────────────────
@@ -432,8 +428,7 @@ Rules:
     if (eventsUpdated > 0) {
       parts.push(`✏️ ${eventsUpdated} existing event${eventsUpdated > 1 ? 's' : ''} updated with new details:\n${updatedEventLines.join('\n')}`)
     }
-    const senderLine = isExternalSender ? `From: ${fromDisplayName ?? fromEmail}\n` : ''
-    const content = `${senderLine}${parts.join('\n\n')}\n\n_From email: "${subject}"_`
+    const content = `${parts.join('\n\n')}\n\n_From email: "${subject}"_`
 
     const { error: noticeErr1 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
@@ -449,7 +444,7 @@ Rules:
   } else if (parsed.notice_post) {
     const { error: noticeErr2 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
-      p_content:   `${isExternalSender ? `From: ${fromDisplayName ?? fromEmail}\n` : ''}${parsed.notice_post}\n\n_From email: "${subject}"_`,
+      p_content:   `${parsed.notice_post}\n\n_From email: "${subject}"_`,
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
