@@ -562,10 +562,8 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       <div className="border-t border-gray-100 pt-3 space-y-3">
         <Field label="School name" placeholder="St Mary's Primary School" {...f('school_name')} />
         <Field label="Address" placeholder="3 School Lane, London" {...f('school_address')} />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('school_phone')} />
-          <Field label="Email" placeholder="office@stmarys.sch.uk" type="email" {...f('school_email')} />
-        </div>
+        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('school_phone')} />
+        <Field label="Email" placeholder="office@stmarys.sch.uk" type="email" {...f('school_email')} />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Hours" placeholder="e.g. 8:50 – 3:15" {...f('hours')} />
           <Field label="Head teacher" placeholder="Mr Brown" {...f('head_teacher')} />
