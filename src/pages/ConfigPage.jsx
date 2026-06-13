@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+﻿﻿import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase, registerPushSubscription, unregisterPushSubscription, sendPushNotification } from '../lib/supabase'
@@ -138,7 +138,7 @@ export default function ConfigPage() {
             familyId:      family.id,
             recipientRole,
             title:         'Schedule change proposed',
-            body:          `${member?.display_name ?? 'A parent'} proposed a new parenting schedule â€” open Settings to review`,
+            body:          `${member?.display_name ?? 'A parent'} proposed a new parenting schedule â€" open Settings to review`,
             url:           '/config',
           })
         }
@@ -165,7 +165,7 @@ export default function ConfigPage() {
         setTimeout(() => navigate('/calendar'), 1200)
       }
     } catch (e) {
-      setError('Failed to save â€” check your connection and try again.')
+      setError('Failed to save â€" check your connection and try again.')
       setSaving(false)
     }
   }
@@ -357,7 +357,7 @@ export default function ConfigPage() {
             <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
             {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
             <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
-              {passwordSaved ? 'âœ“ Password updated' : 'Update password'}
+              {passwordSaved ? 'âœ" Password updated' : 'Update password'}
             </Button>
             {twoFaGlobalEnabled && (
               <button
@@ -387,7 +387,7 @@ export default function ConfigPage() {
     <div className="px-4 py-5 space-y-2">
       <h1 className="text-xl font-bold text-gray-900 mb-4">Settings</h1>
 
-      {/* â”€â”€ Family â”€â”€ */}
+      {/* â"€â"€ Family â"€â"€ */}
       <AccordionGroup label="Children">
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs text-gray-400">Add each child's name. Add school details in Info Bank for better FamilyFeed results.</p>
@@ -410,7 +410,7 @@ export default function ConfigPage() {
             + Add child
           </button>
           <Button className="w-full py-3" loading={childrenSaving} onClick={saveChildren}>
-            {childrenSaved ? 'âœ“ Saved' : 'Save children'}
+            {childrenSaved ? 'âœ" Saved' : 'Save children'}
           </Button>
         </div>
       </AccordionGroup>
@@ -444,16 +444,16 @@ export default function ConfigPage() {
             + Add pet
           </button>
           <Button className="w-full py-3" loading={petsSaving} onClick={savePets}>
-            {petsSaved ? 'âœ“ Saved' : 'Save pets'}
+            {petsSaved ? 'âœ" Saved' : 'Save pets'}
           </Button>
         </div>
       </AccordionGroup>
 
-      {/* â”€â”€ Parenting Schedule â”€â”€ */}
+      {/* â"€â"€ Parenting Schedule â"€â"€ */}
       <AccordionGroup label="Parenting Schedule">
         <div className="px-4 py-3 space-y-4">
 
-          {/* Pending proposal â€” shown to the OTHER parent */}
+          {/* Pending proposal â€" shown to the OTHER parent */}
           {hasPendingProposal && !isMyProposal && (
             <div className="bg-canopy-frost border border-canopy-mist rounded-xl p-3 space-y-3">
               <div>
@@ -519,7 +519,7 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {/* Pending proposal â€” shown to the proposer */}
+          {/* Pending proposal â€" shown to the proposer */}
           {hasPendingProposal && isMyProposal && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
               <p className="text-sm font-semibold text-amber-800">Waiting for {otherParentName} to approve</p>
@@ -541,7 +541,7 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {/* Edit form â€” hidden while a proposal is pending */}
+          {/* Edit form â€" hidden while a proposal is pending */}
           {!hasPendingProposal && (
             <>
               {/* Pattern picker */}
@@ -629,13 +629,13 @@ export default function ConfigPage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button className="w-full py-3" loading={saving} onClick={handleSave}>
                 {saved
-                  ? (schedule ? 'âœ“ Proposal sent' : 'âœ“ Saved')
+                  ? (schedule ? 'âœ" Proposal sent' : 'âœ" Saved')
                   : schedule ? `Propose change to ${otherParentName}` : 'Save schedule'}
               </Button>
             </>
           )}
 
-          {/* Changeover â€” always editable, not subject to approval */}
+          {/* Changeover â€" always editable, not subject to approval */}
           <div className="space-y-1.5 pt-2 border-t border-gray-100">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Default changeover</label>
             <div className="grid grid-cols-2 gap-3">
@@ -654,40 +654,40 @@ export default function ConfigPage() {
         </div>
       </AccordionGroup>
 
-      {/* â”€â”€ FamilyFeed â”€â”€ */}
-      <AccordionGroup label=”FamilyFeed”>
-        <div className=”px-4 py-3 space-y-3”>
-          <p className=”text-xs text-gray-400”>Forward school newsletters or appointment emails to this address — Canopy pulls out events and adds them to your calendar automatically.</p>
-          <div className=”flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5”>
-            <span className=”text-sm text-gray-800 flex-1 font-mono truncate”>{familyFeedAddress}</span>
-            <button onClick={() => navigator.clipboard.writeText(familyFeedAddress)} className=”text-xs text-canopy-mid font-medium shrink-0 hover:underline”>Copy</button>
+      {/* â"€â"€ FamilyFeed â"€â"€ */}
+      <AccordionGroup label="FamilyFeed">
+        <div className="px-4 py-3 space-y-3">
+          <p className="text-xs text-gray-400">Forward school newsletters or appointment emails to this address — Canopy pulls out events and adds them to your calendar automatically.</p>
+          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+            <span className="text-sm text-gray-800 flex-1 font-mono truncate">{familyFeedAddress}</span>
+            <button onClick={() => navigator.clipboard.writeText(familyFeedAddress)} className="text-xs text-canopy-mid font-medium shrink-0 hover:underline">Copy</button>
           </div>
-          <div className=”border-t border-gray-100 pt-3 space-y-2”>
-            <p className=”text-xs font-semibold text-gray-500”>Your forwarding addresses</p>
-            <p className=”text-xs text-gray-400”>Add every email address you might forward from — your personal email, work email, or any other account. If we don't recognise the sender, the email won't be processed.</p>
+          <div className="border-t border-gray-100 pt-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500">Your forwarding addresses</p>
+            <p className="text-xs text-gray-400">Add every email address you might forward from — your personal email, work email, or any other account. If we don't recognise the sender, the email won't be processed.</p>
             {additionalEmails.map((e) => (
-              <div key={e.id} className=”flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5”>
-                <span className=”text-sm text-gray-800 flex-1 font-mono truncate”>{e.email}</span>
-                <button onClick={() => removeEmail(e.id)} className=”text-xs text-red-500 hover:underline shrink-0”>Remove</button>
+              <div key={e.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                <span className="text-sm text-gray-800 flex-1 font-mono truncate">{e.email}</span>
+                <button onClick={() => removeEmail(e.id)} className="text-xs text-red-500 hover:underline shrink-0">Remove</button>
               </div>
             ))}
-            <div className=”flex gap-2”>
+            <div className="flex gap-2">
               <input
-                type=”email”
+                type="email"
                 value={newEmail}
                 onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
                 onKeyDown={(e) => e.key === 'Enter' && addEmail()}
-                placeholder=”e.g. chris@work.com”
-                className=”flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green”
+                placeholder="e.g. chris@work.com"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
               />
-              <Button variant=”secondary” loading={emailAdding} onClick={addEmail} className=”shrink-0”>Add</Button>
+              <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
             </div>
-            {emailError && <p className=”text-sm text-red-600”>{emailError}</p>}
+            {emailError && <p className="text-sm text-red-600">{emailError}</p>}
           </div>
         </div>
       </AccordionGroup>
 
-      {/* â”€â”€ Notifications â”€â”€ */}
+      {/* â"€â"€ Notifications â"€â"€ */}
       <AccordionGroup label="Notifications">
         <PushToggleRow
           pushSupported={pushSupported}
@@ -697,7 +697,7 @@ export default function ConfigPage() {
           onToggle={togglePush}
         />
         <div className="border-t border-gray-100 px-4 py-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-500">SMS â€” urgent notices</p>
+          <p className="text-xs font-semibold text-gray-500">SMS â€" urgent notices</p>
           <p className="text-xs text-gray-400">Receive an SMS when an urgent notice is posted. Include country code, e.g. +44. Leave blank to opt out.</p>
           <input
             type="tel"
@@ -708,25 +708,25 @@ export default function ConfigPage() {
           />
           {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
           <Button className="w-full py-3" loading={phoneSaving} onClick={savePhone}>
-            {phoneSaved ? 'âœ“ Saved' : 'Save number'}
+            {phoneSaved ? 'âœ" Saved' : 'Save number'}
           </Button>
         </div>
       </AccordionGroup>
 
-      {/* â”€â”€ Calendar sync â”€â”€ */}
+      {/* â"€â"€ Calendar sync â"€â"€ */}
       <AccordionGroup label="Calendar Sync">
         <CalendarSyncSection />
       </AccordionGroup>
 
-      {/* â”€â”€ People â”€â”€ */}
+      {/* â"€â"€ People â"€â"€ */}
       <AccordionGroup label="Family members">
         <NavRow label="Manage family" description="Invite parents or read-only members" onPress={() => navigate('/invite')} />
       </AccordionGroup>
 
-      {/* â”€â”€ Subscription â”€â”€ */}
+      {/* â"€â"€ Subscription â"€â"€ */}
       <SubscriptionSection />
 
-      {/* â”€â”€ Features â”€â”€ */}
+      {/* â"€â"€ Features â"€â"€ */}
       {isParent && (
         <AccordionGroup label="Features">
           <ToggleRow
@@ -759,13 +759,13 @@ export default function ConfigPage() {
         </AccordionGroup>
       )}
 
-      {/* â”€â”€ Legal â”€â”€ */}
+      {/* â"€â"€ Legal â"€â"€ */}
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
         <NavRow label="Parenting agreement" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
       </AccordionGroup>
 
-      {/* â”€â”€ Account â”€â”€ */}
+      {/* â"€â"€ Account â"€â"€ */}
       <AccordionGroup label="Account">
         <div className="px-4 py-3 space-y-3">
           <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
@@ -773,7 +773,7 @@ export default function ConfigPage() {
           <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
           {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
           <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
-            {passwordSaved ? 'âœ“ Password updated' : 'Update password'}
+            {passwordSaved ? 'âœ" Password updated' : 'Update password'}
           </Button>
           {twoFaGlobalEnabled && (
             <button
@@ -804,7 +804,7 @@ export default function ConfigPage() {
   )
 }
 
-// â”€â”€ Layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Layout helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function AccordionGroup({ label, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -926,7 +926,7 @@ function SubscriptionSection() {
 }
 
 function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
-  // splitPct = Parent A's share (0â€“100)
+  // splitPct = Parent A's share (0â€"100)
   const myShare    = userRole === 'parent_a' ? splitPct : (100 - splitPct)
   const otherShare = 100 - myShare
   const myName     = userRole === 'parent_a' ? pa : pb
@@ -969,7 +969,7 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
         <span>{otherName}: {100 - draft}%</span>
       </div>
       <Button className="w-full py-2.5 text-sm" onClick={handleSave}>
-        {saved ? 'âœ“ Saved' : 'Save split'}
+        {saved ? 'âœ" Saved' : 'Save split'}
       </Button>
     </div>
   )
@@ -983,7 +983,7 @@ function ChevronRightIcon({ className }) {
   )
 }
 
-// â”€â”€ Schedule preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Schedule preview â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function SchedulePreview({ patternType, startingParent, customCycle, startDate, pa, pb }) {
   let cycle
@@ -1004,7 +1004,7 @@ function SchedulePreview({ patternType, startingParent, customCycle, startDate, 
 
   return (
     <section>
-      <label className="text-sm font-semibold text-gray-700 block mb-2">Preview â€” first 14 days</label>
+      <label className="text-sm font-semibold text-gray-700 block mb-2">Preview â€" first 14 days</label>
       <div className="grid grid-cols-7 gap-1">
         {preview.map(({ date, owner }, i) => (
           <div
