@@ -352,9 +352,9 @@ export default function ConfigPage() {
 
         <AccordionGroup label="Account">
           <div className="px-4 py-3 space-y-3">
-            <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
-            <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
-            <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
+            <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" required />
+            <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="••••••••" required />
+            <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
             {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
             <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
               {passwordSaved ? 'âœ" Password updated' : 'Update password'}
@@ -768,9 +768,9 @@ export default function ConfigPage() {
       {/* â"€â"€ Account â"€â"€ */}
       <AccordionGroup label="Account">
         <div className="px-4 py-3 space-y-3">
-          <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
-          <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
-          <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required />
+          <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" required />
+          <PasswordField label="New password" value={newPassword} onChange={setNewPassword} placeholder="••••••••" required />
+          <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
           {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
           <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
             {passwordSaved ? 'âœ" Password updated' : 'Update password'}
