@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 
-const EMAIL_DOMAIN = import.meta.env.VITE_EMAIL_DOMAIN ?? 'canopy.app'
 
 const ROLE_BADGE = {
   parent_a:    'bg-blue-900/50 text-blue-300',
@@ -61,9 +60,6 @@ export default function AdminFamilyPage() {
         <h1 className="text-2xl font-bold text-white">
           {members.filter((m) => ['parent_a', 'parent_b'].includes(m.role)).map((m) => m.display_name).join(' & ') || 'Family'}
         </h1>
-        <p className="text-slate-400 text-sm font-mono mt-0.5">
-          {family.email_key}@{EMAIL_DOMAIN}
-        </p>
         <p className="text-slate-500 text-xs mt-1">
           Created {format(new Date(family.created_at), 'd MMM yyyy')}
         </p>
