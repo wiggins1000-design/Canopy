@@ -138,7 +138,7 @@ export default function ConfigPage() {
             familyId:      family.id,
             recipientRole,
             title:         'Schedule change proposed',
-            body:          `${member?.display_name ?? 'A parent'} proposed a new parenting schedule â€" open Settings to review`,
+            body:          `${member?.display_name ?? 'A parent'} proposed a new parenting schedule — open Settings to review`,
             url:           '/config',
           })
         }
@@ -165,7 +165,7 @@ export default function ConfigPage() {
         setTimeout(() => navigate('/calendar'), 1200)
       }
     } catch (e) {
-      setError('Failed to save â€" check your connection and try again.')
+      setError('Failed to save — check your connection and try again.')
       setSaving(false)
     }
   }
@@ -357,7 +357,7 @@ export default function ConfigPage() {
             <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
             {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
             <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
-              {passwordSaved ? 'âœ" Password updated' : 'Update password'}
+              {passwordSaved ? '✓ Password updated' : 'Update password'}
             </Button>
             {twoFaGlobalEnabled && (
               <button
@@ -410,7 +410,7 @@ export default function ConfigPage() {
             + Add child
           </button>
           <Button className="w-full py-3" loading={childrenSaving} onClick={saveChildren}>
-            {childrenSaved ? 'âœ" Saved' : 'Save children'}
+            {childrenSaved ? '✓ Saved' : 'Save children'}
           </Button>
         </div>
       </AccordionGroup>
@@ -444,7 +444,7 @@ export default function ConfigPage() {
             + Add pet
           </button>
           <Button className="w-full py-3" loading={petsSaving} onClick={savePets}>
-            {petsSaved ? 'âœ" Saved' : 'Save pets'}
+            {petsSaved ? '✓ Saved' : 'Save pets'}
           </Button>
         </div>
       </AccordionGroup>
@@ -453,13 +453,13 @@ export default function ConfigPage() {
       <AccordionGroup label="Parenting Schedule">
         <div className="px-4 py-3 space-y-4">
 
-          {/* Pending proposal â€" shown to the OTHER parent */}
+          {/* Pending proposal — shown to the OTHER parent */}
           {hasPendingProposal && !isMyProposal && (
             <div className="bg-canopy-frost border border-canopy-mist rounded-xl p-3 space-y-3">
               <div>
                 <p className="text-sm font-semibold text-canopy-deep">{proposerName} proposed a new schedule</p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {PATTERN_LABELS[schedule.pending_pattern_type]} Â· from {schedule.pending_start_date}
+                  {PATTERN_LABELS[schedule.pending_pattern_type]} · from {schedule.pending_start_date}
                 </p>
               </div>
               <SchedulePreview
@@ -519,12 +519,12 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {/* Pending proposal â€" shown to the proposer */}
+          {/* Pending proposal — shown to the proposer */}
           {hasPendingProposal && isMyProposal && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
               <p className="text-sm font-semibold text-amber-800">Waiting for {otherParentName} to approve</p>
               <p className="text-xs text-amber-700">
-                {PATTERN_LABELS[schedule.pending_pattern_type]} Â· from {schedule.pending_start_date}
+                {PATTERN_LABELS[schedule.pending_pattern_type]} · from {schedule.pending_start_date}
               </p>
               <Button
                 variant="secondary"
@@ -541,7 +541,7 @@ export default function ConfigPage() {
             </div>
           )}
 
-          {/* Edit form â€" hidden while a proposal is pending */}
+          {/* Edit form — hidden while a proposal is pending */}
           {!hasPendingProposal && (
             <>
               {/* Pattern picker */}
@@ -629,13 +629,13 @@ export default function ConfigPage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button className="w-full py-3" loading={saving} onClick={handleSave}>
                 {saved
-                  ? (schedule ? 'âœ" Proposal sent' : 'âœ" Saved')
+                  ? (schedule ? '✓ Proposal sent' : '✓ Saved')
                   : schedule ? `Propose change to ${otherParentName}` : 'Save schedule'}
               </Button>
             </>
           )}
 
-          {/* Changeover â€" always editable, not subject to approval */}
+          {/* Changeover — always editable, not subject to approval */}
           <div className="space-y-1.5 pt-2 border-t border-gray-100">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Default changeover</label>
             <div className="grid grid-cols-2 gap-3">
@@ -697,7 +697,7 @@ export default function ConfigPage() {
           onToggle={togglePush}
         />
         <div className="border-t border-gray-100 px-4 py-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-500">SMS â€" urgent notices</p>
+          <p className="text-xs font-semibold text-gray-500">SMS — urgent notices</p>
           <p className="text-xs text-gray-400">Receive an SMS when an urgent notice is posted. Include country code, e.g. +44. Leave blank to opt out.</p>
           <input
             type="tel"
@@ -708,7 +708,7 @@ export default function ConfigPage() {
           />
           {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
           <Button className="w-full py-3" loading={phoneSaving} onClick={savePhone}>
-            {phoneSaved ? 'âœ" Saved' : 'Save number'}
+            {phoneSaved ? '✓ Saved' : 'Save number'}
           </Button>
         </div>
       </AccordionGroup>
@@ -773,7 +773,7 @@ export default function ConfigPage() {
           <PasswordField label="Confirm new password" value={confirmPassword} onChange={setConfirmPassword} placeholder="••••••••" required />
           {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
           <Button className="w-full py-3" loading={passwordSaving} onClick={changePassword}>
-            {passwordSaved ? 'âœ" Password updated' : 'Update password'}
+            {passwordSaved ? '✓ Password updated' : 'Update password'}
           </Button>
           {twoFaGlobalEnabled && (
             <button
@@ -926,7 +926,7 @@ function SubscriptionSection() {
 }
 
 function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
-  // splitPct = Parent A's share (0â€"100)
+  // splitPct = Parent A's share (0—100)
   const myShare    = userRole === 'parent_a' ? splitPct : (100 - splitPct)
   const otherShare = 100 - myShare
   const myName     = userRole === 'parent_a' ? pa : pb
@@ -965,7 +965,7 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
         <span>100%</span>
       </div>
       <Button className="w-full py-2.5 text-sm" onClick={handleSave}>
-        {saved ? 'âœ" Saved' : 'Save split'}
+        {saved ? '✓ Saved' : 'Save split'}
       </Button>
     </div>
   )
@@ -1000,7 +1000,7 @@ function SchedulePreview({ patternType, startingParent, customCycle, startDate, 
 
   return (
     <section>
-      <label className="text-sm font-semibold text-gray-700 block mb-2">Preview â€" first 14 days</label>
+      <label className="text-sm font-semibold text-gray-700 block mb-2">Preview — first 14 days</label>
       <div className="grid grid-cols-7 gap-1">
         {preview.map(({ date, owner }, i) => (
           <div

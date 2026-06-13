@@ -64,7 +64,7 @@ export default function AdminLoginPage() {
               label="Password"
               value={password}
               onChange={setPassword}
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               required
               dark
             />
