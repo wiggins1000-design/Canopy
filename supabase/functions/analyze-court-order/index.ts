@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     const rules = await extractCourtOrderRules(pdfText)
     if (!rules) {
       await supabase.from('court_orders').update({
-        status: 'failed', error_msg: 'Could not extract rules from the document. Please check it is a court order.', updated_at: new Date().toISOString(),
+        status: 'failed', error_msg: 'Could not extract arrangement details from the document. Please check it contains information about child arrangements.', updated_at: new Date().toISOString(),
       }).eq('id', order_id)
       return new Response(JSON.stringify({ ok: false, error: 'Extraction failed' }), {
         status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -125,8 +125,9 @@ async function extractCourtOrderRules(pdfText: string): Promise<any | null> {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return null
 
-  const prompt = `You are analyzing a UK family court order relating to child arrangements.
-Extract the key enforceable provisions into structured rules that can be used to check whether proposed schedule changes or holiday requests comply with the order.
+  const prompt = `You are analyzing a document relating to child arrangements after separation. This may be a court order, child arrangements order, parenting plan, mediation agreement, separation agreement, or any other document describing how separated parents share care of their children.
+
+Extract the key provisions into structured rules that can be used to check whether proposed schedule changes or holiday requests comply with the agreed arrangement.
 
 Return ONLY valid JSON — no markdown, no explanation:
 {
@@ -151,13 +152,13 @@ Return ONLY valid JSON — no markdown, no explanation:
   },
   "geographic_restrictions": "e.g. must not be taken outside England and Wales without written consent, or null",
   "other_provisions": [
-    "any other notable enforceable provisions as plain English strings"
+    "any other notable provisions as plain English strings"
   ],
   "confidence": "high / medium / low — how confident you are in the extraction"
 }
 
-If this does not appear to be a court order or child arrangements order, return:
-{ "error": "Not a court order" }
+If this does not appear to contain any information about child arrangements or parenting after separation, return:
+{ "error": "Not a parenting arrangements document" }
 
 Document:
 ${pdfText.slice(0, 10000)}`

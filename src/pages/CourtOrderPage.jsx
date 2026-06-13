@@ -153,17 +153,17 @@ export default function CourtOrderPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-xl font-bold text-gray-900">Court order</h1>
+          <h1 className="text-xl font-bold text-gray-900">Parenting agreement</h1>
         </div>
         <p className="text-sm text-gray-500 mt-1 ml-10">
-          Upload your child arrangements order. Canopy will read it and flag any schedule changes or holiday requests that may conflict with its provisions.
+          Upload any document describing your child arrangements — a court order, parenting plan, mediation agreement, or any other written agreement. Canopy will read it and flag schedule changes or holiday requests that may conflict with its provisions.
         </p>
       </div>
 
       {/* Disclaimer */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
         <p className="text-xs text-amber-700 leading-relaxed">
-          <strong>Advisory only.</strong> AI-generated checks are indicative and not legal advice. Always consult a solicitor for matters relating to court orders.
+          <strong>Advisory only.</strong> AI-generated checks are indicative and not legal advice. Always consult a solicitor for matters relating to formal court orders.
         </p>
       </div>
 
@@ -182,7 +182,7 @@ export default function CourtOrderPage() {
             loading={uploading}
             onClick={() => fileInputRef.current?.click()}
           >
-            {uploading ? 'Uploading…' : 'Upload court order (PDF)'}
+            {uploading ? 'Uploading…' : 'Upload document (PDF or Word)'}
           </Button>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </section>
@@ -206,7 +206,7 @@ export default function CourtOrderPage() {
 
       {orders.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <p className="text-sm">No court order uploaded yet.</p>
+          <p className="text-sm">No document uploaded yet.</p>
         </div>
       )}
     </div>
@@ -293,7 +293,7 @@ function OrderCard({ order, paName, pbName, currentUserId, onAnalyse, onApprove,
             onClick={onDelete}
             className="text-xs text-red-500 hover:underline"
           >
-            Remove this order
+            Remove this document
           </button>
         </div>
       )}

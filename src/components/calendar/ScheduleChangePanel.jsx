@@ -242,13 +242,13 @@ function checkCourtOrder(rules, startDate, endDate, isHoliday) {
   if (isHoliday && rules.notice_requirements?.holiday_request_days) {
     const required = rules.notice_requirements.holiday_request_days
     if (daysNotice < required) {
-      flags.push(`Your court order requires ${required} days' notice for holiday requests. This request is only ${daysNotice} day${daysNotice !== 1 ? 's' : ''} ahead.`)
+      flags.push(`Your parenting agreement requires ${required} days' notice for holiday requests. This request is only ${daysNotice} day${daysNotice !== 1 ? 's' : ''} ahead.`)
     }
   } else if (!isHoliday && rules.notice_requirements?.schedule_change_hours) {
     const required = rules.notice_requirements.schedule_change_hours
     const hoursNotice = daysNotice * 24
     if (hoursNotice < required) {
-      flags.push(`Your court order requires ${required} hours' notice for schedule changes. This request is only ~${Math.round(hoursNotice)}h ahead.`)
+      flags.push(`Your parenting agreement requires ${required} hours' notice for schedule changes. This request is only ~${Math.round(hoursNotice)}h ahead.`)
     }
   }
 
@@ -267,7 +267,7 @@ function checkCourtOrder(rules, startDate, endDate, isHoliday) {
     if (entitlement) {
       const myDays = rules.residence?.primary_parent === 'parent_a' ? entitlement.parent_b_days : entitlement.parent_a_days
       if (myDays != null && duration > myDays) {
-        flags.push(`Your court order entitles you to ${myDays} days for this period. This request covers ${duration} days.`)
+        flags.push(`Your parenting agreement entitles you to ${myDays} days for this period. This request covers ${duration} days.`)
       }
     }
   }

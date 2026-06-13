@@ -724,7 +724,7 @@ export default function ConfigPage() {
       {/* â”€â”€ Legal â”€â”€ */}
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
-        <NavRow label="Court order" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
+        <NavRow label="Parenting agreement" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
       </AccordionGroup>
 
       {/* â”€â”€ Account â”€â”€ */}
