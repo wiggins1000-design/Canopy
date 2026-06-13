@@ -9,7 +9,6 @@ import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 import CalendarSyncSection from '../components/calendar/CalendarSyncSection'
 import { useSubscription } from '../hooks/useSubscription'
-import { useSubscribeAction } from '../components/subscription/useSubscribeAction'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
@@ -841,38 +840,12 @@ function ToggleRow({ label, description, enabled, onToggle }) {
 }
 
 function SubscriptionSection() {
-  const { status, isTrialing, isActive, isPastDue, isCancelled, daysLeft, periodEnd, trialEndsAt } = useSubscription()
-  const { subscribe, loading: subLoading } = useSubscribeAction()
-  const [portalLoading, setPortalLoading] = useState(false)
-  const { family } = useFamily()
-
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
-
-  async function openPortal() {
-    setPortalLoading(true)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/manage-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ app_url: window.location.origin }),
-      })
-      const json = await res.json()
-      if (json.url) window.location.href = json.url
-    } catch (e) {
-      console.error('Portal error:', e)
-    } finally {
-      setPortalLoading(false)
-    }
-  }
+  const { isTrialing, isActive, isPastDue, daysLeft, periodEnd, trialEndsAt } = useSubscription()
 
   const statusLabel = isActive
     ? { text: 'Active', cls: 'bg-green-100 text-green-700' }
     : isTrialing
-    ? { text: `Trial â€” ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`, cls: 'bg-amber-100 text-amber-700' }
+    ? { text: `Trial — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`, cls: 'bg-amber-100 text-amber-700' }
     : isPastDue
     ? { text: 'Payment overdue', cls: 'bg-red-100 text-red-700' }
     : { text: 'Cancelled', cls: 'bg-gray-100 text-gray-600' }
@@ -881,7 +854,7 @@ function SubscriptionSection() {
     <AccordionGroup label="Subscription">
       <div className="px-4 py-3 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Family plan Â· Â£12.99/month</span>
+          <span className="text-sm text-gray-700">Family plan · £12.99/month</span>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusLabel.cls}`}>
             {statusLabel.text}
           </span>
@@ -898,21 +871,7 @@ function SubscriptionSection() {
           </p>
         )}
 
-        {(isTrialing || isCancelled || isPastDue) && (
-          <Button className="w-full py-2.5 text-sm" loading={subLoading} onClick={subscribe}>
-            Subscribe â€” Â£12.99/month
-          </Button>
-        )}
-        {(isActive || isPastDue) && family?.stripe_customer_id && (
-          <button
-            onClick={openPortal}
-            disabled={portalLoading}
-            className="w-full text-sm text-canopy-mid hover:underline py-1 disabled:opacity-50"
-          >
-            {portalLoading ? 'Openingâ€¦' : 'Manage or cancel subscription'}
-          </button>
-        )}
-        <p className="text-xs text-gray-400">Both parents included. Cancel anytime.</p>
+        <p className="text-xs text-gray-400">Managed via the App Store or Google Play. Both parents included.</p>
       </div>
     </AccordionGroup>
   )

@@ -1,4 +1,4 @@
-import { Outlet, Navigate, useSearchParams } from 'react-router-dom'
+import { Outlet, Navigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import BottomNav from './BottomNav'
 import { useAuth } from '../../context/AuthContext'
@@ -43,23 +43,12 @@ export default function AppLayout() {
   const { user } = useAuth()
   const { family, loading, reload } = useFamily()
   const [isAdmin, setIsAdmin] = useState(null)
-  const [searchParams, setSearchParams] = useSearchParams()
   const [showSuccessToast, setShowSuccessToast] = useState(false)
 
   useEffect(() => {
     if (!user) return
     supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data))
   }, [user])
-
-  // Handle Stripe redirect back after checkout
-  useEffect(() => {
-    const result = searchParams.get('subscription')
-    if (result === 'success') {
-      setShowSuccessToast(true)
-      reload()
-      setSearchParams({}, { replace: true })
-    }
-  }, [searchParams, reload, setSearchParams])
 
   if (loading || isAdmin === null) {
     return (
