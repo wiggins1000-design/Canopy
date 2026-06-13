@@ -31,6 +31,11 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+function fmtDate(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y.slice(2)}`
+}
+
 function isTermDateLike(title: string): boolean {
   return /half.?term|end of term|last day of term|first day of term|term\s+start|term\s+end|term\s+begin|school\s+holiday|school\s+break|school\s+clos|school\s+returns?|inset\s+day|christmas\s+holid|easter\s+holid|summer\s+holid|spring\s+holid|autumn\s+holid/i.test(title)
 }
@@ -391,8 +396,8 @@ Rules:
         if (!error) {
           eventsUpdated++
           const time = ev.time ? ` at ${ev.time}` : ''
-          const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${ev.end_date}` : ''
-          updatedEventLines.push(`• ${ev.title} — ${ev.date}${end}${time}`)
+          const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date)}` : ''
+          updatedEventLines.push(`• ${ev.title} — ${fmtDate(ev.date)}${end}${time}`)
         }
       }
       // else: pure duplicate — silently skip
@@ -411,8 +416,8 @@ Rules:
       if (!error) {
         eventsCreated++
         const time = ev.time ? ` at ${ev.time}` : ''
-        const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${ev.end_date}` : ''
-        newEventLines.push(`• ${ev.title} — ${ev.date}${end}${time}`)
+        const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date)}` : ''
+        newEventLines.push(`• ${ev.title} — ${fmtDate(ev.date)}${end}${time}`)
       }
     }
   }
