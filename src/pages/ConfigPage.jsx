@@ -964,10 +964,6 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
         <span>0%</span>
         <span>100%</span>
       </div>
-      <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">
-        <span>{myName}: {draft}%</span>
-        <span>{otherName}: {100 - draft}%</span>
-      </div>
       <Button className="w-full py-2.5 text-sm" onClick={handleSave}>
         {saved ? 'âœ" Saved' : 'Save split'}
       </Button>
