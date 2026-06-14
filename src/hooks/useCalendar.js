@@ -1,3 +1,10 @@
+// useCalendar — builds the full calendar grid for the displayed month.
+//
+// Each day object combines three layers of state via getDayState():
+//   1. Baseline schedule (repeating cycle from baseline_schedules table)
+//   2. Accepted/pending schedule changes (override or flag the baseline)
+//   3. FROR (first right of refusal) offers (further override when accepted)
+// Realtime channels keep changes and offers live for both parents simultaneously.
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'

@@ -4,13 +4,12 @@
 // and creates calendar events / notice posts / saves documents automatically.
 //
 // ── Setup ────────────────────────────────────────────────────────────────────
-// 1. Buy a domain (e.g. canopy.app) and add it to Postmark as an inbound domain
-// 2. Set a catch-all inbound route in Postmark pointing to this function's URL:
+// 1. Configure MX record for canopy-app.app to point to Postmark inbound servers
+// 2. In Postmark, set inbound webhook URL → this function:
 //    https://<project>.supabase.co/functions/v1/process-email
 // 3. Set these secrets in Supabase dashboard → Edge Functions → Secrets:
 //
 //   ANTHROPIC_API_KEY      = sk-ant-...  (from console.anthropic.com)
-//   EMAIL_DOMAIN           = canopy.app  (your inbound domain)
 //   EMAIL_WEBHOOK_TOKEN    = any-random-secret  (set same value in Postmark webhook settings)
 //   SUPABASE_URL           = (auto-injected)
 //   SUPABASE_SERVICE_ROLE_KEY = (auto-injected)
@@ -292,7 +291,7 @@ Deno.serve(async (req) => {
         .join('\n')
     : ''
 
-  const prompt = `You are a calendar assistant for Canopy, a co-parenting app.
+  const prompt = `You are a calendar assistant for Canopy, a family organisation app.
 
 Extract all calendar events, appointments and important dates from this email. Also decide if there is any important information that should be posted as a notice to both parents.
 

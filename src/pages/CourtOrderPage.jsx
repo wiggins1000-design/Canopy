@@ -129,7 +129,7 @@ export default function CourtOrderPage() {
   if (!isParent) {
     return (
       <div className="px-4 py-8 text-center text-gray-400">
-        <p className="text-sm">Only parents can view court order settings.</p>
+        <p className="text-sm">Only parents can view parenting agreement settings.</p>
       </div>
     )
   }

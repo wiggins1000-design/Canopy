@@ -3,8 +3,6 @@ import { useFamily } from '../context/FamilyContext'
 export function useSubscription() {
   const { family } = useFamily()
 
-  // Default to 'active' if column doesn't exist yet (pre-migration 028)
-  // so the paywall never triggers accidentally before the migration is run.
   const status      = family?.subscription_status ?? 'active'
   const trialEndsAt = family?.trial_ends_at ? new Date(family.trial_ends_at) : null
   const periodEnd   = family?.subscription_period_end ? new Date(family.subscription_period_end) : null
@@ -22,7 +20,7 @@ export function useSubscription() {
 
   // Past-due gets a short grace period — still accessible but shows a warning
   const hasAccess   = true
-  const needsPaywall = false // disabled during testing
+  const needsPaywall = false // disabled until RevenueCat is integrated
 
   return {
     status,

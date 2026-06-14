@@ -1,3 +1,10 @@
+// FamilyContext — single source of truth for all family data.
+//
+// Loads family, members, and baseline schedule on mount (and whenever the
+// authenticated user changes). All mutating operations go through RPCs or
+// direct writes here so the rest of the app never touches Supabase directly
+// for family-level data. A realtime channel keeps the schedule in sync across
+// both parents' devices without polling.
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'

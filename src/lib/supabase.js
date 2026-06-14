@@ -1,3 +1,8 @@
+// supabase.js — shared Supabase client and notification helpers.
+//
+// A single client instance is exported so React Query / hooks share the same
+// connection pool and realtime websocket. Push subscription helpers live here
+// because they write to family_members.push_token and need the client anyway.
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(

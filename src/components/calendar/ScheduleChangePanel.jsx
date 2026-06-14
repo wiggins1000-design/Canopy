@@ -20,7 +20,7 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
   const [courtFlags, setCourtFlags] = useState([])
   const [activeOrder, setActiveOrder] = useState(null)
 
-  // Load active court order for advisory checks
+  // Load active parenting agreement for advisory checks
   useEffect(() => {
     if (!family?.id) return
     supabase

@@ -1,3 +1,14 @@
+// scheduleEngine — pure functions for custody schedule logic.
+//
+// A "schedule" is a row from baseline_schedules with a start_date and a
+// pattern_data.cycle array (e.g. 14 entries for alternating weeks). Given any
+// date, getBaselineOwner() walks the cycle from start_date to find the owner.
+// getDayState() layers accepted changes and FROR offers on top to produce the
+// final displayed state for each calendar day.
+//
+// All functions are pure (no side effects, no DB calls) so they can be called
+// freely in useMemo/render without performance concerns.
+
 // ── Date utilities ────────────────────────────────────────────
 
 /** Parse a YYYY-MM-DD string as a local-time Date (no timezone shift). */
