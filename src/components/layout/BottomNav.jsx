@@ -47,11 +47,19 @@ export default function BottomNav() {
   const { family, isParent } = useFamily()
   if (!family) return null
 
+  const vp = family?.config?.viewer_permissions ?? {}
   const noticeboardEnabled = family?.config?.noticeboard_enabled !== false
   const messagingEnabled   = isParent && !!family?.config?.messaging_enabled
   const expensesEnabled    = isParent && !!family?.config?.expenses_enabled
 
-  let visibleNav = noticeboardEnabled ? NAV : NAV.filter((n) => n.to !== '/board')
+  const canSee = (key) => isParent || vp[key] !== false
+
+  let visibleNav = NAV.filter((n) => {
+    if (n.to === '/board')     return noticeboardEnabled && canSee('noticeboard')
+    if (n.to === '/calendar')  return canSee('calendar')
+    if (n.to === '/info')      return canSee('info_bank')
+    return true
+  })
 
   if (messagingEnabled) {
     visibleNav = [...visibleNav, {

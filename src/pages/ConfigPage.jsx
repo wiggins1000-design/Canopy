@@ -840,6 +840,34 @@ export default function ConfigPage() {
               pb={pb}
             />
           )}
+          <div className="px-4 pt-4 pb-1">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Read-only member access</p>
+            <p className="text-xs text-gray-400 mt-1">Choose what grandparents, carers, and other read-only members can see.</p>
+          </div>
+          <ToggleRow
+            label="Calendar"
+            description="Family calendar and shared events"
+            enabled={family?.config?.viewer_permissions?.calendar !== false}
+            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, calendar: !(family?.config?.viewer_permissions?.calendar !== false) } })}
+          />
+          <ToggleRow
+            label="Notice Board"
+            description="Family notice board posts and updates"
+            enabled={family?.config?.viewer_permissions?.noticeboard !== false}
+            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, noticeboard: !(family?.config?.viewer_permissions?.noticeboard !== false) } })}
+          />
+          <ToggleRow
+            label="Info Bank"
+            description="Children's information, school contacts, and documents"
+            enabled={family?.config?.viewer_permissions?.info_bank !== false}
+            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, info_bank: !(family?.config?.viewer_permissions?.info_bank !== false) } })}
+          />
+          <ToggleRow
+            label="Parenting schedule"
+            description="The custody schedule and upcoming changeovers"
+            enabled={family?.config?.viewer_permissions?.schedule !== false}
+            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, schedule: !(family?.config?.viewer_permissions?.schedule !== false) } })}
+          />
         </AccordionGroup>
       )}
 
@@ -847,8 +875,8 @@ export default function ConfigPage() {
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
         <NavRow label="Parenting agreement" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
-        <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://mycanopymail.com/privacy.html', '_blank')} />
-        <NavRow label="Terms of Use" description="Your rights and responsibilities when using Canopy" onPress={() => window.open('https://mycanopymail.com/terms.html', '_blank')} />
+        <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://canopy-app.app/privacy.html', '_blank')} />
+        <NavRow label="Terms of Use" description="Your rights and responsibilities when using Canopy" onPress={() => window.open('https://canopy-app.app/terms.html', '_blank')} />
       </AccordionGroup>
 
       {/* â"€â"€ Account â"€â"€ */}
