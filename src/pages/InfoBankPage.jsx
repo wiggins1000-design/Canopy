@@ -25,7 +25,7 @@ const SECTION_TAGS = {
 }
 
 export default function InfoBankPage() {
-  const { family, isParent, members, userRole } = useFamily()
+  const { family, isParent, member, members, userRole } = useFamily()
   const navigate = useNavigate()
   const children = (family?.config?.children ?? []).filter((c) => c.name)
   const pets     = (family?.config?.pets ?? []).filter((p) => p.name)
@@ -53,6 +53,10 @@ export default function InfoBankPage() {
   }, [family?.id])
 
   useEffect(() => { loadAll() }, [loadAll])
+
+  async function recordConsent(type) {
+    await supabase.rpc('record_consent', { p_type: type })
+  }
 
   function getData(tab, section) {
     return allData[`${tab}||${section}`] ?? {}
@@ -230,6 +234,8 @@ export default function InfoBankPage() {
           data={sectionData}
           isParent={isParent}
           onSave={(data) => saveSection(activeTab, 'medical', data)}
+          memberConsents={member?.consents}
+          onConsent={recordConsent}
         />
       ) : activeSection === 'school' ? (
         <SchoolSection
@@ -351,18 +357,43 @@ function SectionWrapper({ children, isParent, onSave, saved }) {
 
 // ── Medical ───────────────────────────────────────────────────
 
-function MedicalSection({ data, isParent, onSave }) {
-  const defaults = { gp_practice: '', gp_name: '', gp_phone: '', gp_email: '', gp_address: '', dentist_practice: '', dentist_name: '', dentist_phone: '', dentist_email: '', dentist_address: '', blood_type: '', allergies: '', medications: '', notes: '' }
+function MedicalSection({ data, isParent, onSave, memberConsents, onConsent }) {
+  const defaults = { gp_practice: '', gp_name: '', gp_phone: '', gp_email: '', gp_address: '', dentist_practice: '', dentist_name: '', dentist_phone: '', dentist_email: '', dentist_address: '', nhs_number: '', blood_type: '', allergies: '', medications: '', notes: '' }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
+  const [localConsented, setLocalConsented] = useState(!!memberConsents?.medical_data)
+  const [consenting, setConsenting] = useState(false)
 
   useEffect(() => { setD({ ...defaults, ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { if (memberConsents?.medical_data) setLocalConsented(true) }, [memberConsents?.medical_data])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
   async function save() {
     const { error } = await onSave(d)
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  }
+
+  async function giveConsent() {
+    setConsenting(true)
+    await onConsent('medical_data')
+    setLocalConsented(true)
+    setConsenting(false)
+  }
+
+  if (isParent && !localConsented) {
+    return (
+      <div className="space-y-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-amber-900">Consent required</p>
+          <p className="text-sm text-amber-800">Medical information — including GP details, allergies, and medications — is <strong>special category data</strong> under UK law (UK GDPR) and requires your explicit consent before it can be stored.</p>
+          <p className="text-sm text-amber-800">This information is private to your family and is never shared with third parties or used for advertising.</p>
+          <Button className="w-full py-3" loading={consenting} onClick={giveConsent}>
+            I consent to storing medical information
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -382,6 +413,7 @@ function MedicalSection({ data, isParent, onSave }) {
       <Field label="Address" placeholder="2 High Street, London" {...f('dentist_address')} />
 
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Health</p>
+      <Field label="NHS number" placeholder="e.g. 943 476 5919" {...f('nhs_number')} />
       <Field label="Blood type" placeholder="e.g. A+" {...f('blood_type')} />
       <TextArea label="Allergies" placeholder="e.g. Penicillin, peanuts" {...f('allergies')} />
       <TextArea label="Medications" placeholder="e.g. Ventolin 100mcg when needed" {...f('medications')} />
@@ -669,10 +701,10 @@ function ContactsSection({ data, isParent, onSave }) {
 // ── Vet ───────────────────────────────────────────────────────
 
 function VetSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ dob: '', vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
+  const [d, setD] = useState({ dob: '', species: '', breed: '', colour: '', neutered: '', vet_name: '', vet_phone: '', vet_email: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ dob: '', vet_name: '', vet_phone: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ dob: '', species: '', breed: '', colour: '', neutered: '', vet_name: '', vet_phone: '', vet_email: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -683,11 +715,21 @@ function VetSection({ data, isParent, onSave }) {
 
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Profile</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Species" placeholder="e.g. Dog, Cat, Rabbit" {...f('species')} />
+        <Field label="Breed" placeholder="e.g. Labrador" {...f('breed')} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Colour / markings" placeholder="e.g. Black with white chest" {...f('colour')} />
+        <Field label="Neutered" placeholder="Yes / No" {...f('neutered')} />
+      </div>
       <Field label="Date of birth" type="date" {...f('dob')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Vet</p>
       <Field label="Practice name" placeholder="Riverside Vets" {...f('vet_name')} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('vet_phone')} />
+        <Field label="Email" placeholder="info@riversidevets.co.uk" type="email" {...f('vet_email')} />
       </div>
       <Field label="Address" placeholder="1 High Street, London" {...f('vet_address')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Emergency vet</p>
@@ -704,10 +746,10 @@ function VetSection({ data, isParent, onSave }) {
 // ── Pet Medical ───────────────────────────────────────────────
 
 function PetMedicalSection({ data, isParent, onSave }) {
-  const [d, setD] = useState({ microchip: '', insurance_provider: '', insurance_policy: '', vaccinations: '', medications: '', conditions: '', notes: '', ...data })
+  const [d, setD] = useState({ microchip: '', insurance_provider: '', insurance_policy: '', insurance_renewal: '', vaccinations: '', flea_treatment: '', worming: '', diet: '', medications: '', conditions: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ microchip: '', insurance_provider: '', insurance_policy: '', vaccinations: '', medications: '', conditions: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ microchip: '', insurance_provider: '', insurance_policy: '', insurance_renewal: '', vaccinations: '', flea_treatment: '', worming: '', diet: '', medications: '', conditions: '', notes: '', ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -725,9 +767,13 @@ function PetMedicalSection({ data, isParent, onSave }) {
         <Field label="Provider" placeholder="Petplan" {...f('insurance_provider')} />
         <Field label="Policy number" placeholder="PP-123456" {...f('insurance_policy')} />
       </div>
+      <Field label="Renewal date" type="date" {...f('insurance_renewal')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Health</p>
-      <TextArea label="Vaccinations" placeholder="e.g. Annual booster due March" {...f('vaccinations')} />
-      <TextArea label="Medications" placeholder="e.g. Flea treatment monthly" {...f('medications')} />
+      <TextArea label="Vaccinations" placeholder="e.g. Annual booster due March 2027" {...f('vaccinations')} />
+      <TextArea label="Flea & tick treatment" placeholder="e.g. Frontline monthly, last done Jan 2026" {...f('flea_treatment')} />
+      <TextArea label="Worming" placeholder="e.g. Drontal every 3 months, last done Feb 2026" {...f('worming')} />
+      <TextArea label="Dietary requirements" placeholder="e.g. Grain-free, raw diet, 2 cups twice daily" {...f('diet')} />
+      <TextArea label="Medications" placeholder="e.g. Apoquel 16mg daily" {...f('medications')} />
       <TextArea label="Conditions" placeholder="e.g. Hip dysplasia" {...f('conditions')} />
       <TextArea label="Notes" placeholder="Any other health notes…" rows={3} {...f('notes')} />
     </SectionWrapper>

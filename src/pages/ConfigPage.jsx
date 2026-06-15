@@ -63,6 +63,13 @@ export default function ConfigPage() {
   const [twoFaUserEnabled, setTwoFaUserEnabled]     = useState(false)
   const [twoFaSaving, setTwoFaSaving]               = useState(false)
 
+  const [downloadingData, setDownloadingData]       = useState(false)
+  const [deleteConfirm, setDeleteConfirm]           = useState(false)
+  const [deletingAccount, setDeletingAccount]       = useState(false)
+  const [deleteError, setDeleteError]               = useState(null)
+  const [justConsentedFeed, setJustConsentedFeed]   = useState(false)
+  const [consentingFeed, setConsentingFeed]         = useState(false)
+
   useEffect(() => {
     if (!schedule) return
     setPatternType(schedule.pattern_type)
@@ -326,8 +333,54 @@ export default function ConfigPage() {
     setTwoFaSaving(false)
   }
 
+  async function downloadData() {
+    setDownloadingData(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-user-data`, {
+      headers: { 'Authorization': `Bearer ${session?.access_token}`, 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY },
+    })
+    const json = await res.json()
+    if (json.ok) {
+      const win = window.open('', '_blank')
+      if (win) {
+        win.document.write(json.html)
+        win.document.close()
+        setTimeout(() => win.print(), 500)
+      } else {
+        const blob = new Blob([json.html], { type: 'text/html' })
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href = url
+        a.download = `canopy-data-${new Date().toISOString().slice(0, 10)}.html`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    }
+    setDownloadingData(false)
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true)
+    setDeleteError(null)
+    const { error } = await supabase.functions.invoke('delete-account')
+    if (error) {
+      setDeleteError('Something went wrong. Please try again.')
+      setDeletingAccount(false)
+      return
+    }
+    await signOut()
+  }
+
+  async function consentFamilyFeed() {
+    setConsentingFeed(true)
+    await supabase.rpc('record_consent', { p_type: 'familyfeed_ai' })
+    setJustConsentedFeed(true)
+    setConsentingFeed(false)
+  }
+
   const pa = parentA?.display_name ?? 'Parent A'
   const pb = parentB?.display_name ?? 'Parent B'
+  const feedConsented = !!member?.consents?.familyfeed_ai || justConsentedFeed
 
   // Pending schedule proposal state
   const hasPendingProposal = !!schedule?.pending_proposed_by
@@ -377,6 +430,27 @@ export default function ConfigPage() {
             <button onClick={signOut} className="w-full text-sm text-red-500 py-2 hover:underline">
               Sign out
             </button>
+            <div className="border-t border-gray-100 pt-2 space-y-1">
+              <button onClick={downloadData} disabled={downloadingData} className="w-full text-sm text-gray-400 py-2 hover:underline disabled:opacity-50">
+                {downloadingData ? 'Preparing download...' : 'Download my data'}
+              </button>
+              {deleteConfirm ? (
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs text-red-700">This will permanently delete your account and all associated data. This cannot be undone.</p>
+                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setDeleteConfirm(false); setDeleteError(null) }} className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">Cancel</button>
+                    <button onClick={deleteAccount} disabled={deletingAccount} className="flex-1 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50">
+                      {deletingAccount ? 'Deleting...' : 'Yes, delete'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setDeleteConfirm(true)} className="w-full text-sm text-red-400 py-2 hover:underline">
+                  Delete my account
+                </button>
+              )}
+            </div>
           </div>
         </AccordionGroup>
       </div>
@@ -662,28 +736,38 @@ export default function ConfigPage() {
             <span className="text-sm text-gray-800 flex-1 font-mono truncate">{familyFeedAddress}</span>
             <button onClick={() => navigator.clipboard.writeText(familyFeedAddress)} className="text-xs text-canopy-mid font-medium shrink-0 hover:underline">Copy</button>
           </div>
-          <div className="border-t border-gray-100 pt-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-500">Your forwarding addresses</p>
-            <p className="text-xs text-gray-400">Add every email address you might forward from — your personal email, work email, or any other account. If we don't recognise the sender, the email won't be processed.</p>
-            {additionalEmails.map((e) => (
-              <div key={e.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                <span className="text-sm text-gray-800 flex-1 font-mono truncate">{e.email}</span>
-                <button onClick={() => removeEmail(e.id)} className="text-xs text-red-500 hover:underline shrink-0">Remove</button>
-              </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={newEmail}
-                onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
-                onKeyDown={(e) => e.key === 'Enter' && addEmail()}
-                placeholder="e.g. chris@work.com"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
-              />
-              <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
+          {!feedConsented ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-900">AI processing notice</p>
+              <p className="text-xs text-amber-800">Emails you forward to FamilyFeed are processed by AI to extract events and notices. Content may include personal information. This processing is covered by your Canopy subscription and data is never used for advertising.</p>
+              <Button variant="secondary" className="w-full py-2 text-xs" loading={consentingFeed} onClick={consentFamilyFeed}>
+                I understand — enable FamilyFeed
+              </Button>
             </div>
-            {emailError && <p className="text-sm text-red-600">{emailError}</p>}
-          </div>
+          ) : (
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-500">Your forwarding addresses</p>
+              <p className="text-xs text-gray-400">Add every email address you might forward from — your personal email, work email, or any other account. If we don't recognise the sender, the email won't be processed.</p>
+              {additionalEmails.map((e) => (
+                <div key={e.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                  <span className="text-sm text-gray-800 flex-1 font-mono truncate">{e.email}</span>
+                  <button onClick={() => removeEmail(e.id)} className="text-xs text-red-500 hover:underline shrink-0">Remove</button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => { setNewEmail(e.target.value); setEmailError(null) }}
+                  onKeyDown={(e) => e.key === 'Enter' && addEmail()}
+                  placeholder="e.g. chris@work.com"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+                />
+                <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
+              </div>
+              {emailError && <p className="text-sm text-red-600">{emailError}</p>}
+            </div>
+          )}
         </div>
       </AccordionGroup>
 
@@ -763,6 +847,8 @@ export default function ConfigPage() {
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
         <NavRow label="Parenting agreement" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
+        <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://mycanopymail.com/privacy.html', '_blank')} />
+        <NavRow label="Terms of Use" description="Your rights and responsibilities when using Canopy" onPress={() => window.open('https://mycanopymail.com/terms.html', '_blank')} />
       </AccordionGroup>
 
       {/* â"€â"€ Account â"€â"€ */}
@@ -796,6 +882,27 @@ export default function ConfigPage() {
           >
             Sign out
           </button>
+          <div className="border-t border-gray-100 pt-2 space-y-1">
+            <button onClick={downloadData} disabled={downloadingData} className="w-full text-sm text-gray-400 py-2 hover:underline disabled:opacity-50">
+              {downloadingData ? 'Preparing download...' : 'Download my data'}
+            </button>
+            {deleteConfirm ? (
+              <div className="space-y-2 pt-1">
+                <p className="text-xs text-red-700">This will permanently delete your account and all associated data. This cannot be undone.</p>
+                {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => { setDeleteConfirm(false); setDeleteError(null) }} className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">Cancel</button>
+                  <button onClick={deleteAccount} disabled={deletingAccount} className="flex-1 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50">
+                    {deletingAccount ? 'Deleting...' : 'Yes, delete'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setDeleteConfirm(true)} className="w-full text-sm text-red-400 py-2 hover:underline">
+                Delete my account
+              </button>
+            )}
+          </div>
         </div>
       </AccordionGroup>
 
