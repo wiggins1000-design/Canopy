@@ -104,7 +104,9 @@ Deno.serve(async (req) => {
       let termDatesText = ''
 
       if (termDatesUrl && termDatesUrl !== normalised) {
-        termDatesText = await fetchViaReader(termDatesUrl) ?? ''
+        // Prefer Jina for term dates — better at preserving table/list structure
+        console.log(`Fetching term dates from: ${termDatesUrl}`)
+        termDatesText = await fetchViaJina(termDatesUrl) ?? await fetchViaReader(termDatesUrl) ?? ''
       }
 
       if (!termDatesText) {
@@ -113,8 +115,25 @@ Deno.serve(async (req) => {
       }
 
       if (termDatesText) {
-        termDates = await extractTermDates(termDatesText)
-        console.log(`Extracted ${termDates.length} term date events`)
+        termDates = await extractTermDates(termDatesText, 4096)
+        console.log(`Extracted ${termDates.length} term date events from page`)
+
+        // Also fetch any PDFs linked from the term dates page (e.g. next year's dates)
+        const pdfUrls = extractPdfUrls(termDatesText)
+        for (const pdfUrl of pdfUrls) {
+          console.log(`Fetching term dates PDF: ${pdfUrl}`)
+          const pdfText = await fetchViaReader(pdfUrl)
+          if (pdfText && pdfText.length > 50) {
+            const pdfDates = await extractTermDates(pdfText, 4096)
+            const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+            for (const d of pdfDates) {
+              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) {
+                termDates.push(d)
+              }
+            }
+          }
+        }
+        console.log(`Extracted ${termDates.length} term dates total (inc. PDFs)`)
       }
     } else {
       console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
@@ -253,6 +272,20 @@ function emptySchoolInfo(): SchoolInfo {
   return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
 }
 
+function extractPdfUrls(content: string): string[] {
+  const seen = new Set<string>()
+  const urls: string[] = []
+  const addUrl = (u: string) => {
+    const clean = u.replace(/[)\]"'>\s]+$/, '')
+    if (clean && !seen.has(clean)) { seen.add(clean); urls.push(clean) }
+  }
+  // Markdown links to PDFs — by .pdf extension OR type=pdf / format=pdf query param
+  for (const m of content.matchAll(/\[[^\]]*\]\((https?:\/\/[^)]*(?:\.pdf|[?&]type=pdf|[?&]format=pdf)[^)]*)\)/gi)) addUrl(m[1])
+  // Bare PDF URLs
+  for (const m of content.matchAll(/https?:\/\/\S+(?:\.pdf|[?&]type=pdf|[?&]format=pdf)\S*/gi)) addUrl(m[0])
+  return urls.slice(0, 5)
+}
+
 function isBotBlocked(text: string): boolean {
   const lower = text.slice(0, 1000).toLowerCase()
   return lower.includes('just a moment') || lower.includes('captcha') || lower.includes('security verification') || lower.includes('verifying you are not a bot')
@@ -356,7 +389,7 @@ async function enrichFromSchoolDayPage(info: SchoolInfo, origin: string): Promis
   return info
 }
 
-async function extractTermDates(content: string): Promise<any[]> {
+async function extractTermDates(content: string, maxTokens = 2048): Promise<any[]> {
   const today = new Date().toISOString().split('T')[0]
 
   const res = await callClaude(
@@ -376,13 +409,14 @@ Return ONLY valid JSON — no markdown, no explanation:
 Rules:
 - Include ALL academic years shown (past, present, future)
 - Include: half-term holidays, school holidays, INSET days, bank holidays that affect school
-- Do NOT include term start or term end dates — only closed periods and INSET days
+- Include holiday PERIODS — if you see "last day of term: X" and "first day of next term: Y", infer the holiday runs from X+1 to Y-1 and include it (e.g. "Summer Holiday", "Christmas Holiday", "Easter Holiday")
+- For single INSET days, end_date is null
 - For multi-day periods always set end_date
 - Use academic year context to determine the correct year for each date
 
 Content:
 ${content.slice(0, 30000)}`,
-    2048
+    maxTokens
   )
 
   if (!res) return []
@@ -514,7 +548,7 @@ async function tryCommonTermDatePaths(homepageUrl: string): Promise<{ url: strin
     try {
       const head = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
       if (head.ok) {
-        const text = await fetchViaReader(url)
+        const text = await fetchViaJina(url) ?? await fetchViaReader(url)
         if (text && text.length > 200) return { url, text }
       }
     } catch { /* not found */ }
