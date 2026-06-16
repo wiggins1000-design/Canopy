@@ -107,10 +107,9 @@ Deno.serve(async (req) => {
       termDatesUrl = directUrl
 
       console.log(`Path URL mode — fetching: ${directUrl}`)
-      // Try three methods in order, stopping at the first that returns real content
+      // Reader first (Jina is its built-in fallback); Direct as last resort
       let pageText: string | null = null
       for (const [label, fetchFn] of [
-        ['Jina',   () => fetchViaJina(directUrl)],
         ['Reader', () => fetchViaReader(directUrl)],
         ['Direct', () => fetchDirect(directUrl)],
       ] as [string, () => Promise<string | null>][]) {
@@ -236,9 +235,8 @@ Deno.serve(async (req) => {
       let termDatesText = ''
 
       if (termDatesUrl && termDatesUrl !== normalised) {
-        // Prefer Jina for term dates — better at preserving table/list structure
         console.log(`Fetching term dates from: ${termDatesUrl}`)
-        termDatesText = await fetchViaJina(termDatesUrl) ?? await fetchViaReader(termDatesUrl) ?? ''
+        termDatesText = await fetchViaReader(termDatesUrl) ?? ''
       }
 
       if (!termDatesText) {
@@ -801,7 +799,7 @@ async function tryCommonTermDatePaths(homepageUrl: string): Promise<{ url: strin
     try {
       const head = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
       if (head.ok) {
-        const text = await fetchViaJina(url) ?? await fetchViaReader(url)
+        const text = await fetchViaReader(url)
         if (text && text.length > 200) return { url, text }
       }
     } catch { /* not found */ }
