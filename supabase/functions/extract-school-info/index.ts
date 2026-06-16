@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
       let eventsAdded = 0
       if (termDates.length > 0 && family_id) {
         eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
+        copyToSiblingFamilies(normalised, termDates, family_id)   // fire-and-forget
       }
       return respond({ ok: true, school_info: schoolInfo, term_dates: termDates.length, events_added: eventsAdded })
     }
@@ -290,10 +291,11 @@ Deno.serve(async (req) => {
     // ── Step 5: cache contact info + term dates (always, so other families benefit) ──
     await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
 
-    // ── Step 6: add term date events for this family ──────────────────────────
+    // ── Step 6: add term date events for this family + all sibling families ─────
     let eventsAdded = 0
     if (termDates.length > 0 && family_id) {
       eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
+      copyToSiblingFamilies(normalised, termDates, family_id)   // fire-and-forget
     }
 
     return respond({
@@ -778,6 +780,29 @@ async function addTermDateEvents(
   }
 
   return added
+}
+
+async function copyToSiblingFamilies(homepageUrl: string, termDates: any[], excludeFamilyId: string): Promise<void> {
+  try {
+    const { data: rows } = await supabase
+      .from('info_bank')
+      .select('family_id, data')
+      .eq('section', 'school')
+
+    const seen = new Set<string>()
+    for (const row of rows ?? []) {
+      if (row.family_id === excludeFamilyId) continue
+      if (seen.has(row.family_id)) continue
+      const schoolUrl = (row.data as any)?.school_url
+      if (!schoolUrl) continue
+      try { if (normaliseUrl(schoolUrl) !== homepageUrl) continue } catch { continue }
+      seen.add(row.family_id)
+      const added = await addTermDateEvents(row.family_id, homepageUrl, termDates)
+      if (added > 0) console.log(`Copied ${added} term dates to sibling family ${row.family_id}`)
+    }
+  } catch (e: any) {
+    console.warn('copyToSiblingFamilies failed:', e?.message)
+  }
 }
 
 // ── Common term date URL patterns ─────────────────────────────────────────────
