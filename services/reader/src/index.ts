@@ -1,7 +1,11 @@
 import express from 'express'
-import puppeteer, { Browser, Page } from 'puppeteer-core'
+import puppeteerExtra from 'puppeteer-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
+import { Browser, Page } from 'puppeteer-core'
 import pdfParse from 'pdf-parse'
 import Anthropic from '@anthropic-ai/sdk'
+
+puppeteerExtra.use(StealthPlugin())
 
 const PORT          = parseInt(process.env.PORT ?? '3000')
 const READER_SECRET = process.env.READER_SECRET ?? ''
@@ -17,7 +21,7 @@ let browser: Browser | null = null
 async function getBrowser(): Promise<Browser> {
   if (browser?.connected) return browser
   console.log('Launching browser…')
-  browser = await puppeteer.launch({
+  browser = await puppeteerExtra.launch({
     executablePath: CHROME_PATH,
     headless: true,
     args: [
