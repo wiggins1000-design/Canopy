@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
@@ -433,6 +433,9 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   const [checkResult, setCheckResult] = useState(null)
   const [extracting, setExtracting] = useState(false)
   const [extractResult, setExtractResult] = useState(null)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageResult, setImageResult] = useState(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => { setD({ ...defaults, ...data }); setCheckResult(null); setExtractResult(null) }, [JSON.stringify(data)])
 
@@ -511,6 +514,34 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     const missingMsg = missing.length ? ` Couldn't find: ${missing.join(', ')}.` : ''
 
     setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${termMsg}${missingMsg}` })
+  }
+
+  async function extractFromImage(file) {
+    setImageUploading(true)
+    setImageResult(null)
+    const base64 = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result.split(',')[1])
+      reader.readAsDataURL(file)
+    })
+    const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
+      body: {
+        family_id:        familyId,
+        child_name:       childName,
+        school_url:       d.school_url || null,
+        image_base64:     base64,
+        image_media_type: file.type,
+      },
+    })
+    setImageUploading(false)
+    if (error || res?.error) {
+      setImageResult({ type: 'error', message: res?.error ?? 'Could not read the image. Please try a clearer photo.' })
+      return
+    }
+    const termMsg = res.events_added > 0
+      ? `${res.events_added} term date${res.events_added === 1 ? '' : 's'} added to calendar.`
+      : res.term_dates > 0 ? 'Term dates already up to date.' : 'No term dates found in the image.'
+    setImageResult({ type: res.events_added > 0 ? 'success' : 'info', message: termMsg })
   }
 
   async function checkTermDates() {
@@ -629,6 +660,39 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           >
             {checking ? 'Checking website…' : 'Refresh term dates only'}
           </button>
+        )}
+        {isParent && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { if (e.target.files[0]) extractFromImage(e.target.files[0]); e.target.value = '' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={imageUploading}
+              className="w-full border border-gray-200 bg-white text-gray-600 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {imageUploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Reading image…
+                </>
+              ) : (
+                <>
+                  <CameraIcon className="w-4 h-4" />
+                  Upload a screenshot of term dates
+                </>
+              )}
+            </button>
+            {imageResult && (
+              <p className={`text-xs font-medium ${imageResult.type === 'error' ? 'text-red-600' : imageResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
+                {imageResult.message}
+              </p>
+            )}
+          </>
         )}
       </div>
     </SectionWrapper>
@@ -837,6 +901,15 @@ function CheckIcon({ className }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function CameraIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <circle cx="12" cy="13" r="3" />
     </svg>
   )
 }

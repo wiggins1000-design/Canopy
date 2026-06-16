@@ -32,40 +32,172 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   // JWT is verified automatically by Supabase before this function runs
-  const { family_id, child_name, school_url } = await req.json()
-  if (!school_url) {
-    return new Response(JSON.stringify({ error: 'school_url required' }), { status: 400, headers: CORS })
+  const { family_id, child_name, school_url, image_base64, image_media_type } = await req.json()
+  if (!school_url && !image_base64) {
+    return new Response(JSON.stringify({ error: 'school_url or image_base64 required' }), { status: 400, headers: CORS })
   }
 
+  // ── Image upload mode ─────────────────────────────────────────────────────
+  if (image_base64) {
+    try {
+      const mediaType = (['image/jpeg','image/png','image/gif','image/webp'].includes(image_media_type)
+        ? image_media_type : 'image/jpeg') as 'image/jpeg'|'image/png'|'image/gif'|'image/webp'
+
+      console.log(`Image upload mode — media type: ${mediaType}`)
+      const imageText = await extractTextFromImage(image_base64, mediaType)
+      if (!imageText) {
+        return respond({ error: 'Could not read text from the image. Please try a clearer photo.' })
+      }
+
+      let termDates = await extractTermDates(imageText, 4096)
+      const summerHolidays = inferSummerHolidays(imageText)
+      const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+      for (const d of summerHolidays) {
+        if (!existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
+      }
+      console.log(`Image upload: extracted ${termDates.length} term dates`)
+
+      let eventsAdded = 0
+      if (termDates.length > 0 && family_id) {
+        const cacheKey = school_url ? normaliseUrl(school_url) : `family:${family_id}`
+        eventsAdded = await addTermDateEvents(family_id, cacheKey, termDates)
+        if (school_url) await cacheSchoolData(cacheKey, cacheKey, termDates, emptySchoolInfo())
+      }
+
+      return respond({ ok: true, school_info: emptySchoolInfo(), term_dates: termDates.length, events_added: eventsAdded })
+    } catch (e: any) {
+      console.error('Image upload error:', e)
+      return respond({ error: e?.message ?? 'Image extraction failed' })
+    }
+  }
+
+  // Cache key is always just the hostname — path URLs still share the same school cache
   const normalised = normaliseUrl(school_url)
-  console.log(`extract-school-info: ${normalised}`)
+
+  // If the user pasted a specific page URL (e.g. /term-dates), use it directly
+  // to bypass bot-protected homepages.
+  const parsedInput = (() => {
+    try { return new URL(school_url.startsWith('http') ? school_url : `https://${school_url}`) }
+    catch { return null }
+  })()
+  const hasPath = !!(parsedInput && parsedInput.pathname.length > 1)
+
+  console.log(`extract-school-info: ${normalised}${hasPath ? ` (direct path: ${parsedInput!.pathname})` : ''}`)
 
   try {
-    // ── Step 1: fetch homepage ────────────────────────────────────────────────
-    const homepageText = await fetchViaReader(normalised)
-    if (!homepageText) {
-      return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
-    }
-    if (isBotBlocked(homepageText)) {
-      return respond({ error: 'This school\'s website has bot protection enabled and cannot be accessed automatically. Please enter the school details manually.' })
-    }
-
-    // ── Step 2: check shared school_calendars cache ───────────────────────────
+    // ── Cache check (always — keyed on hostname) ──────────────────────────────
     const { data: cached } = await supabase
       .from('school_calendars')
       .select('*')
       .eq('homepage_url', normalised)
       .maybeSingle()
 
-    const cacheAgeMs  = cached?.last_fetched_at
+    const cacheAgeMs = cached?.last_fetched_at
       ? Date.now() - new Date(cached.last_fetched_at).getTime()
       : Infinity
-    const cacheValid  = cacheAgeMs < 30 * 24 * 60 * 60 * 1000   // 30 days
+    const cacheValid = cacheAgeMs < 30 * 24 * 60 * 60 * 1000   // 30 days
 
     let termDates: any[]     = cached?.term_dates ?? []
     let termDatesUrl: string = cached?.term_dates_url ?? normalised
 
-    // ── Step 3: extract school info from homepage ─────────────────────────────
+    if (hasPath) {
+      // ── Path URL mode: fetch the given URL directly for term dates ─────────
+      // This avoids the bot-blocked homepage entirely.
+      const directUrl = parsedInput!.href
+      termDatesUrl = directUrl
+
+      console.log(`Path URL mode — fetching: ${directUrl}`)
+      // Try three methods in order, stopping at the first that returns real content
+      let pageText: string | null = null
+      for (const [label, fetchFn] of [
+        ['Jina',   () => fetchViaJina(directUrl)],
+        ['Reader', () => fetchViaReader(directUrl)],
+        ['Direct', () => fetchDirect(directUrl)],
+      ] as [string, () => Promise<string | null>][]) {
+        const text = await fetchFn()
+        if (text && !isBotBlocked(text)) {
+          pageText = text
+          console.log(`${label} succeeded: ${text.length} chars`)
+          break
+        }
+        if (text) console.log(`${label} returned bot-blocked content`)
+        else console.log(`${label} returned null`)
+      }
+      if (!pageText) {
+        return respond({ error: 'This school\'s website has bot protection that is blocking access. Please enter the school details manually.' })
+      }
+
+      // Extract school info from this page (best effort — may only yield school name)
+      let schoolInfo = await extractSchoolInfo(pageText, directUrl)
+      if (cached) {
+        schoolInfo = {
+          ...schoolInfo,
+          school_address: schoolInfo.school_address ?? cached.school_address ?? null,
+          school_email:   schoolInfo.school_email   ?? cached.school_email   ?? null,
+          school_phone:   schoolInfo.school_phone   ?? cached.school_phone   ?? null,
+          head_teacher:   schoolInfo.head_teacher   ?? cached.head_teacher   ?? null,
+          school_hours:   schoolInfo.school_hours   ?? cached.school_hours   ?? null,
+        }
+      }
+      console.log('Path page extraction:', JSON.stringify(schoolInfo))
+
+      // Fetch + extract term dates
+      if (!cacheValid || termDates.length === 0) {
+        termDates = await extractTermDates(pageText, 4096)
+
+        const pdfUrls = extractPdfUrls(pageText)
+        const pdfTexts: string[] = []
+        for (const pdfUrl of pdfUrls) {
+          console.log(`Fetching term dates PDF: ${pdfUrl}`)
+          const pdfText = await fetchViaReader(pdfUrl)
+          if (pdfText && pdfText.length > 50) {
+            pdfTexts.push(pdfText)
+            const pdfDates = await extractTermDates(pdfText, 4096)
+            const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+            for (const d of pdfDates) {
+              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
+            }
+          }
+        }
+
+        if (pdfTexts.length > 0) {
+          const combined = [pageText, ...pdfTexts].join('\n\n---\n\n')
+          const summerHolidays = inferSummerHolidays(combined)
+          const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+          for (const d of summerHolidays) {
+            if (!existingKeys.has(`${d.title}||${d.date}`)) {
+              termDates.push(d)
+              console.log(`Inferred summer holiday: ${d.date} – ${d.end_date}`)
+            }
+          }
+        }
+
+        console.log(`Extracted ${termDates.length} term dates (path URL mode)`)
+      } else {
+        console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
+      }
+
+      if (family_id && child_name) await storeSchoolInfo(family_id, child_name, schoolInfo)
+      await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
+      let eventsAdded = 0
+      if (termDates.length > 0 && family_id) {
+        eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
+      }
+      return respond({ ok: true, school_info: schoolInfo, term_dates: termDates.length, events_added: eventsAdded })
+    }
+
+    // ── Homepage mode ─────────────────────────────────────────────────────────
+
+    // ── Step 1: fetch homepage ────────────────────────────────────────────────
+    const homepageText = await fetchViaReader(normalised)
+    if (!homepageText) {
+      return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
+    }
+    if (isBotBlocked(homepageText)) {
+      return respond({ error: 'This school\'s website has bot protection that is blocking access. Try entering the URL of the specific term dates page instead (e.g. https://school.com/term-dates), or enter the school details manually.' })
+    }
+
+    // ── Step 2: extract school info from homepage ─────────────────────────────
     const origin = (() => { try { return new URL(normalised).origin } catch { return normalised } })()
     let schoolInfo = await extractSchoolInfo(homepageText, normalised)
     console.log('Homepage extraction:', JSON.stringify(schoolInfo))
@@ -98,7 +230,7 @@ Deno.serve(async (req) => {
 
     if (schoolInfo.term_dates_url) termDatesUrl = schoolInfo.term_dates_url
 
-    // ── Step 4: fetch + extract term dates (skip if cache is fresh) ───────────
+    // ── Step 3: fetch + extract term dates (skip if cache is fresh) ───────────
     if (!cacheValid || termDates.length === 0) {
       console.log('Cache miss — fetching term dates')
       let termDatesText = ''
@@ -152,15 +284,15 @@ Deno.serve(async (req) => {
       console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
     }
 
-    // ── Step 5: store school info in info_bank ────────────────────────────────
+    // ── Step 4: store school info in info_bank ────────────────────────────────
     if (family_id && child_name) {
       await storeSchoolInfo(family_id, child_name, schoolInfo)
     }
 
-    // ── Step 6: cache contact info + term dates (always, so other families benefit) ──
+    // ── Step 5: cache contact info + term dates (always, so other families benefit) ──
     await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
 
-    // ── Step 7: add term date events for this family ──────────────────────────
+    // ── Step 6: add term date events for this family ──────────────────────────
     let eventsAdded = 0
     if (termDates.length > 0 && family_id) {
       eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
@@ -212,6 +344,72 @@ async function fetchViaJina(url: string): Promise<string | null> {
     if (!res.ok) return null
     return (await res.text()).slice(0, 60000)
   } catch {
+    return null
+  }
+}
+
+// Plain HTTP fetch from edge function — different TLS fingerprint from Puppeteer,
+// which bypasses Cloudflare's browser-fingerprinting checks on some sites.
+async function fetchDirect(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.9',
+        'Cache-Control':   'no-cache',
+      },
+      signal:   AbortSignal.timeout(15000),
+      redirect: 'follow',
+    })
+    if (!res.ok) { console.warn(`Direct fetch ${res.status} for ${url}`); return null }
+    const html = await res.text()
+    // Strip HTML tags to get readable text
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+    return text.slice(0, 60000) || null
+  } catch (e: any) {
+    console.warn(`Direct fetch failed for ${url}: ${e?.message}`)
+    return null
+  }
+}
+
+async function extractTextFromImage(base64: string, mediaType: 'image/jpeg'|'image/png'|'image/gif'|'image/webp'): Promise<string | null> {
+  if (!ANTHROPIC_KEY) return null
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         ANTHROPIC_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text',  text: 'Extract ALL text from this school term dates document or calendar. Preserve all dates, event names, and structure as clearly as possible. Return only the extracted text.' },
+          ],
+        }],
+      }),
+    })
+    if (!res.ok) { console.error('Vision API error:', await res.text()); return null }
+    const data = await res.json()
+    return data.content?.[0]?.text ?? null
+  } catch (e: any) {
+    console.error('extractTextFromImage failed:', e?.message)
     return null
   }
 }
