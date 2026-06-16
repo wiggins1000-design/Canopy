@@ -115,24 +115,37 @@ Deno.serve(async (req) => {
       }
 
       if (termDatesText) {
+        // Separate extractions per source (reliable, avoids cross-doc deduplication)
         termDates = await extractTermDates(termDatesText, 4096)
-        console.log(`Extracted ${termDates.length} term date events from page`)
 
-        // Also fetch any PDFs linked from the term dates page (e.g. next year's dates)
         const pdfUrls = extractPdfUrls(termDatesText)
+        const pdfTexts: string[] = []
         for (const pdfUrl of pdfUrls) {
           console.log(`Fetching term dates PDF: ${pdfUrl}`)
           const pdfText = await fetchViaReader(pdfUrl)
           if (pdfText && pdfText.length > 50) {
+            pdfTexts.push(pdfText)
             const pdfDates = await extractTermDates(pdfText, 4096)
             const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
             for (const d of pdfDates) {
-              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) {
-                termDates.push(d)
-              }
+              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
             }
           }
         }
+
+        // Infer cross-year summer holidays from raw text (no LLM needed)
+        if (pdfTexts.length > 0) {
+          const combined = [termDatesText, ...pdfTexts].join('\n\n---\n\n')
+          const summerHolidays = inferSummerHolidays(combined)
+          const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+          for (const d of summerHolidays) {
+            if (!existingKeys.has(`${d.title}||${d.date}`)) {
+              termDates.push(d)
+              console.log(`Inferred summer holiday: ${d.date} – ${d.end_date}`)
+            }
+          }
+        }
+
         console.log(`Extracted ${termDates.length} term dates total (inc. PDFs)`)
       }
     } else {
@@ -270,6 +283,48 @@ function parseSchoolInfoJson(res: string | null): SchoolInfo {
 
 function emptySchoolInfo(): SchoolInfo {
   return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
+}
+
+function inferSummerHolidays(allContent: string): Array<{title: string, date: string, end_date: string}> {
+  const text = allContent.replace(/\*\*/g, ' ')
+  const MONTHS: Record<string, number> = {
+    january:1,february:2,march:3,april:4,may:5,june:6,
+    july:7,august:8,september:9,october:10,november:11,december:12,
+  }
+  const DATE_RE = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i
+
+  function parseDate(s: string): string | null {
+    const m = s.match(DATE_RE)
+    if (!m) return null
+    const d = parseInt(m[1]), mo = MONTHS[m[2].toLowerCase()], y = parseInt(m[3])
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+  }
+  function addDay(dateStr: string, n: number): string {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() + n)
+    return d.toISOString().split('T')[0]
+  }
+
+  const lastDays: string[] = []
+  const firstDays: string[] = []
+  for (const m of text.matchAll(/last\s+day\s+of\s+term.{0,120}/gi)) {
+    const d = parseDate(m[0]); if (d) lastDays.push(d)
+  }
+  for (const m of text.matchAll(/first\s+day\s+of\s+term.{0,120}/gi)) {
+    const d = parseDate(m[0]); if (d) firstDays.push(d)
+  }
+
+  const results: Array<{title: string, date: string, end_date: string}> = []
+  for (const lastDay of lastDays) {
+    const mo = parseInt(lastDay.split('-')[1])
+    if (mo < 6 || mo > 7) continue                               // June/July only
+    const nextFirst = firstDays.filter(d => d > lastDay).sort()[0]
+    if (!nextFirst) continue
+    const nextMo = parseInt(nextFirst.split('-')[1])
+    if (nextMo < 8 || nextMo > 9) continue                       // Aug/Sep only
+    results.push({ title: 'Summer Holiday', date: addDay(lastDay, 1), end_date: addDay(nextFirst, -1) })
+  }
+  return results
 }
 
 function extractPdfUrls(content: string): string[] {
