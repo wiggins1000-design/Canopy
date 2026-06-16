@@ -234,6 +234,7 @@ export default function CalendarPage() {
               day={selectedDay}
               dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
               birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
+              termType={termDays?.get(selectedDay.dateStr) ?? null}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}

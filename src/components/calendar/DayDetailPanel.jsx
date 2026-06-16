@@ -12,7 +12,12 @@ const OWNER_COLORS = {
   parent_b: 'text-pb-700 bg-pb-50 border-pb-200',
 }
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+const TERM_LABEL = {
+  holiday: { text: 'School Holiday', color: 'text-purple-700 bg-purple-50 border-purple-200' },
+  inset:   { text: 'INSET Day',      color: 'text-amber-700  bg-amber-50  border-amber-200'  },
+}
+
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termType = null, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
@@ -51,6 +56,13 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
           <p className="text-sm font-medium text-yellow-800">
             {birthdayNames.join(' & ')}'s birthday!
           </p>
+        </div>
+      )}
+
+      {/* Term type label */}
+      {termType && TERM_LABEL[termType] && (
+        <div className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${TERM_LABEL[termType].color}`}>
+          {TERM_LABEL[termType].text}
         </div>
       )}
 
