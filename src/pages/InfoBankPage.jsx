@@ -467,6 +467,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     if (!d.school_url) return
     setExtracting(true)
     setExtractResult(null)
+    setImageResult(null)
     // Save URL first so edge function can read it
     await save()
     const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
@@ -620,6 +621,39 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
             {extractResult.message}
           </p>
         )}
+        {extractResult?.type === 'error' && isParent && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { if (e.target.files[0]) extractFromImage(e.target.files[0]); e.target.value = '' }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={imageUploading}
+              className="w-full border border-gray-200 bg-white text-gray-600 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {imageUploading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Reading image…
+                </>
+              ) : (
+                <>
+                  <CameraIcon className="w-4 h-4" />
+                  Upload a screenshot of term dates instead
+                </>
+              )}
+            </button>
+            {imageResult && (
+              <p className={`text-xs font-medium ${imageResult.type === 'error' ? 'text-red-600' : imageResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
+                {imageResult.message}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       <div className="border-t border-gray-100 pt-3 space-y-3">
@@ -660,39 +694,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           >
             {checking ? 'Checking website…' : 'Refresh term dates only'}
           </button>
-        )}
-        {isParent && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { if (e.target.files[0]) extractFromImage(e.target.files[0]); e.target.value = '' }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={imageUploading}
-              className="w-full border border-gray-200 bg-white text-gray-600 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {imageUploading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  Reading image…
-                </>
-              ) : (
-                <>
-                  <CameraIcon className="w-4 h-4" />
-                  Upload a screenshot of term dates
-                </>
-              )}
-            </button>
-            {imageResult && (
-              <p className={`text-xs font-medium ${imageResult.type === 'error' ? 'text-red-600' : imageResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
-                {imageResult.message}
-              </p>
-            )}
-          </>
         )}
       </div>
     </SectionWrapper>
