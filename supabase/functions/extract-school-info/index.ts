@@ -46,6 +46,9 @@ Deno.serve(async (req) => {
     if (!homepageText) {
       return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
     }
+    if (isBotBlocked(homepageText)) {
+      return respond({ error: 'This school\'s website has bot protection enabled and cannot be accessed automatically. Please enter the school details manually.' })
+    }
 
     // ── Step 2: check shared school_calendars cache ───────────────────────────
     const { data: cached } = await supabase
@@ -248,6 +251,11 @@ function parseSchoolInfoJson(res: string | null): SchoolInfo {
 
 function emptySchoolInfo(): SchoolInfo {
   return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
+}
+
+function isBotBlocked(text: string): boolean {
+  const lower = text.slice(0, 1000).toLowerCase()
+  return lower.includes('just a moment') || lower.includes('captcha') || lower.includes('security verification') || lower.includes('verifying you are not a bot')
 }
 
 function isMissingContactInfo(info: SchoolInfo): boolean {

@@ -114,10 +114,10 @@ async function fetchHtml(url: string): Promise<string> {
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36')
     await page.setViewport({ width: 1280, height: 900 })
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 })
+    await page.goto(url, { waitUntil: 'load', timeout: 20000 })
 
-    // Wait a little for any late-loading JS content
-    await page.evaluate(() => new Promise(r => setTimeout(r, 1000)))
+    // Wait for JS-rendered content and allow Cloudflare challenges to resolve
+    await page.evaluate(() => new Promise(r => setTimeout(r, 3000)))
 
     const text = await page.evaluate(() => {
       // Remove boilerplate that adds noise for LLMs
