@@ -486,47 +486,95 @@ const _MONTH_NUMS: Record<string, number> = {
   january:1,february:2,march:3,april:4,may:5,june:6,
   july:7,august:8,september:9,october:10,november:11,december:12,
 }
-const _DATE_PAT = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i
+const _MO_RE = 'january|february|march|april|may|june|july|august|september|october|november|december'
 
-function _parseDate(s: string): string | null {
-  const m = s.match(_DATE_PAT)
-  if (!m) return null
-  const d = parseInt(m[1]), mo = _MONTH_NUMS[m[2].toLowerCase()], y = parseInt(m[3])
-  return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-}
 function _shiftDay(dateStr: string, n: number): string {
   const d = new Date(dateStr + 'T00:00:00')
   d.setDate(d.getDate() + n)
   return d.toISOString().split('T')[0]
 }
-function _datesIn(snippet: string): string[] {
-  const out: string[] = []
-  for (const m of snippet.matchAll(new RegExp(_DATE_PAT.source, 'gi'))) {
-    const d = _parseDate(m[0]); if (d) out.push(d)
+
+// Extracts all dates from a short snippet, handling:
+//   "3 September 2026"            → [2026-09-03]
+//   "1st and 2nd September 2026"  → [2026-09-01, 2026-09-02]
+//   "31st August & 1st Sep 2026"  → [2026-08-31, 2026-09-01]
+function _datesFromSnippet(snippet: string): string[] {
+  const dates = new Set<string>()
+
+  // Pass 1: "D1[, D2 ...] MonthName Year" — multiple day numbers sharing a month+year
+  const multiRe = new RegExp(
+    `\\b(\\d{1,2}(?:st|nd|rd|th)?(?:\\s*[,&]\\s*(?:and\\s+)?\\d{1,2}(?:st|nd|rd|th)?)*)\\s+(${_MO_RE})\\s+(\\d{4})\\b`,
+    'gi'
+  )
+  for (const m of snippet.matchAll(multiRe)) {
+    const month = _MONTH_NUMS[m[2].toLowerCase()]
+    const year  = parseInt(m[3])
+    if (!month) continue
+    for (const dm of m[1].matchAll(/\d{1,2}/g)) {
+      const day = parseInt(dm[0])
+      if (day >= 1 && day <= 31)
+        dates.add(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
+    }
   }
-  return out
+
+  // Pass 2: simple full dates that multi-pass may have missed
+  const simpleRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${_MO_RE})\\s+(\\d{4})\\b`, 'gi')
+  for (const m of snippet.matchAll(simpleRe)) {
+    const day = parseInt(m[1]), month = _MONTH_NUMS[m[2].toLowerCase()], year = parseInt(m[3])
+    if (month && day >= 1 && day <= 31)
+      dates.add(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
+  }
+
+  // Pass 3: partial dates like "31st August" with no year — infer year from nearest full date
+  if (dates.size > 0) {
+    const inferredYear = parseInt([...dates].sort().pop()!.split('-')[0])
+    const partialRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${_MO_RE})\\b(?!\\s+\\d{4})`, 'gi')
+    for (const m of snippet.matchAll(partialRe)) {
+      const day = parseInt(m[1]), month = _MONTH_NUMS[m[2].toLowerCase()]
+      if (month && day >= 1 && day <= 31)
+        dates.add(`${inferredYear}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
+    }
+  }
+
+  return [...dates].sort()
 }
 
-// Infer summer holiday from "last day of term" + "first day back for pupils"
+// Infer summer holiday from "last day of term/summer term" + "first day back for pupils"
 function inferSummerHolidays(allContent: string): Array<{title: string, date: string, end_date: string}> {
   const text = allContent.replace(/\*\*/g, ' ')
 
   const lastDays: string[] = []
-  for (const m of text.matchAll(/last\s+day\s+of\s+(?:the\s+)?(?:summer\s+)?term.{0,120}/gi))
-    _datesIn(m[0]).forEach(d => lastDays.push(d))
+  for (const pat of [
+    /last\s+day\s+of\s+(?:the\s+)?(?:summer\s+)?term.{0,120}/gi,
+    /(?:summer\s+)?term\s+ends?(?:\s*[:\-–])?.{0,80}/gi,
+  ]) {
+    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => lastDays.push(d))
+  }
 
-  // UK schools use many different phrases for when pupils return in September
-  const firstDays: string[] = []
+  // Priority 1 — explicitly pupil-facing phrases (preferred: these exclude INSET days)
+  const pupilFirstDays: string[] = []
   for (const pat of [
     /term\s+begins?\s+for\s+(?:all\s+)?pupils?.{0,80}/gi,
-    /pupils?\s+(?:return|back\s+to\s+school|re-?join).{0,80}/gi,
+    /pupils?\s+(?:return|back|re-?join).{0,80}/gi,
     /children\s+return.{0,80}/gi,
     /school\s+re-?opens?\s+for\s+pupils?.{0,80}/gi,
     /first\s+day\s+(?:of\s+(?:the\s+)?)?(?:autumn\s+)?term\s+for\s+pupils?.{0,80}/gi,
-    /first\s+day\s+of\s+(?:the\s+)?(?:autumn\s+)?term.{0,80}/gi,   // less specific, last resort
+    /(?:all\s+)?pupils?\s+start.{0,80}/gi,
   ]) {
-    for (const m of text.matchAll(pat)) _datesIn(m[0]).forEach(d => firstDays.push(d))
+    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => pupilFirstDays.push(d))
   }
+
+  // Priority 2 — "term begins/starts" (may include INSET days, used only if no pupil phrase)
+  const termFirstDays: string[] = []
+  for (const pat of [
+    /(?:autumn\s+)?term\s+(?:begins?|starts?|commences?|opens?)(?:\s*[:\-–])?.{0,80}/gi,
+    /school\s+(?:opens?|starts?|begins?)(?:\s*[:\-–])?.{0,80}/gi,
+    /first\s+day\s+of\s+(?:the\s+)?(?:autumn\s+)?term.{0,80}/gi,
+  ]) {
+    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => termFirstDays.push(d))
+  }
+
+  const firstDays = pupilFirstDays.length > 0 ? pupilFirstDays : termFirstDays
 
   const results: Array<{title: string, date: string, end_date: string}> = []
   for (const lastDay of lastDays) {
@@ -548,14 +596,18 @@ function inferInsetDays(allContent: string): Array<{title: string, date: string,
 
   for (const pat of [
     /(?:inset|staff\s+training|teacher\s+training|training|professional\s+development)\s+days?[^\n]{0,300}/gi,
+    // Also catch "INSET Day: 2 September 2026" format
+    /(?:inset|training)\s+day\s*[:\-–].{0,100}/gi,
   ]) {
     for (const m of text.matchAll(pat)) {
-      for (const date of _datesIn(m[0])) {
+      for (const date of _datesFromSnippet(m[0])) {
         results.push({ title: 'INSET Day', date, end_date: null })
       }
     }
   }
-  return results
+  // Deduplicate
+  const seen = new Set<string>()
+  return results.filter(r => { const k = r.date; if (seen.has(k)) return false; seen.add(k); return true })
 }
 
 function extractPdfUrls(content: string): string[] {
