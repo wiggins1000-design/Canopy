@@ -68,7 +68,9 @@ export function useFamilyEvents(year, month) {
     ])
 
     const expanded = (allRecurring ?? []).flatMap((ev) => expandRecurring(ev, fromDate, toDate))
+    // Term dates are rendered as coloured strips via useTermDates — exclude them here
     const combined = [...(nonRecurring ?? []), ...expanded]
+      .filter(ev => ev.source !== 'term_dates')
     combined.sort((a, b) => a.event_date.localeCompare(b.event_date))
 
     setEvents(combined)
