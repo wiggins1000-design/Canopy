@@ -19,7 +19,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' })
 let browser: Browser | null = null
 
 async function getBrowser(): Promise<Browser> {
-  if (browser?.connected) return browser
+  if (browser?.connected) return browser!
   console.log('Launching browser…')
   browser = await puppeteerExtra.launch({
     executablePath: CHROME_PATH,
@@ -33,12 +33,12 @@ async function getBrowser(): Promise<Browser> {
       '--no-first-run',
       '--no-default-browser-check',
     ],
-  })
-  browser.on('disconnected', () => {
+  }) as unknown as Browser
+  browser!.on('disconnected', () => {
     console.warn('Browser disconnected — will relaunch on next request')
     browser = null
   })
-  return browser
+  return browser!
 }
 
 // Keep browser warm — launch on startup
