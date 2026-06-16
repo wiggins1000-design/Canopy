@@ -50,10 +50,10 @@ Deno.serve(async (req) => {
       }
 
       let termDates = await extractTermDates(imageText, 4096)
-      const summerHolidays = inferSummerHolidays(imageText)
+      const inferred = [...inferSummerHolidays(imageText), ...inferInsetDays(imageText)]
       const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-      for (const d of summerHolidays) {
-        if (!existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
+      for (const d of inferred) {
+        if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
       }
       console.log(`Image upload: extracted ${termDates.length} term dates`)
 
@@ -159,15 +159,14 @@ Deno.serve(async (req) => {
           }
         }
 
-        if (pdfTexts.length > 0) {
-          const combined = [pageText, ...pdfTexts].join('\n\n---\n\n')
-          const summerHolidays = inferSummerHolidays(combined)
-          const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-          for (const d of summerHolidays) {
-            if (!existingKeys.has(`${d.title}||${d.date}`)) {
-              termDates.push(d)
-              console.log(`Inferred summer holiday: ${d.date} – ${d.end_date}`)
-            }
+        // TypeScript inference runs on all content regardless of whether PDFs were found
+        const combined = pdfTexts.length > 0 ? [pageText, ...pdfTexts].join('\n\n---\n\n') : pageText
+        const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
+        const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+        for (const d of inferred) {
+          if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
+            termDates.push(d)
+            console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
           }
         }
 
@@ -264,16 +263,14 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Infer cross-year summer holidays from raw text (no LLM needed)
-        if (pdfTexts.length > 0) {
-          const combined = [termDatesText, ...pdfTexts].join('\n\n---\n\n')
-          const summerHolidays = inferSummerHolidays(combined)
-          const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-          for (const d of summerHolidays) {
-            if (!existingKeys.has(`${d.title}||${d.date}`)) {
-              termDates.push(d)
-              console.log(`Inferred summer holiday: ${d.date} – ${d.end_date}`)
-            }
+        // TypeScript inference runs on all content regardless of whether PDFs were found
+        const combined = pdfTexts.length > 0 ? [termDatesText, ...pdfTexts].join('\n\n---\n\n') : termDatesText
+        const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
+        const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+        for (const d of inferred) {
+          if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
+            termDates.push(d)
+            console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
           }
         }
 
@@ -483,44 +480,80 @@ function emptySchoolInfo(): SchoolInfo {
   return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
 }
 
+// ── Shared date helpers for TypeScript inference ──────────────────────────────
+
+const _MONTH_NUMS: Record<string, number> = {
+  january:1,february:2,march:3,april:4,may:5,june:6,
+  july:7,august:8,september:9,october:10,november:11,december:12,
+}
+const _DATE_PAT = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i
+
+function _parseDate(s: string): string | null {
+  const m = s.match(_DATE_PAT)
+  if (!m) return null
+  const d = parseInt(m[1]), mo = _MONTH_NUMS[m[2].toLowerCase()], y = parseInt(m[3])
+  return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+}
+function _shiftDay(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+function _datesIn(snippet: string): string[] {
+  const out: string[] = []
+  for (const m of snippet.matchAll(new RegExp(_DATE_PAT.source, 'gi'))) {
+    const d = _parseDate(m[0]); if (d) out.push(d)
+  }
+  return out
+}
+
+// Infer summer holiday from "last day of term" + "first day back for pupils"
 function inferSummerHolidays(allContent: string): Array<{title: string, date: string, end_date: string}> {
   const text = allContent.replace(/\*\*/g, ' ')
-  const MONTHS: Record<string, number> = {
-    january:1,february:2,march:3,april:4,may:5,june:6,
-    july:7,august:8,september:9,october:10,november:11,december:12,
-  }
-  const DATE_RE = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/i
-
-  function parseDate(s: string): string | null {
-    const m = s.match(DATE_RE)
-    if (!m) return null
-    const d = parseInt(m[1]), mo = MONTHS[m[2].toLowerCase()], y = parseInt(m[3])
-    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-  }
-  function addDay(dateStr: string, n: number): string {
-    const d = new Date(dateStr + 'T00:00:00')
-    d.setDate(d.getDate() + n)
-    return d.toISOString().split('T')[0]
-  }
 
   const lastDays: string[] = []
+  for (const m of text.matchAll(/last\s+day\s+of\s+(?:the\s+)?(?:summer\s+)?term.{0,120}/gi))
+    _datesIn(m[0]).forEach(d => lastDays.push(d))
+
+  // UK schools use many different phrases for when pupils return in September
   const firstDays: string[] = []
-  for (const m of text.matchAll(/last\s+day\s+of\s+term.{0,120}/gi)) {
-    const d = parseDate(m[0]); if (d) lastDays.push(d)
-  }
-  for (const m of text.matchAll(/first\s+day\s+of\s+term.{0,120}/gi)) {
-    const d = parseDate(m[0]); if (d) firstDays.push(d)
+  for (const pat of [
+    /term\s+begins?\s+for\s+(?:all\s+)?pupils?.{0,80}/gi,
+    /pupils?\s+(?:return|back\s+to\s+school|re-?join).{0,80}/gi,
+    /children\s+return.{0,80}/gi,
+    /school\s+re-?opens?\s+for\s+pupils?.{0,80}/gi,
+    /first\s+day\s+(?:of\s+(?:the\s+)?)?(?:autumn\s+)?term\s+for\s+pupils?.{0,80}/gi,
+    /first\s+day\s+of\s+(?:the\s+)?(?:autumn\s+)?term.{0,80}/gi,   // less specific, last resort
+  ]) {
+    for (const m of text.matchAll(pat)) _datesIn(m[0]).forEach(d => firstDays.push(d))
   }
 
   const results: Array<{title: string, date: string, end_date: string}> = []
   for (const lastDay of lastDays) {
     const mo = parseInt(lastDay.split('-')[1])
-    if (mo < 6 || mo > 7) continue                               // June/July only
-    const nextFirst = firstDays.filter(d => d > lastDay).sort()[0]
+    if (mo < 6 || mo > 7) continue
+    const nextFirst = [...new Set(firstDays)].filter(d => d > lastDay).sort()[0]
     if (!nextFirst) continue
     const nextMo = parseInt(nextFirst.split('-')[1])
-    if (nextMo < 8 || nextMo > 9) continue                       // Aug/Sep only
-    results.push({ title: 'Summer Holiday', date: addDay(lastDay, 1), end_date: addDay(nextFirst, -1) })
+    if (nextMo < 8 || nextMo > 9) continue
+    results.push({ title: 'Summer Holiday', date: _shiftDay(lastDay, 1), end_date: _shiftDay(nextFirst, -1) })
+  }
+  return results
+}
+
+// Infer INSET days from "Staff Training Day(s)" and equivalent labels
+function inferInsetDays(allContent: string): Array<{title: string, date: string, end_date: null}> {
+  const text = allContent.replace(/\*\*/g, ' ')
+  const results: Array<{title: string, date: string, end_date: null}> = []
+
+  for (const pat of [
+    /(?:inset|staff\s+training|teacher\s+training|training|professional\s+development)\s+days?[^\n]{0,300}/gi,
+  ]) {
+    for (const m of text.matchAll(pat)) {
+      for (const date of _datesIn(m[0])) {
+        results.push({ title: 'INSET Day', date, end_date: null })
+      }
+    }
   }
   return results
 }
@@ -661,7 +694,7 @@ Return ONLY valid JSON — no markdown, no explanation:
 
 Rules:
 - Include ALL academic years shown (past, present, future)
-- Include: half-term holidays, school holidays, INSET days, bank holidays that affect school
+- Include: half-term holidays, school holidays, INSET days (also called Staff Training Days, Teacher Training Days, Training Days, Professional Development Days), bank holidays that affect school
 - Include holiday PERIODS — if you see "last day of term: X" and "first day of next term: Y", infer the holiday runs from X+1 to Y-1 and include it (e.g. "Summer Holiday", "Christmas Holiday", "Easter Holiday")
 - For single INSET days, end_date is null
 - For multi-day periods always set end_date
