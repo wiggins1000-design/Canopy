@@ -29,10 +29,11 @@ function normaliseOrigin(url) {
 
 export default function TermDatesSection({ onNewDates }) {
   const { family, isParent } = useFamily()
-  const [events, setEvents]         = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [events, setEvents]           = useState([])
+  const [loading, setLoading]         = useState(true)
   const [showInspect, setShowInspect] = useState(false)
-  const [openPanel, setOpenPanel]   = useState(null) // 'kb' | 'photos' | 'manual'
+  const [showAddOptions, setShowAddOptions] = useState(false)
+  const [openPanel, setOpenPanel]     = useState(null) // 'kb' | 'photos' | 'manual'
 
   // Knowledge Base
   const [kbData, setKbData]           = useState(undefined) // undefined=checking, null=none, arr=found
@@ -306,6 +307,19 @@ export default function TermDatesSection({ onNewDates }) {
       {/* Add options — parents only */}
       {isParent && (
         <div className="space-y-2 pt-1">
+          {/* When dates exist, collapse panels behind a toggle unless KB has new dates */}
+          {events.length > 0 && !hasNewDates && !showAddOptions && (
+            <button
+              onClick={() => setShowAddOptions(true)}
+              className="w-full text-left px-3 py-2.5 border border-gray-200 rounded-xl bg-white flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-sm text-gray-500">Add or update dates</span>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+          {(events.length === 0 || hasNewDates || showAddOptions) && (<>
 
           {/* ── (a) Knowledge Base ── */}
           <OptionPanel
@@ -506,6 +520,7 @@ export default function TermDatesSection({ onNewDates }) {
             </div>
           </OptionPanel>
 
+          </>)}
         </div>
       )}
     </div>
