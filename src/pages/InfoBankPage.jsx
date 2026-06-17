@@ -493,7 +493,8 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       .map(([, label]) => label)
     const missingMsg = missing.length ? ` Couldn't find: ${missing.join(', ')}.` : ''
 
-    setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${missingMsg}` })
+    const termMsg = (res?.term_dates > 0) ? ' Term dates also found.' : ''
+    setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${termMsg}${missingMsg}` })
   }
 
   return (
