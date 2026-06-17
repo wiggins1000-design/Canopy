@@ -544,7 +544,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Year group" placeholder="e.g. Year 4" {...f('year_group')} />
-          <Field label="Class" placeholder="e.g. Maple" {...f('class_name')} />
+          <Field label="Class / Tutor Group" placeholder="e.g. Maple" {...f('class_name')} />
         </div>
         <Field label="Class teacher" placeholder="Mrs Taylor" {...f('teacher')} />
         <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
