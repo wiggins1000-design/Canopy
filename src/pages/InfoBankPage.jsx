@@ -266,15 +266,40 @@ export default function InfoBankPage() {
   )
 }
 
+// ── Field validation ──────────────────────────────────────────
+
+function validateEmail(email) {
+  if (!email) return null
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : 'Enter a valid email address'
+}
+
+function validateUrl(url) {
+  if (!url) return null
+  const withScheme = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`
+  try {
+    const u = new URL(withScheme)
+    if (!['http:', 'https:'].includes(u.protocol)) return 'URL must start with https://'
+    if (!u.hostname.includes('.')) return 'Enter a full URL, e.g. https://stmarys.sch.uk'
+    return null
+  } catch {
+    return 'Enter a valid URL, e.g. https://stmarys.sch.uk'
+  }
+}
+
 // ── Shared field components ───────────────────────────────────
 
 function Field({ label, value, onChange, placeholder, readOnly, type = 'text' }) {
   const [copied, setCopied] = useState(false)
+  const [fieldError, setFieldError] = useState(null)
 
   const actionHref = value
     ? type === 'tel'   ? `tel:${value.replace(/\s/g, '')}`
     : type === 'email' ? `mailto:${value}`
     : null : null
+
+  function handleBlur() {
+    if (type === 'email') setFieldError(validateEmail(value))
+  }
 
   async function handleCopy() {
     try {
@@ -298,10 +323,11 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
         <input
           type={type}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => { onChange(e.target.value); if (fieldError) setFieldError(null) }}
+          onBlur={handleBlur}
           placeholder={readOnly ? '—' : placeholder}
           readOnly={readOnly}
-          className={`border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${actionHref ? 'flex-1 min-w-0' : 'w-full'}`}
+          className={`border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${actionHref ? 'flex-1 min-w-0' : 'w-full'} ${fieldError ? 'border-red-400' : 'border-gray-200'}`}
         />
         {actionHref && (
           <a
@@ -321,6 +347,7 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
           </button>
         )}
       </div>
+      {fieldError && <p className="text-xs text-red-600 mt-1">{fieldError}</p>}
     </div>
   )
 }
@@ -429,6 +456,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   const [saved, setSaved] = useState(false)
   const [extracting, setExtracting] = useState(false)
   const [extractResult, setExtractResult] = useState(null)
+  const [urlError, setUrlError] = useState(null)
 
   useEffect(() => { setD({ ...defaults, ...data }); setExtractResult(null) }, [JSON.stringify(data)])
 
@@ -506,15 +534,19 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           <input
             type="text"
             value={d.school_url}
-            onChange={(v) => { f('school_url').onChange(v.target.value) }}
+            onChange={(e) => {
+              f('school_url').onChange(e.target.value)
+              setUrlError(null)
+            }}
+            onBlur={(e) => setUrlError(validateUrl(e.target.value))}
             placeholder="https://stmarys.sch.uk"
             readOnly={!isParent}
-            className={`flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${!isParent ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+            className={`flex-1 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${!isParent ? 'bg-gray-50 text-gray-500' : 'bg-white'} ${urlError ? 'border-red-400' : 'border-gray-200'}`}
           />
           {isParent && (
             <button
               onClick={extractSchoolInfo}
-              disabled={extracting || !d.school_url}
+              disabled={extracting || !d.school_url || !!urlError}
               title="Fetch school info & term dates"
               className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-canopy-mid text-white hover:bg-canopy-deep transition-colors disabled:opacity-40"
             >
@@ -526,6 +558,9 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
             </button>
           )}
         </div>
+        {urlError && (
+          <p className="text-xs text-red-600 font-medium">{urlError}</p>
+        )}
         {extractResult && (
           <p className={`text-xs font-medium ${extractResult.type === 'error' ? 'text-red-600' : extractResult.type === 'info' ? 'text-amber-600' : 'text-green-600'}`}>
             {extractResult.message}

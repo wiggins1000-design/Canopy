@@ -13,6 +13,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendDebugAlert } from '../_shared/debugAlert.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -31,8 +32,24 @@ const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  let body: Record<string, unknown> = {}
+  try { body = await req.clone().json() } catch { /* ignore */ }
+
+  try {
+    return await handleRequest(req, body)
+  } catch (err) {
+    await sendDebugAlert({
+      functionName: 'extract-school-info',
+      error: err,
+      input: { school_url: body.school_url, family_id: body.family_id, child_name: body.child_name },
+    })
+    return respond({ error: 'Internal server error' })
+  }
+})
+
+async function handleRequest(req: Request, body: Record<string, unknown>): Promise<Response> {
   // JWT is verified automatically by Supabase before this function runs
-  const { family_id, child_name, school_url, image_base64, image_media_type, images } = await req.json()
+  const { family_id, child_name, school_url, image_base64, image_media_type, images } = body as any
   if (!school_url && !image_base64 && !(images?.length)) {
     return new Response(JSON.stringify({ error: 'school_url, image_base64, or images required' }), { status: 400, headers: CORS })
   }
@@ -340,7 +357,7 @@ Deno.serve(async (req) => {
     console.error('extract-school-info error:', e)
     return respond({ error: e?.message ?? 'Extraction failed' })
   }
-})
+}
 
 // ── Reader service ────────────────────────────────────────────────────────────
 

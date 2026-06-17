@@ -24,7 +24,7 @@ export default function AccountsSection({ childName }) {
     setLoading(true)
     const { data } = await supabase
       .from('child_accounts')
-      .select('id, platform, username, url, notes, vault_secret_id')
+      .select('id, platform, url, notes, vault_secret_id, vault_username_id')
       .eq('family_id', family.id)
       .eq('child_name', childName)
       .order('created_at', { ascending: true })
@@ -33,7 +33,7 @@ export default function AccountsSection({ childName }) {
   }
 
   function openAdd() { setEditing(null); setSheetOpen(true) }
-  function openEdit(account) { setEditing(account); setSheetOpen(true) }
+  function openEdit(accountWithUsername) { setEditing(accountWithUsername); setSheetOpen(true) }
 
   async function handleDelete(id) {
     await supabase.rpc('delete_child_account', { p_id: id })
@@ -110,6 +110,7 @@ export default function AccountsSection({ childName }) {
 // ── Account card ──────────────────────────────────────────────────────────────
 
 function AccountCard({ account, isParent, onEdit, onDelete }) {
+  const [username, setUsername]     = useState(null) // null = loading from vault
   const [password, setPassword]     = useState(null) // null = not yet fetched
   const [revealed, setRevealed]     = useState(false)
   const [fetching, setFetching]     = useState(false)
@@ -117,6 +118,15 @@ function AccountCard({ account, isParent, onEdit, onDelete }) {
   const [copied, setCopied]         = useState(null) // 'username' | 'password'
 
   const hasPassword = !!account.vault_secret_id
+  const hasUsername = !!account.vault_username_id
+
+  // Auto-fetch username from vault on mount
+  useEffect(() => {
+    if (!hasUsername) { setUsername(''); return }
+    supabase.rpc('get_account_username', { p_id: account.id }).then(({ data }) => {
+      setUsername(data ?? '')
+    })
+  }, [account.id, account.vault_username_id])
 
   async function fetchPassword() {
     if (password !== null) return password
@@ -136,7 +146,7 @@ function AccountCard({ account, isParent, onEdit, onDelete }) {
   async function copyText(type) {
     let text
     if (type === 'username') {
-      text = account.username
+      text = username ?? ''
     } else {
       text = password !== null ? password : await fetchPassword()
     }
@@ -161,8 +171,9 @@ function AccountCard({ account, isParent, onEdit, onDelete }) {
         {isParent && (
           <div className="flex items-center gap-0.5 shrink-0">
             <button
-              onClick={onEdit}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              onClick={() => onEdit({ ...account, _fetchedUsername: username ?? '' })}
+              disabled={hasUsername && username === null}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
             >
               <PencilIcon className="w-4 h-4" />
             </button>
@@ -183,13 +194,14 @@ function AccountCard({ account, isParent, onEdit, onDelete }) {
         )}
       </div>
 
-      {/* Username */}
-      {account.username && (
+      {/* Username — fetched from Vault */}
+      {hasUsername && (
         <CredentialRow
           label="Username"
-          value={account.username}
+          value={username === null ? '' : username}
+          loading={username === null}
           revealed
-          onCopy={() => copyText('username')}
+          onCopy={username ? () => copyText('username') : undefined}
           copied={copied === 'username'}
         />
       )}
@@ -245,11 +257,25 @@ function CredentialRow({ label, value, revealed, loading, onReveal, onCopy, copi
 
 // ── Add / Edit sheet ──────────────────────────────────────────────────────────
 
+function validateUrl(url) {
+  if (!url) return null
+  const withScheme = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`
+  try {
+    const u = new URL(withScheme)
+    if (!['http:', 'https:'].includes(u.protocol)) return 'URL must start with https://'
+    if (!u.hostname.includes('.')) return 'Enter a full URL, e.g. https://ttrockstars.com'
+    return null
+  } catch {
+    return 'Enter a valid URL, e.g. https://ttrockstars.com'
+  }
+}
+
 function AccountSheet({ open, onClose, account, onSave }) {
   const [platform,     setPlatform]     = useState('')
   const [username,     setUsername]     = useState('')
   const [password,     setPassword]     = useState('')
   const [url,          setUrl]          = useState('')
+  const [urlError,     setUrlError]     = useState(null)
   const [notes,        setNotes]        = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [saving,       setSaving]       = useState(false)
@@ -257,9 +283,10 @@ function AccountSheet({ open, onClose, account, onSave }) {
   useEffect(() => {
     if (open) {
       setPlatform(account?.platform ?? '')
-      setUsername(account?.username ?? '')
+      setUsername(account?._fetchedUsername ?? '')
       setPassword('')
       setUrl(account?.url ?? '')
+      setUrlError(null)
       setNotes(account?.notes ?? '')
       setShowPassword(false)
     }
@@ -320,6 +347,9 @@ function AccountSheet({ open, onClose, account, onSave }) {
             autoComplete="off"
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
           />
+          {username && username.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username) && (
+            <p className="text-xs text-red-600 mt-1">Enter a valid email address</p>
+          )}
         </div>
 
         {/* Password */}
@@ -350,12 +380,14 @@ function AccountSheet({ open, onClose, account, onSave }) {
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Website (optional)</label>
           <input
-            type="url"
+            type="text"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => { setUrl(e.target.value); setUrlError(null) }}
+            onBlur={(e) => setUrlError(validateUrl(e.target.value))}
             placeholder="https://ttrockstars.com"
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+            className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${urlError ? 'border-red-400' : 'border-gray-200'}`}
           />
+          {urlError && <p className="text-xs text-red-600 mt-1">{urlError}</p>}
         </div>
 
         {/* Notes */}
@@ -373,7 +405,7 @@ function AccountSheet({ open, onClose, account, onSave }) {
         {/* Security notice */}
         <div className="flex items-start gap-2.5 bg-canopy-frost border border-canopy-mist rounded-xl px-3 py-2.5">
           <LockIcon className="w-4 h-4 text-canopy-deep shrink-0 mt-0.5" />
-          <p className="text-xs text-canopy-deep">Passwords are encrypted at rest using Supabase Vault. They are never stored as plain text.</p>
+          <p className="text-xs text-canopy-deep">Usernames and passwords are encrypted at rest using Supabase Vault. Neither is ever stored as plain text.</p>
         </div>
 
         <Button

@@ -19,6 +19,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import PostalMime from 'https://esm.sh/postal-mime@2.2.8'
+import { sendDebugAlert } from '../_shared/debugAlert.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +60,24 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: CORS })
   }
 
+  let rawPayload: unknown
+  try {
+    rawPayload = await req.clone().json()
+  } catch { rawPayload = {} }
+
+  try {
+    return await handleRequest(req)
+  } catch (err) {
+    await sendDebugAlert({
+      functionName: 'process-email',
+      error: err,
+      input: { payload: rawPayload },
+    })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: CORS })
+  }
+})
+
+async function handleRequest(req: Request): Promise<Response> {
   // Verify shared webhook token (set in Postmark inbound webhook settings)
   const webhookToken = Deno.env.get('EMAIL_WEBHOOK_TOKEN')
   if (webhookToken) {
@@ -468,4 +487,4 @@ Rules:
     docs_saved:      docsSaved,
     notice_created:  noticeCreated,
   }), { status: 200, headers: CORS })
-})
+}
