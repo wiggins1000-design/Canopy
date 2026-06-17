@@ -240,23 +240,6 @@ export default function TermDatesSection({ onNewDates }) {
     setEvents(p => p.filter(e => e.id !== id))
   }
 
-  const msgCls = t => t === 'error' ? 'text-red-600' : t === 'success' ? 'text-green-600' : 'text-gray-500'
-
-  function togglePanel(id) {
-    setOpenPanel(prev => {
-      if (prev === id) return null
-      // Reset photo state when leaving photos panel
-      if (prev === 'photos') { setPhotoDates(null); setPhotoFileCount(0); setPhotoMsg(null) }
-      if (id === 'kb')     setKbMsg(null)
-      if (id === 'manual') setAddError(null)
-      return id
-    })
-  }
-
-  if (loading) return <div className="px-4 py-4 text-sm text-gray-400">Loading…</div>
-
-  const kbAvailable = Array.isArray(kbData) && kbData.length > 0
-
   const dateRange = useMemo(() => {
     if (!events.length) return null
     const first = events[0].event_date
@@ -282,6 +265,23 @@ export default function TermDatesSection({ onNewDates }) {
     }
     return Object.entries(groups)
   }, [events])
+
+  const msgCls = t => t === 'error' ? 'text-red-600' : t === 'success' ? 'text-green-600' : 'text-gray-500'
+
+  function togglePanel(id) {
+    setOpenPanel(prev => {
+      if (prev === id) return null
+      // Reset photo state when leaving photos panel
+      if (prev === 'photos') { setPhotoDates(null); setPhotoFileCount(0); setPhotoMsg(null) }
+      if (id === 'kb')     setKbMsg(null)
+      if (id === 'manual') setAddError(null)
+      return id
+    })
+  }
+
+  if (loading) return <div className="px-4 py-4 text-sm text-gray-400">Loading…</div>
+
+  const kbAvailable = Array.isArray(kbData) && kbData.length > 0
 
   return (
     <div className="px-4 py-3 space-y-3">
