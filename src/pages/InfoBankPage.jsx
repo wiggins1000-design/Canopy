@@ -444,16 +444,22 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     if (!d.school_url) return
     setExtracting(true)
     setExtractResult(null)
-    setImageResult(null)
     // Save URL first so edge function can read it
     await save()
-    const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
-      body: {
-        family_id:  familyId,
-        child_name: childName,
-        school_url: d.school_url,
-      },
-    })
+    let invokeResult
+    try {
+      invokeResult = await Promise.race([
+        supabase.functions.invoke('extract-school-info', {
+          body: { family_id: familyId, child_name: childName, school_url: d.school_url },
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 90000)),
+      ])
+    } catch {
+      setExtracting(false)
+      setExtractResult({ type: 'error', message: 'This is taking too long. Try entering the URL of the specific term dates page, or add details manually.' })
+      return
+    }
+    const { data: res, error } = invokeResult
     setExtracting(false)
     if (error || res?.error) {
       setExtractResult({ type: 'error', message: res?.error ?? 'Could not extract school info. Check the URL is the school homepage.' })
@@ -477,10 +483,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       school_email:   info.school_email,
       head_teacher:   info.head_teacher,
     })
-    const termMsg = res.events_added > 0
-      ? ` · ${res.events_added} term date${res.events_added === 1 ? '' : 's'} added to calendar.`
-      : res.term_dates > 0 ? ' · Term dates already up to date.' : ''
-
     const fieldLabels = { school_name: 'school name', school_address: 'address', school_phone: 'phone', school_email: 'email', head_teacher: 'headteacher', school_hours: 'school hours' }
     const missing = Object.entries(fieldLabels)
       .filter(([k]) => {
@@ -491,7 +493,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       .map(([, label]) => label)
     const missingMsg = missing.length ? ` Couldn't find: ${missing.join(', ')}.` : ''
 
-    setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${termMsg}${missingMsg}` })
+    setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${missingMsg}` })
   }
 
   return (

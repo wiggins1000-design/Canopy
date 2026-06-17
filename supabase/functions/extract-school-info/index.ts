@@ -32,12 +32,41 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   // JWT is verified automatically by Supabase before this function runs
-  const { family_id, child_name, school_url, image_base64, image_media_type } = await req.json()
-  if (!school_url && !image_base64) {
-    return new Response(JSON.stringify({ error: 'school_url or image_base64 required' }), { status: 400, headers: CORS })
+  const { family_id, child_name, school_url, image_base64, image_media_type, images } = await req.json()
+  if (!school_url && !image_base64 && !(images?.length)) {
+    return new Response(JSON.stringify({ error: 'school_url, image_base64, or images required' }), { status: 400, headers: CORS })
   }
 
-  // ── Image upload mode ─────────────────────────────────────────────────────
+  // ── Multi-image mode — OCR all images, combine text, return dates for client review ──
+  if (images && Array.isArray(images) && images.length > 0) {
+    try {
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      const texts = await Promise.all(
+        (images as any[]).map((img) => {
+          const mt = (validTypes.includes(img.media_type) ? img.media_type : 'image/jpeg') as 'image/jpeg'|'image/png'|'image/gif'|'image/webp'
+          return extractTextFromImage(img.base64 as string, mt)
+        })
+      )
+      const validTexts = texts.filter((t): t is string => t !== null)
+      if (validTexts.length === 0) {
+        return respond({ error: 'Could not read text from any of the images. Please try clearer photos.' })
+      }
+      const combined = validTexts.join('\n\n---\n\n')
+      let termDates = await extractTermDates(combined, 4096)
+      const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
+      const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+      for (const d of inferred) {
+        if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
+      }
+      console.log(`Multi-image: extracted ${termDates.length} term dates from ${validTexts.length} image${validTexts.length !== 1 ? 's' : ''}`)
+      return respond({ ok: true, dates: termDates })
+    } catch (e: any) {
+      console.error('Multi-image error:', e)
+      return respond({ error: e?.message ?? 'Image extraction failed' })
+    }
+  }
+
+  // ── Single image upload mode ───────────────────────────────────────────────
   if (image_base64) {
     try {
       const mediaType = (['image/jpeg','image/png','image/gif','image/webp'].includes(image_media_type)
@@ -123,7 +152,7 @@ Deno.serve(async (req) => {
         else console.log(`${label} returned null`)
       }
       if (!pageText) {
-        return respond({ error: 'This school\'s website has bot protection that is blocking access. Please enter the school details manually.' })
+        return respond({ error: 'This school\'s website blocked the request. Try entering the URL of the specific term dates page (e.g. https://school.com/term-dates), or add the details manually.' })
       }
 
       // Extract school info from this page (best effort — may only yield school name)
@@ -193,7 +222,7 @@ Deno.serve(async (req) => {
       return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
     }
     if (isBotBlocked(homepageText)) {
-      return respond({ error: 'This school\'s website has bot protection that is blocking access. Try entering the URL of the specific term dates page instead (e.g. https://school.com/term-dates), or enter the school details manually.' })
+      return respond({ error: 'This school\'s website blocked the request. Try entering the URL of the specific term dates page (e.g. https://school.com/term-dates), or add the details manually.' })
     }
 
     // ── Step 2: extract school info from homepage ─────────────────────────────
@@ -215,70 +244,85 @@ Deno.serve(async (req) => {
         console.log('Contact info populated from cache')
     }
 
-    // If contact details are missing, fetch the contact page
-    if (isMissingContactInfo(schoolInfo)) {
-      schoolInfo = await enrichFromContactPage(schoolInfo, normalised, origin)
-      console.log('After contact page enrichment:', JSON.stringify(schoolInfo))
-    }
+    // ── Steps 3 & 4 in parallel — contact enrichment and term-dates fetch are
+    // independent: term_dates_url comes from the homepage extraction, not from
+    // the contact page, so both branches can run at the same time.
+    const initialTermDatesUrl = schoolInfo.term_dates_url ?? termDatesUrl
 
-    // If school hours still missing, try a school-day/times page
-    if (!schoolInfo.school_hours) {
-      schoolInfo = await enrichFromSchoolDayPage(schoolInfo, origin)
-      console.log('After school day enrichment:', JSON.stringify(schoolInfo))
-    }
+    const [enrichedInfo, termDatesResult] = await Promise.all([
 
-    if (schoolInfo.term_dates_url) termDatesUrl = schoolInfo.term_dates_url
+      // Branch A: enrich contact details from contact page
+      (async () => {
+        if (!isMissingContactInfo(schoolInfo)) return schoolInfo
+        const enriched = await enrichFromContactPage(schoolInfo, normalised, origin)
+        console.log('After contact page enrichment:', JSON.stringify(enriched))
+        return enriched
+      })(),
 
-    // ── Step 3: fetch + extract term dates (skip if cache is fresh) ───────────
-    if (!cacheValid || termDates.length === 0) {
-      console.log('Cache miss — fetching term dates')
-      let termDatesText = ''
+      // Branch B: fetch + extract term dates
+      (async (): Promise<{ termDates: any[]; url: string }> => {
+        if (cacheValid && termDates.length > 0) {
+          console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
+          return { termDates, url: termDatesUrl }
+        }
+        console.log('Cache miss — fetching term dates')
+        let url = initialTermDatesUrl
+        let termDatesText = ''
 
-      if (termDatesUrl && termDatesUrl !== normalised) {
-        console.log(`Fetching term dates from: ${termDatesUrl}`)
-        termDatesText = await fetchViaReader(termDatesUrl) ?? ''
-      }
+        if (url && url !== normalised) {
+          console.log(`Fetching term dates from: ${url}`)
+          termDatesText = await fetchViaReader(url) ?? ''
+        }
 
-      if (!termDatesText) {
-        const found = await tryCommonTermDatePaths(normalised)
-        if (found) { termDatesUrl = found.url; termDatesText = found.text }
-      }
+        if (!termDatesText) {
+          const found = await tryCommonTermDatePaths(normalised)
+          if (found) { url = found.url; termDatesText = found.text }
+        }
 
-      if (termDatesText) {
-        // Separate extractions per source (reliable, avoids cross-doc deduplication)
-        termDates = await extractTermDates(termDatesText, 4096)
+        let dates: any[] = []
+        if (termDatesText) {
+          dates = await extractTermDates(termDatesText, 4096)
 
-        const pdfUrls = extractPdfUrls(termDatesText)
-        const pdfTexts: string[] = []
-        for (const pdfUrl of pdfUrls) {
-          console.log(`Fetching term dates PDF: ${pdfUrl}`)
-          const pdfText = await fetchViaReader(pdfUrl)
-          if (pdfText && pdfText.length > 50) {
-            pdfTexts.push(pdfText)
-            const pdfDates = await extractTermDates(pdfText, 4096)
-            const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-            for (const d of pdfDates) {
-              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
+          // Fetch all PDFs in parallel, then extract dates from each
+          const pdfUrls = extractPdfUrls(termDatesText)
+          const pdfResults = await Promise.all(
+            pdfUrls.map(async (pdfUrl) => {
+              console.log(`Fetching term dates PDF: ${pdfUrl}`)
+              const pdfText = await fetchViaReader(pdfUrl)
+              if (!pdfText || pdfText.length < 50) return null
+              return { text: pdfText, dates: await extractTermDates(pdfText, 4096) }
+            })
+          )
+          const pdfTexts: string[] = []
+          for (const result of pdfResults) {
+            if (!result) continue
+            pdfTexts.push(result.text)
+            const existingKeys = new Set(dates.map((e: any) => `${e.title}||${e.date}`))
+            for (const d of result.dates) {
+              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) dates.push(d)
             }
           }
-        }
 
-        // TypeScript inference runs on all content regardless of whether PDFs were found
-        const combined = pdfTexts.length > 0 ? [termDatesText, ...pdfTexts].join('\n\n---\n\n') : termDatesText
-        const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
-        const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-        for (const d of inferred) {
-          if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
-            termDates.push(d)
-            console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
+          const combined = pdfTexts.length > 0 ? [termDatesText, ...pdfTexts].join('\n\n---\n\n') : termDatesText
+          const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
+          const existingKeys = new Set(dates.map((e: any) => `${e.title}||${e.date}`))
+          for (const d of inferred) {
+            if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
+              dates.push(d)
+              console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
+            }
           }
+
+          console.log(`Extracted ${dates.length} term dates total (inc. PDFs)`)
         }
 
-        console.log(`Extracted ${termDates.length} term dates total (inc. PDFs)`)
-      }
-    } else {
-      console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
-    }
+        return { termDates: dates, url: url ?? termDatesUrl }
+      })(),
+    ])
+
+    schoolInfo   = enrichedInfo
+    termDates    = termDatesResult.termDates
+    termDatesUrl = termDatesResult.url
 
     // ── Step 4: store school info in info_bank ────────────────────────────────
     if (family_id && child_name) {
@@ -494,21 +538,17 @@ function _shiftDay(dateStr: string, n: number): string {
   return d.toISOString().split('T')[0]
 }
 
-// Extracts all dates from a short snippet, handling:
-//   "3 September 2026"            → [2026-09-03]
-//   "1st and 2nd September 2026"  → [2026-09-01, 2026-09-02]
-//   "31st August & 1st Sep 2026"  → [2026-08-31, 2026-09-01]
+// Extracts dates from a snippet where dates include the year ("3 September 2026",
+// "1st and 2nd September 2026", "31st August & 1st Sep 2026").
 function _datesFromSnippet(snippet: string): string[] {
   const dates = new Set<string>()
-
-  // Pass 1: "D1[, D2 ...] MonthName Year" — multiple day numbers sharing a month+year
+  // Multiple day numbers sharing a month+year: "1st and 2nd September 2026"
   const multiRe = new RegExp(
     `\\b(\\d{1,2}(?:st|nd|rd|th)?(?:\\s*[,&]\\s*(?:and\\s+)?\\d{1,2}(?:st|nd|rd|th)?)*)\\s+(${_MO_RE})\\s+(\\d{4})\\b`,
     'gi'
   )
   for (const m of snippet.matchAll(multiRe)) {
-    const month = _MONTH_NUMS[m[2].toLowerCase()]
-    const year  = parseInt(m[3])
+    const month = _MONTH_NUMS[m[2].toLowerCase()], year = parseInt(m[3])
     if (!month) continue
     for (const dm of m[1].matchAll(/\d{1,2}/g)) {
       const day = parseInt(dm[0])
@@ -516,16 +556,14 @@ function _datesFromSnippet(snippet: string): string[] {
         dates.add(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
     }
   }
-
-  // Pass 2: simple full dates that multi-pass may have missed
+  // Simple full dates
   const simpleRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${_MO_RE})\\s+(\\d{4})\\b`, 'gi')
   for (const m of snippet.matchAll(simpleRe)) {
     const day = parseInt(m[1]), month = _MONTH_NUMS[m[2].toLowerCase()], year = parseInt(m[3])
     if (month && day >= 1 && day <= 31)
       dates.add(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
   }
-
-  // Pass 3: partial dates like "31st August" with no year — infer year from nearest full date
+  // Partial dates like "31st August" — infer year from the nearest full date in this snippet
   if (dates.size > 0) {
     const inferredYear = parseInt([...dates].sort().pop()!.split('-')[0])
     const partialRe = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${_MO_RE})\\b(?!\\s+\\d{4})`, 'gi')
@@ -535,48 +573,74 @@ function _datesFromSnippet(snippet: string): string[] {
         dates.add(`${inferredYear}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
     }
   }
-
   return [...dates].sort()
 }
 
-// Infer summer holiday from "last day of term/summer term" + "first day back for pupils"
+// Extracts dates from a snippet where dates may have NO year ("8th September"),
+// using defaultYear from the enclosing section heading.
+function _datesFromSnippetWithYear(snippet: string, defaultYear: number): string[] {
+  const full = _datesFromSnippet(snippet)
+  if (full.length > 0) return full   // full dates found — use them
+  const dates = new Set<string>()
+  const re = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${_MO_RE})\\b`, 'gi')
+  for (const m of snippet.matchAll(re)) {
+    const day = parseInt(m[1]), month = _MONTH_NUMS[m[2].toLowerCase()]
+    if (month && day >= 1 && day <= 31)
+      dates.add(`${defaultYear}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`)
+  }
+  return [...dates].sort()
+}
+
+// Parse the text into term sections, each tagged with a year from headings like
+// "Autumn Term 2026" or "Summer Term 2025-26". Returns lines grouped by section.
+function _parseSections(text: string): Array<{term: string, year: number, lines: string[]}> {
+  const sections: Array<{term: string, year: number, startIdx: number}> = []
+  const headingRe = /\b(autumn|spring|summer)\s+term\s+(\d{4})\b/gi
+  for (const m of text.matchAll(headingRe)) {
+    sections.push({ term: m[1].toLowerCase(), year: parseInt(m[2]), startIdx: m.index! })
+  }
+  return sections.map((s, i) => {
+    const end = i + 1 < sections.length ? sections[i + 1].startIdx : text.length
+    const lines = text.slice(s.startIdx, end).split('\n').map(l => l.trim()).filter(Boolean)
+    return { term: s.term, year: s.year, lines }
+  })
+}
+
+// Infer summer holiday from term boundaries — handles both full-date format
+// ("last day of term: 15 July 2026") and no-year format ("END OF TERM" with
+// the year from the section heading "Summer Term 2026").
 function inferSummerHolidays(allContent: string): Array<{title: string, date: string, end_date: string}> {
   const text = allContent.replace(/\*\*/g, ' ')
+  const results: Array<{title: string, date: string, end_date: string}> = []
+  const seen = new Set<string>()
 
+  // ── Approach A: full-date patterns (works when dates include year) ─────────
   const lastDays: string[] = []
   for (const pat of [
     /last\s+day\s+of\s+(?:the\s+)?(?:summer\s+)?term.{0,120}/gi,
-    /(?:summer\s+)?term\s+ends?(?:\s*[:\-–])?.{0,80}/gi,
+    /(?:summer\s+)?term\s+ends?.{0,80}/gi,
   ]) {
     for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => lastDays.push(d))
   }
-
-  // Priority 1 — explicitly pupil-facing phrases (preferred: these exclude INSET days)
   const pupilFirstDays: string[] = []
   for (const pat of [
     /term\s+begins?\s+for\s+(?:all\s+)?pupils?.{0,80}/gi,
     /pupils?\s+(?:return|back|re-?join).{0,80}/gi,
     /children\s+return.{0,80}/gi,
     /school\s+re-?opens?\s+for\s+pupils?.{0,80}/gi,
-    /first\s+day\s+(?:of\s+(?:the\s+)?)?(?:autumn\s+)?term\s+for\s+pupils?.{0,80}/gi,
     /(?:all\s+)?pupils?\s+start.{0,80}/gi,
   ]) {
     for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => pupilFirstDays.push(d))
   }
-
-  // Priority 2 — "term begins/starts" (may include INSET days, used only if no pupil phrase)
   const termFirstDays: string[] = []
   for (const pat of [
-    /(?:autumn\s+)?term\s+(?:begins?|starts?|commences?|opens?)(?:\s*[:\-–])?.{0,80}/gi,
-    /school\s+(?:opens?|starts?|begins?)(?:\s*[:\-–])?.{0,80}/gi,
+    /(?:autumn\s+)?term\s+(?:begins?|starts?|commences?).{0,80}/gi,
+    /school\s+(?:opens?|starts?|begins?).{0,80}/gi,
     /first\s+day\s+of\s+(?:the\s+)?(?:autumn\s+)?term.{0,80}/gi,
   ]) {
     for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => termFirstDays.push(d))
   }
-
   const firstDays = pupilFirstDays.length > 0 ? pupilFirstDays : termFirstDays
-
-  const results: Array<{title: string, date: string, end_date: string}> = []
   for (const lastDay of lastDays) {
     const mo = parseInt(lastDay.split('-')[1])
     if (mo < 6 || mo > 7) continue
@@ -584,30 +648,95 @@ function inferSummerHolidays(allContent: string): Array<{title: string, date: st
     if (!nextFirst) continue
     const nextMo = parseInt(nextFirst.split('-')[1])
     if (nextMo < 8 || nextMo > 9) continue
-    results.push({ title: 'Summer Holiday', date: _shiftDay(lastDay, 1), end_date: _shiftDay(nextFirst, -1) })
+    const key = `${lastDay}|${nextFirst}`
+    if (!seen.has(key)) { seen.add(key); results.push({ title: 'Summer Holiday', date: _shiftDay(lastDay, 1), end_date: _shiftDay(nextFirst, -1) }) }
   }
+
+  // ── Approach B: section-based (for "END OF TERM" format with no year in dates) ─
+  const sections = _parseSections(text)
+  for (let si = 0; si < sections.length; si++) {
+    const s = sections[si]
+    if (s.term !== 'summer') continue
+
+    // Find the "END OF TERM" line in this summer section
+    let endDate: string | null = null
+    for (const line of s.lines) {
+      if (/end\s+of\s+term/i.test(line)) {
+        const dates = _datesFromSnippetWithYear(line, s.year)
+        if (dates.length > 0) { endDate = dates[0]; break }
+      }
+    }
+    // Also try "last day" phrasing
+    if (!endDate) {
+      for (const line of s.lines) {
+        if (/last\s+day/i.test(line)) {
+          const dates = _datesFromSnippetWithYear(line, s.year)
+          if (dates.length > 0) { endDate = dates[0]; break }
+        }
+      }
+    }
+    if (!endDate) continue
+
+    // Find the next autumn section to get the term start date
+    const nextAutumn = sections.find((ns, ni) => ni > si && ns.term === 'autumn')
+    if (!nextAutumn) continue
+
+    // Prefer "all students" lines, fall back to first date in section
+    let firstDate: string | null = null
+    for (const line of nextAutumn.lines) {
+      if (/all\s+students?/i.test(line) || /all\s+pupils?/i.test(line)) {
+        const dates = _datesFromSnippetWithYear(line, nextAutumn.year)
+        if (dates.length > 0) { firstDate = dates[0]; break }
+      }
+    }
+    if (!firstDate) {
+      // Fall back to the first date-bearing non-heading line
+      for (const line of nextAutumn.lines.slice(1)) {
+        const dates = _datesFromSnippetWithYear(line, nextAutumn.year)
+        if (dates.length > 0) { firstDate = dates[0]; break }
+      }
+    }
+    if (!firstDate || firstDate <= endDate) continue
+    const nextMo = parseInt(firstDate.split('-')[1])
+    if (nextMo < 8 || nextMo > 9) continue
+    const key = `${endDate}|${firstDate}`
+    if (!seen.has(key)) { seen.add(key); results.push({ title: 'Summer Holiday', date: _shiftDay(endDate, 1), end_date: _shiftDay(firstDate, -1) }) }
+  }
+
   return results
 }
 
-// Infer INSET days from "Staff Training Day(s)" and equivalent labels
+// Infer INSET / closure days — handles both "Staff Training Days: 1 Sep 2026"
+// (full-date format) and "8th September - Staff Inset (school closed to students)"
+// (no-year format with section heading context).
 function inferInsetDays(allContent: string): Array<{title: string, date: string, end_date: null}> {
   const text = allContent.replace(/\*\*/g, ' ')
+  const seen = new Set<string>()
   const results: Array<{title: string, date: string, end_date: null}> = []
+  const add = (date: string) => { if (!seen.has(date)) { seen.add(date); results.push({ title: 'INSET Day', date, end_date: null }) } }
 
+  // Full-date patterns (dates include year)
   for (const pat of [
     /(?:inset|staff\s+training|teacher\s+training|training|professional\s+development)\s+days?[^\n]{0,300}/gi,
-    // Also catch "INSET Day: 2 September 2026" format
-    /(?:inset|training)\s+day\s*[:\-–].{0,100}/gi,
+    /(?:inset|training)\s+day\s*[:\-–][^\n]{0,100}/gi,
   ]) {
-    for (const m of text.matchAll(pat)) {
-      for (const date of _datesFromSnippet(m[0])) {
-        results.push({ title: 'INSET Day', date, end_date: null })
+    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(add)
+  }
+
+  // Section-based patterns (no year in dates — e.g. "Friday 2nd October - Staff Target Setting Inset")
+  const CLOSED_RE = /school\s+closed\s+to\s+(?:students?|pupils?)/i
+  const INSET_RE   = /\binset\b/i
+  const TRAINING_RE = /\btraining\b/i
+  const OCCASIONAL_RE = /occasional\s+day/i
+  for (const section of _parseSections(text)) {
+    for (const line of section.lines) {
+      if (CLOSED_RE.test(line) || INSET_RE.test(line) || OCCASIONAL_RE.test(line) || TRAINING_RE.test(line)) {
+        _datesFromSnippetWithYear(line, section.year).forEach(add)
       }
     }
   }
-  // Deduplicate
-  const seen = new Set<string>()
-  return results.filter(r => { const k = r.date; if (seen.has(k)) return false; seen.add(k); return true })
+
+  return results
 }
 
 function extractPdfUrls(content: string): string[] {
@@ -661,15 +790,16 @@ async function findContactUrl(homepageUrl: string, origin: string, claudeContact
     console.warn('Jina link summary failed:', e?.message)
   }
 
-  // 3. Try common path patterns
-  for (const path of ['/contact', '/contact-us', '/contacts', '/about/contact', '/about-us/contact', '/school-information/contact', '/key-information/contact']) {
-    try {
-      const r = await fetch(`${origin}${path}`, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
-      if (r.ok) return `${origin}${path}`
-    } catch { /* not found */ }
-  }
-
-  return null
+  // 3. Try common path patterns in parallel
+  const pathChecks = await Promise.all(
+    ['/contact', '/contact-us', '/contacts', '/about/contact', '/about-us/contact', '/school-information/contact', '/key-information/contact'].map(async (path) => {
+      try {
+        const r = await fetch(`${origin}${path}`, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(3000) })
+        return r.ok ? `${origin}${path}` : null
+      } catch { return null }
+    })
+  )
+  return pathChecks.find(Boolean) ?? null
 }
 
 async function enrichFromContactPage(info: SchoolInfo, homepageUrl: string, origin: string): Promise<SchoolInfo> {
@@ -709,22 +839,24 @@ async function enrichFromSchoolDayPage(info: SchoolInfo, origin: string): Promis
     '/our-school/school-day', '/school-life/school-day',
   ]
 
-  for (const path of paths) {
-    const url = `${origin}${path}`
-    try {
-      const head = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
-      if (!head.ok) continue
-      const text = await fetchViaReader(url)
-      if (!text || text.length < 100) continue
-      console.log(`Fetching school day page: ${url}`)
-      const extracted = parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(text, url, origin), 300))
-      if (extracted.school_hours) {
-        return { ...info, school_hours: extracted.school_hours }
-      }
-    } catch { /* not found */ }
-  }
+  const checks = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        const url = `${origin}${path}`
+        const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(3000) })
+        return r.ok ? url : null
+      } catch { return null }
+    })
+  )
+  const url = checks.find(Boolean)
+  if (!url) return info
 
-  return info
+  const text = await fetchViaReader(url)
+  if (!text || text.length < 100) return info
+
+  console.log(`Fetching school day page: ${url}`)
+  const extracted = parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(text, url, origin), 300))
+  return extracted.school_hours ? { ...info, school_hours: extracted.school_hours } : info
 }
 
 async function extractTermDates(content: string, maxTokens = 2048): Promise<any[]> {
@@ -746,8 +878,14 @@ Return ONLY valid JSON — no markdown, no explanation:
 
 Rules:
 - Include ALL academic years shown (past, present, future)
-- Include: half-term holidays, school holidays, INSET days (also called Staff Training Days, Teacher Training Days, Training Days, Professional Development Days), bank holidays that affect school
-- Include holiday PERIODS — if you see "last day of term: X" and "first day of next term: Y", infer the holiday runs from X+1 to Y-1 and include it (e.g. "Summer Holiday", "Christmas Holiday", "Easter Holiday")
+- Include: half-term holidays, school holidays, INSET days (also called Staff Training Days, Teacher Training Days, Training Days, Professional Development Days, or any event where school is closed to students/pupils), bank holidays that affect school
+- Include holiday PERIODS — if you see "last day of term / END OF TERM: X" and "first day of next term / all students return: Y", infer the holiday runs from X+1 to Y-1 and include it (e.g. "Summer Holiday", "Christmas Holiday", "Easter Holiday")
+- "END OF TERM" on a line means that date is the last school day of that term
+- Lines containing "(school closed to students)" or "(school closed to pupils)" are INSET/closure days — label them "INSET Day"
+- "Occasional day (school closed to students)" is also an INSET Day
+- Events called "... Inset" (e.g. "Staff Target Setting Inset", "Trust Staff Inset") with "(school closed to students)" are INSET Days
+- Many school calendars list dates WITHOUT the year (e.g. "Wednesday 3rd September") — use the term heading (e.g. "Autumn Term 2026") to determine the correct year for those dates
+- The first date listed under each new term heading is the term start date for pupils (even if it says "Years 7 & 12 only" — it is still a school day); the holiday period ends the day before
 - For single INSET days, end_date is null
 - For multi-day periods always set end_date
 - Use academic year context to determine the correct year for each date
@@ -836,11 +974,12 @@ async function addTermDateEvents(
 ): Promise<number> {
   const { data: existing } = await supabase
     .from('family_events')
-    .select('title, event_date')
+    .select('id, title, event_date, end_date')
     .eq('family_id', familyId)
     .eq('source', 'term_dates')
 
-  const existingKeys = new Set((existing ?? []).map((e: any) => `${e.title}||${e.event_date}`))
+  // Map key → existing row so we can detect missing end_dates and update them
+  const existingMap = new Map((existing ?? []).map((e: any) => [`${e.title}||${e.event_date}`, e]))
 
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 1)
@@ -851,7 +990,16 @@ async function addTermDateEvents(
     if (!event.date || !event.title) continue
     if (event.date < cutoffStr) continue
     const key = `${event.title}||${event.date}`
-    if (existingKeys.has(key)) continue
+    const prev = existingMap.get(key)
+
+    if (prev) {
+      // If the existing row has no end_date but the new data does, patch it
+      if (event.end_date && !prev.end_date) {
+        await supabase.from('family_events').update({ end_date: event.end_date }).eq('id', prev.id)
+        console.log(`Updated end_date for "${event.title}" ${event.date} → ${event.end_date}`)
+      }
+      continue
+    }
 
     const { error } = await supabase.rpc('create_family_event', {
       p_family_id:      familyId,
@@ -904,18 +1052,19 @@ async function tryCommonTermDatePaths(homepageUrl: string): Promise<{ url: strin
     '/parents/calendar', '/term-times', '/holiday-dates',
   ]
 
-  for (const path of paths) {
-    const url = `${origin}${path}`
-    try {
-      const head = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(4000) })
-      if (head.ok) {
-        const text = await fetchViaReader(url)
-        if (text && text.length > 200) return { url, text }
-      }
-    } catch { /* not found */ }
-  }
-
-  return null
+  const urlChecks = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        const url = `${origin}${path}`
+        const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(3000) })
+        return r.ok ? url : null
+      } catch { return null }
+    })
+  )
+  const url = urlChecks.find(Boolean)
+  if (!url) return null
+  const text = await fetchViaReader(url)
+  return (text && text.length > 200) ? { url, text } : null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -482,21 +482,18 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
     '/holiday-dates', '/school-dates',
   ]
 
-  for (const path of paths) {
-    try {
-      const url = `${origin}${path}`
-      const res = await fetch(url, {
-        method: 'HEAD',
-        redirect: 'follow',
-        signal: AbortSignal.timeout(5000),
-      })
-      if (res.ok) {
-        console.log(`Found via common path: ${url}`)
-        return url
-      }
-    } catch { /* ignore */ }
-  }
-  return null
+  const checks = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        const url = `${origin}${path}`
+        const res = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(3000) })
+        return res.ok ? url : null
+      } catch { return null }
+    })
+  )
+  const url = checks.find(Boolean) ?? null
+  if (url) console.log(`Found via common path: ${url}`)
+  return url
 }
 
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
