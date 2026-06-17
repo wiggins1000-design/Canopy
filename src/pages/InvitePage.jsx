@@ -41,8 +41,13 @@ export default function InvitePage() {
             senderName,
           },
         })
-        if (emailErr) setEmailError('Invite generated but email failed to send. Share the link below instead.')
-        else setEmailSent(true)
+        if (emailErr) {
+          let detail = ''
+          try { detail = (await emailErr.context.json())?.detail ?? '' } catch {}
+          setEmailError(`Invite generated but email failed to send. Share the link below instead.${detail ? `\n\nResend: ${detail}` : ''}`)
+        } else {
+          setEmailSent(true)
+        }
       }
     }
     setGenerating(null)
@@ -140,7 +145,7 @@ export default function InvitePage() {
             </div>
           )}
           {emailError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 whitespace-pre-wrap">
               {emailError}
             </div>
           )}

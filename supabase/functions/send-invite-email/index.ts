@@ -78,8 +78,9 @@ Deno.serve(async (req) => {
   if (!res.ok) {
     const err = await res.text()
     console.error('Resend error:', err)
-    return new Response(JSON.stringify({ error: 'Failed to send email' }), { status: 502, headers: CORS })
+    return new Response(JSON.stringify({ error: 'Failed to send email', detail: err }), { status: 502, headers: CORS })
   }
 
   return new Response(JSON.stringify({ ok: true }), { status: 200, headers: CORS })
+
 })
