@@ -14,10 +14,11 @@ import FirstRefusalPanel from '../components/calendar/FirstRefusalPanel'
 import NewEventSheet from '../components/calendar/NewEventSheet'
 import SetupChecklist from '../components/calendar/SetupChecklist'
 import WeekAheadPanel from '../components/calendar/WeekAheadPanel'
+import ChildrenEventsPanel from '../components/calendar/ChildrenEventsPanel'
 
 export default function CalendarPage() {
   const { calendarDays, viewDate, prevMonth, nextMonth, loading } = useCalendar()
-  const { parentA, parentB, schedule, isParent } = useFamily()
+  const { family, parentA, parentB, schedule, isParent } = useFamily()
   const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
   const termDays = useTermDates(viewDate.getFullYear())
   const birthdayList = useBirthdays()
@@ -32,7 +33,8 @@ export default function CalendarPage() {
   const [showSchoolDates, setShowSchoolDates] = useState(
     () => localStorage.getItem('canopy-show-school-dates') !== '0'
   )
-  const [showWeekAhead, setShowWeekAhead] = useState(false)
+  const [calView, setCalView] = useState('month') // 'month' | 'week' | 'children'
+  const hasChildren = (family?.config?.children ?? []).length > 0
 
   const [selectedDateStr, setSelectedDateStr] = useState(null)
   const selectedDay = selectedDateStr ? (calendarDays.find((d) => d.dateStr === selectedDateStr) ?? null) : null
@@ -165,22 +167,17 @@ export default function CalendarPage() {
 
       {/* View toggle */}
       <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mb-4">
-        <button
-          onClick={() => setShowWeekAhead(false)}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-            !showWeekAhead ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-          }`}
-        >
-          Month
-        </button>
-        <button
-          onClick={() => setShowWeekAhead(true)}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-            showWeekAhead ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-          }`}
-        >
-          Week ahead
-        </button>
+        {['month', 'week', ...(hasChildren ? ['children'] : [])].map((v) => (
+          <button
+            key={v}
+            onClick={() => setCalView(v)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              calView === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {v === 'month' ? 'Month' : v === 'week' ? 'Week ahead' : 'Children'}
+          </button>
+        ))}
       </div>
 
       <SetupChecklist />
@@ -219,8 +216,10 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {showWeekAhead ? (
+      {calView === 'week' ? (
         <WeekAheadPanel />
+      ) : calView === 'children' ? (
+        <ChildrenEventsPanel />
       ) : loading ? (
         <div className="flex justify-center py-16">
           <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />

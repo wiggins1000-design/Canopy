@@ -13,16 +13,19 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
   const { family, member, userRole, parentA, parentB } = useFamily()
   const { user } = useAuth()
 
-  const [title, setTitle]           = useState('')
-  const [date, setDate]             = useState(initialDate ?? formatDate(new Date()))
-  const [endDate, setEndDate]       = useState('')
-  const [time, setTime]             = useState('')
-  const [endTime, setEndTime]       = useState('')
-  const [recurrence, setRecurrence] = useState('')
-  const [recurrenceEnd, setRecurrenceEnd] = useState('')
-  const [notes, setNotes]           = useState('')
-  const [saving, setSaving]         = useState(false)
-  const [error, setError]           = useState(null)
+  const children = (family?.config?.children ?? []).filter((c) => c.name)
+
+  const [title, setTitle]                   = useState('')
+  const [date, setDate]                     = useState(initialDate ?? formatDate(new Date()))
+  const [endDate, setEndDate]               = useState('')
+  const [time, setTime]                     = useState('')
+  const [endTime, setEndTime]               = useState('')
+  const [recurrence, setRecurrence]         = useState('')
+  const [recurrenceEnd, setRecurrenceEnd]   = useState('')
+  const [notes, setNotes]                   = useState('')
+  const [taggedChildren, setTaggedChildren] = useState([])
+  const [saving, setSaving]                 = useState(false)
+  const [error, setError]                   = useState(null)
 
   // Photo capture
   const [extracting, setExtracting]     = useState(false)
@@ -161,16 +164,17 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setError(null)
 
     const { error: dbErr } = await supabase.rpc('create_family_event', {
-      p_family_id:      family.id,
-      p_title:          title.trim(),
-      p_event_date:     date,
-      p_end_date:       endDate || null,
-      p_event_time:     time || null,
-      p_end_time:       endTime || null,
-      p_notes:          notes.trim() || null,
-      p_source:         'manual',
-      p_recurrence:     recurrence || null,
-      p_recurrence_end: recurrenceEnd || null,
+      p_family_id:        family.id,
+      p_title:            title.trim(),
+      p_event_date:       date,
+      p_end_date:         endDate || null,
+      p_event_time:       time || null,
+      p_end_time:         endTime || null,
+      p_notes:            notes.trim() || null,
+      p_source:           'manual',
+      p_recurrence:       recurrence || null,
+      p_recurrence_end:   recurrenceEnd || null,
+      p_tagged_children:  taggedChildren.length > 0 ? taggedChildren : null,
     })
 
     if (dbErr) { setError(dbErr.message); setSaving(false); return }
@@ -211,6 +215,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setRecurrence('')
     setRecurrenceEnd('')
     setNotes('')
+    setTaggedChildren([])
     setError(null)
     setSaving(false)
     setImagePreview(null)
@@ -372,6 +377,35 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             </div>
           )}
         </div>
+
+        {children.length > 0 && (
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+              For <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {children.map((c) => {
+                const selected = taggedChildren.includes(c.name)
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setTaggedChildren((prev) =>
+                      selected ? prev.filter((n) => n !== c.name) : [...prev, c.name]
+                    )}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                      selected
+                        ? 'bg-canopy-mid text-white border-canopy-mid'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-canopy-green'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">

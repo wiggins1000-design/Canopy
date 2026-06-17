@@ -185,6 +185,15 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
                   {ev.source === 'email_ai' && ev.source_subject && (
                     <p className="text-[10px] text-gray-400 mt-0.5">From email: "{ev.source_subject}"</p>
                   )}
+                  {ev.tagged_children?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {ev.tagged_children.map((name) => (
+                        <span key={name} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-canopy-frost text-canopy-deep border border-canopy-mist">
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {isParent && (
                   <button

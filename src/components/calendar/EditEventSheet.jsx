@@ -14,10 +14,13 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
   const [recurrence, setRecurrence]   = useState('')
   const [recurrenceEnd, setRecurrenceEnd] = useState('')
   const [notes, setNotes]             = useState('')
+  const [taggedChildren, setTaggedChildren] = useState([])
   const [saving, setSaving]           = useState(false)
   const [deleting, setDeleting]       = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError]             = useState(null)
+
+  const children = family?.config?.children ?? []
 
   useEffect(() => {
     if (event) {
@@ -29,6 +32,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
       setRecurrence(event.recurrence ?? '')
       setRecurrenceEnd(event.recurrence_end ?? '')
       setNotes(event.notes ?? '')
+      setTaggedChildren(event.tagged_children ?? [])
       setConfirmDelete(false)
       setError(null)
     }
@@ -49,9 +53,10 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
         end_date:       endDate || null,
         event_time:     time || null,
         end_time:       endTime || null,
-        notes:          notes.trim() || null,
-        recurrence:     recurrence || null,
-        recurrence_end: recurrenceEnd || null,
+        notes:           notes.trim() || null,
+        recurrence:      recurrence || null,
+        recurrence_end:  recurrenceEnd || null,
+        tagged_children: taggedChildren.length > 0 ? taggedChildren : null,
       })
       .eq('id', event.id)
     if (err) { setError(err.message); setSaving(false); return }
@@ -185,6 +190,31 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
             </div>
           )}
         </div>
+
+        {children.length > 0 && (
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+              For <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              {children.map((c) => {
+                const selected = taggedChildren.includes(c.name)
+                return (
+                  <button key={c.name} type="button"
+                    onClick={() => setTaggedChildren((prev) =>
+                      selected ? prev.filter((n) => n !== c.name) : [...prev, c.name]
+                    )}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                      selected ? 'bg-canopy-mid text-white border-canopy-mid' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-canopy-green'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Notes <span className="font-normal text-gray-400">(optional)</span></label>
