@@ -74,7 +74,7 @@ export default function TermDatesSection({ onNewDates }) {
     setLoading(true)
     const { data } = await supabase
       .from('family_events')
-      .select('id, title, event_date, end_date')
+      .select('id, title, event_date, end_date, source_subject')
       .eq('family_id', family.id)
       .eq('source', 'term_dates')
       .gte('event_date', `${thisYear - 1}-01-01`)
@@ -119,18 +119,24 @@ export default function TermDatesSection({ onNewDates }) {
     setKbImporting(true)
     setKbMsg(null)
     let added = 0
+    // Track (date|title) combos already saved this session to deduplicate
+    // shared dates (e.g. bank holidays) when importing from multiple schools
+    const saved = new Set(events.map(e => `${e.event_date}|${e.title}`))
     for (const cal of kbData) {
+      const schoolLabel = cal.school_name ?? cal.homepage_url
       for (const ev of cal.term_dates ?? []) {
         if (!ev.date || !ev.title) continue
+        const key = `${ev.date}|${ev.title}`
+        if (saved.has(key)) continue
         const { error } = await supabase.rpc('create_family_event', {
           p_family_id:      family.id,
           p_title:          ev.title,
           p_event_date:     ev.date,
           p_end_date:       ev.end_date ?? null,
           p_source:         'term_dates',
-          p_source_subject: 'School term dates',
+          p_source_subject: schoolLabel,
         })
-        if (!error) added++
+        if (!error) { added++; saved.add(key) }
       }
     }
     setKbImporting(false)
@@ -258,6 +264,25 @@ export default function TermDatesSection({ onNewDates }) {
     return `${format(parseISO(first), 'MMM yyyy')} – ${format(parseISO(last), 'MMM yyyy')}`
   }, [events])
 
+  const schoolCount = useMemo(() => {
+    const names = new Set(
+      events.map(e => e.source_subject).filter(s => s && s !== 'School term dates')
+    )
+    return names.size
+  }, [events])
+
+  const groupedEvents = useMemo(() => {
+    const groups = {}
+    for (const ev of events) {
+      const label = ev.source_subject && ev.source_subject !== 'School term dates'
+        ? ev.source_subject
+        : 'Other'
+      if (!groups[label]) groups[label] = []
+      groups[label].push(ev)
+    }
+    return Object.entries(groups)
+  }, [events])
+
   return (
     <div className="px-4 py-3 space-y-3">
       {/* Summary row */}
@@ -266,7 +291,9 @@ export default function TermDatesSection({ onNewDates }) {
       ) : (
         <div className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
           <div>
-            <p className="text-sm font-medium text-gray-800">{events.length} term dates</p>
+            <p className="text-sm font-medium text-gray-800">
+              {events.length} term dates{schoolCount > 1 ? ` · ${schoolCount} schools` : ''}
+            </p>
             {dateRange && <p className="text-xs text-gray-400">{dateRange}</p>}
           </div>
           <button
@@ -280,27 +307,36 @@ export default function TermDatesSection({ onNewDates }) {
 
       {/* Inspect bottom sheet */}
       <BottomSheet open={showInspect} onClose={() => setShowInspect(false)} title="Term Dates">
-        <div className="px-4 py-3 space-y-1.5">
-          {events.map(ev => {
-            const type = classify(ev)
-            return (
-              <div key={ev.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${type === 'inset' ? 'bg-amber-400' : 'bg-purple-400'}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{ev.title}</p>
-                  <p className="text-xs text-gray-400">
-                    {format(parseISO(ev.event_date), 'd MMM yyyy')}
-                    {ev.end_date && ` – ${format(parseISO(ev.end_date), 'd MMM yyyy')}`}
-                  </p>
-                </div>
-                {isParent && (
-                  <button onClick={() => removeEvent(ev.id)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">
-                    Remove
-                  </button>
-                )}
+        <div className="px-4 py-3 space-y-4">
+          {groupedEvents.map(([school, evs]) => (
+            <div key={school}>
+              {groupedEvents.length > 1 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{school}</p>
+              )}
+              <div className="space-y-1.5">
+                {evs.map(ev => {
+                  const type = classify(ev)
+                  return (
+                    <div key={ev.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${type === 'inset' ? 'bg-amber-400' : 'bg-purple-400'}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{ev.title}</p>
+                        <p className="text-xs text-gray-400">
+                          {format(parseISO(ev.event_date), 'd MMM yyyy')}
+                          {ev.end_date && ` – ${format(parseISO(ev.end_date), 'd MMM yyyy')}`}
+                        </p>
+                      </div>
+                      {isParent && (
+                        <button onClick={() => removeEvent(ev.id)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
       </BottomSheet>
 
