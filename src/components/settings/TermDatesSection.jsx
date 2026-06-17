@@ -319,9 +319,8 @@ export default function TermDatesSection({ onNewDates }) {
               </svg>
             </button>
           )}
-          {(events.length === 0 || hasNewDates || showAddOptions) && (<>
-
-          {/* ── (a) Knowledge Base ── */}
+          {/* KB panel: visible whenever calendar is empty, KB has new dates, or user expanded */}
+          {(events.length === 0 || hasNewDates || showAddOptions) && (
           <OptionPanel
             label="Add from Canopy Knowledge Base"
             description={
@@ -350,8 +349,10 @@ export default function TermDatesSection({ onNewDates }) {
             <Button className="w-full py-2.5 text-sm" loading={kbImporting} onClick={importFromKB}>
               Import term dates
             </Button>
-          </OptionPanel>
+          </OptionPanel>)}
 
+          {/* Photos + manual: only when calendar is empty or user explicitly expanded */}
+          {(events.length === 0 || showAddOptions) && (<>
           {/* ── (b) Photos ── */}
           <OptionPanel
             label="Add from photos"
@@ -519,8 +520,8 @@ export default function TermDatesSection({ onNewDates }) {
               </Button>
             </div>
           </OptionPanel>
-
           </>)}
+
         </div>
       )}
     </div>
