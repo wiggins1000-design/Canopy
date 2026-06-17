@@ -209,12 +209,7 @@ Deno.serve(async (req) => {
 
       if (family_id && child_name) await storeSchoolInfo(family_id, child_name, schoolInfo)
       await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
-      let eventsAdded = 0
-      if (termDates.length > 0 && family_id) {
-        eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
-        copyToSiblingFamilies(normalised, termDates, family_id)   // fire-and-forget
-      }
-      return respond({ ok: true, school_info: schoolInfo, term_dates: termDates.length, events_added: eventsAdded })
+      return respond({ ok: true, school_info: schoolInfo, term_dates: termDates.length })
     }
 
     // ── Homepage mode ─────────────────────────────────────────────────────────
@@ -336,18 +331,10 @@ Deno.serve(async (req) => {
     // ── Step 5: cache contact info + term dates (always, so other families benefit) ──
     await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
 
-    // ── Step 6: add term date events for this family + all sibling families ─────
-    let eventsAdded = 0
-    if (termDates.length > 0 && family_id) {
-      eventsAdded = await addTermDateEvents(family_id, normalised, termDates)
-      copyToSiblingFamilies(normalised, termDates, family_id)   // fire-and-forget
-    }
-
     return respond({
-      ok:           true,
-      school_info:  schoolInfo,
-      term_dates:   termDates.length,
-      events_added: eventsAdded,
+      ok:          true,
+      school_info: schoolInfo,
+      term_dates:  termDates.length,
     })
   } catch (e: any) {
     console.error('extract-school-info error:', e)
