@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
-import { formatDistanceToNow } from 'date-fns'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
@@ -428,32 +427,10 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
-  const [lastFetched, setLastFetched] = useState(null)
-  const [checking, setChecking] = useState(false)
-  const [checkResult, setCheckResult] = useState(null)
   const [extracting, setExtracting] = useState(false)
   const [extractResult, setExtractResult] = useState(null)
-  const [imageUploading, setImageUploading] = useState(false)
-  const [imageResult, setImageResult] = useState(null)
-  const fileInputRef = useRef(null)
 
-  useEffect(() => { setD({ ...defaults, ...data }); setCheckResult(null); setExtractResult(null) }, [JSON.stringify(data)])
-
-  useEffect(() => {
-    if (!d.school_url) { setLastFetched(null); return }
-    try {
-      const raw = d.school_url.startsWith('http') ? d.school_url : `https://${d.school_url}`
-      const u = new URL(raw)
-      if (!u.hostname.includes('.')) return  // not a valid hostname yet
-      const key = (u.origin + u.pathname + u.search).toLowerCase().replace(/\/$/, '')
-      supabase.from('school_calendars').select('last_fetched_at, school_name')
-        .eq('homepage_url', key)
-        .maybeSingle()
-        .then(({ data }) => setLastFetched(data))
-    } catch {
-      setLastFetched(null)
-    }
-  }, [d.school_url])
+  useEffect(() => { setD({ ...defaults, ...data }); setExtractResult(null) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -517,76 +494,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     setExtractResult({ type: missing.length ? 'info' : 'success', message: `School info extracted.${termMsg}${missingMsg}` })
   }
 
-  async function extractFromImage(file) {
-    setImageUploading(true)
-    setImageResult(null)
-    const base64 = await new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result.split(',')[1])
-      reader.readAsDataURL(file)
-    })
-    const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
-      body: {
-        family_id:        familyId,
-        child_name:       childName,
-        school_url:       d.school_url || null,
-        image_base64:     base64,
-        image_media_type: file.type,
-      },
-    })
-    setImageUploading(false)
-    if (error || res?.error) {
-      setImageResult({ type: 'error', message: res?.error ?? 'Could not read the image. Please try a clearer photo.' })
-      return
-    }
-    const termMsg = res.events_added > 0
-      ? `${res.events_added} term date${res.events_added === 1 ? '' : 's'} added to calendar.`
-      : res.term_dates > 0 ? 'Term dates already up to date.' : 'No term dates found in the image.'
-    setImageResult({ type: res.events_added > 0 ? 'success' : 'info', message: termMsg })
-  }
-
-  async function checkTermDates() {
-    setChecking(true)
-    setCheckResult(null)
-    await save()
-    const { data: res, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
-    setChecking(false)
-    if (error) {
-      setCheckResult({ type: 'error', message: 'Could not connect to the service. Try again.' })
-      return
-    }
-    const results = res?.results ?? []
-    if (results.length === 0) {
-      setCheckResult({ type: 'error', message: 'Save the school website URL first, then try again.' })
-      return
-    }
-    // Pick the best result: success > unchanged > no_dates > error
-    const priority = { ok: 4, unchanged: 3, no_dates: 2, error: 1 }
-    const r = results.reduce((best, cur) =>
-      (priority[cur.status] ?? 0) > (priority[best.status] ?? 0) ? cur : best
-    , results[0])
-
-    if (r.status === 'error') {
-      setCheckResult({ type: 'error', message: r.error ?? 'Something went wrong. Check the URL is a valid school website.' })
-    } else if (r.status === 'unchanged') {
-      setCheckResult({ type: 'info', message: 'School website checked — no changes found.' })
-    } else if (r.status === 'no_dates') {
-      setCheckResult({ type: 'info', message: "Couldn't find upcoming term dates on the page. Check the URL is correct." })
-    } else if (r.eventsAdded > 0) {
-      setCheckResult({ type: 'success', message: `${r.eventsAdded} term date event${r.eventsAdded === 1 ? '' : 's'} added to your calendar.` })
-    } else {
-      setCheckResult({ type: 'info', message: 'Calendar is already up to date.' })
-    }
-    // Refresh last fetched
-    if (d.school_url) {
-      try {
-        const origin = new URL(d.school_url.startsWith('http') ? d.school_url : `https://${d.school_url}`).origin
-        const { data: cal } = await supabase.from('school_calendars').select('last_fetched_at, school_name').eq('homepage_url', origin).maybeSingle()
-        setLastFetched(cal)
-      } catch {}
-    }
-  }
-
   return (
     <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
       {/* School URL + auto-extract */}
@@ -621,38 +528,8 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
             {extractResult.message}
           </p>
         )}
-        {extractResult?.type === 'error' && isParent && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { if (e.target.files[0]) extractFromImage(e.target.files[0]); e.target.value = '' }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={imageUploading}
-              className="w-full border border-gray-200 bg-white text-gray-600 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {imageUploading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  Reading image…
-                </>
-              ) : (
-                <>
-                  <CameraIcon className="w-4 h-4" />
-                  Upload a screenshot of term dates instead
-                </>
-              )}
-            </button>
-            {imageResult && (
-              <p className={`text-xs font-medium ${imageResult.type === 'error' ? 'text-red-600' : imageResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
-                {imageResult.message}
-              </p>
-            )}
-          </>
+        {extractResult?.type === 'error' && (
+          <p className="text-xs text-gray-500">To add term dates manually or upload a screenshot, go to Settings → School Term Dates.</p>
         )}
       </div>
 
@@ -673,29 +550,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
         <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
       </div>
 
-      <div className="pt-1 border-t border-gray-100 space-y-2">
-        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide block pt-1">Term Dates</label>
-        {lastFetched?.last_fetched_at && (
-          <p className="text-xs text-gray-400">
-            Last checked {formatDistanceToNow(new Date(lastFetched.last_fetched_at), { addSuffix: true })}
-            {lastFetched.school_name ? ` · ${lastFetched.school_name}` : ''}
-          </p>
-        )}
-        {checkResult && (
-          <p className={`text-xs font-medium ${checkResult.type === 'error' ? 'text-red-600' : checkResult.type === 'success' ? 'text-green-600' : 'text-gray-500'}`}>
-            {checkResult.message}
-          </p>
-        )}
-        {isParent && d.school_url && (
-          <button
-            onClick={checkTermDates}
-            disabled={checking}
-            className="w-full border border-canopy-mist bg-canopy-frost text-canopy-deep rounded-xl py-2.5 text-sm font-medium hover:bg-canopy-mist transition-colors disabled:opacity-50"
-          >
-            {checking ? 'Checking website…' : 'Refresh term dates only'}
-          </button>
-        )}
-      </div>
     </SectionWrapper>
   )
 }
@@ -906,14 +760,6 @@ function CheckIcon({ className }) {
   )
 }
 
-function CameraIcon({ className }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-      <circle cx="12" cy="13" r="3" />
-    </svg>
-  )
-}
 
 // Globe with down-arrow: "fetch from internet"
 function FetchIcon({ className }) {

@@ -8,6 +8,7 @@ import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../li
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 import CalendarSyncSection from '../components/calendar/CalendarSyncSection'
+import TermDatesSection from '../components/settings/TermDatesSection'
 import { useSubscription } from '../hooks/useSubscription'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
@@ -795,6 +796,11 @@ export default function ConfigPage() {
             {phoneSaved ? '✓ Saved' : 'Save number'}
           </Button>
         </div>
+      </AccordionGroup>
+
+      {/* ── School Term Dates ── */}
+      <AccordionGroup label="School Term Dates">
+        <TermDatesSection />
       </AccordionGroup>
 
       {/* â"€â"€ Calendar sync â"€â"€ */}
