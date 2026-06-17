@@ -190,12 +190,21 @@ export default function CalendarPage() {
         <LegendDot color="bg-pa-400" label={pa} />
         <LegendDot color="bg-pb-400" label={pb} />
         <LegendDot color="bg-gray-500" label="Events" />
-        {showSchoolDates && termDays.size > 0 && (
-          <>
-            <LegendStrip color="bg-purple-400" label="Holiday" />
-            <LegendStrip color="bg-amber-400"  label="INSET"   />
-          </>
-        )}
+        {showSchoolDates && termDays.size > 0 && (() => {
+          const seen = new Map()
+          for (const entries of termDays.values()) {
+            for (const s of entries) {
+              if (!seen.has(s.schoolIndex)) seen.set(s.schoolIndex, s.schoolName)
+            }
+          }
+          const STRIP_COLORS = ['bg-purple-400', 'bg-teal-400', 'bg-orange-400']
+          return [...seen.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([idx, name]) => {
+              const short = name === 'School term dates' ? 'School' : (name.split(' ')[0])
+              return <LegendStrip key={idx} color={STRIP_COLORS[idx] ?? 'bg-gray-400'} label={short} />
+            })
+        })()}
         {!schedule && (
           <p className="text-xs text-yellow-700 bg-yellow-50 rounded-lg px-2 py-1 ml-auto">
             No schedule set — go to Schedule tab
@@ -234,7 +243,7 @@ export default function CalendarPage() {
               day={selectedDay}
               dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
               birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
-              termType={termDays?.get(selectedDay.dateStr) ?? null}
+              termSchools={termDays?.get(selectedDay.dateStr) ?? null}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}

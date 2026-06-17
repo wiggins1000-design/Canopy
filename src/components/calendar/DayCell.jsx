@@ -13,15 +13,15 @@ const OWNER_RING = {
   parent_b: 'ring-pb-700',
 }
 
-/**
- * Single day cell in the calendar grid.
- */
-const TERM_STRIP = {
-  holiday: 'bg-purple-400',
-  inset:   'bg-amber-400',
-}
+// School 0 = purple, 1 = teal, 2 = orange. Lighter shade for INSET.
+const SCHOOL_STRIP = [
+  { holiday: 'bg-purple-400', inset: 'bg-purple-200' },
+  { holiday: 'bg-teal-400',   inset: 'bg-teal-200'   },
+  { holiday: 'bg-orange-400', inset: 'bg-orange-200' },
+]
+const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termType, isBirthday }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -44,8 +44,13 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
       ].filter(Boolean).join(' ')}
       aria-label={dateStr}
     >
-      {termType && (
-        <span className={`absolute top-0 inset-x-0 h-[3px] rounded-t-xl ${TERM_STRIP[termType]}`} />
+      {termSchools?.length > 0 && (
+        <div className="absolute top-0 inset-x-0 flex flex-col rounded-t-xl overflow-hidden">
+          {termSchools.map((s, i) => {
+            const palette = SCHOOL_STRIP[s.schoolIndex] ?? STRIP_FALLBACK
+            return <span key={i} className={`h-[3px] w-full ${palette[s.type] ?? palette.holiday}`} />
+          })}
+        </div>
       )}
 
       {isBirthday && (

@@ -27,7 +27,7 @@ export default function CalendarGrid({ calendarDays, selectedDateStr, onSelectDa
             isTransition={day.isTransition}
             changeoverTime={day.changeoverTime}
             hasEvents={eventDates?.has(day.dateStr) ?? false}
-            termType={termDays?.get(day.dateStr) ?? null}
+            termSchools={termDays?.get(day.dateStr) ?? null}
             isBirthday={birthdayDates?.has(day.dateStr) ?? false}
           />
         ))}

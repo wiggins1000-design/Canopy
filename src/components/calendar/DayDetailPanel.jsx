@@ -12,12 +12,13 @@ const OWNER_COLORS = {
   parent_b: 'text-pb-700 bg-pb-50 border-pb-200',
 }
 
-const TERM_LABEL = {
-  holiday: { text: 'School Holiday', color: 'text-purple-700 bg-purple-50 border-purple-200' },
-  inset:   { text: 'INSET Day',      color: 'text-amber-700  bg-amber-50  border-amber-200'  },
-}
+const SCHOOL_COLORS = [
+  'text-purple-700 bg-purple-50 border-purple-200',
+  'text-teal-700 bg-teal-50 border-teal-200',
+  'text-orange-700 bg-orange-50 border-orange-200',
+]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termType = null, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
@@ -59,12 +60,17 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         </div>
       )}
 
-      {/* Term type label */}
-      {termType && TERM_LABEL[termType] && (
-        <div className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${TERM_LABEL[termType].color}`}>
-          {TERM_LABEL[termType].text}
-        </div>
-      )}
+      {/* Term type labels — one per school */}
+      {termSchools?.map((s, i) => {
+        const label = s.type === 'inset' ? 'INSET Day' : 'School Holiday'
+        const showSchool = s.schoolName && s.schoolName !== 'School term dates'
+        const color = SCHOOL_COLORS[s.schoolIndex] ?? SCHOOL_COLORS[0]
+        return (
+          <div key={i} className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${color}`}>
+            {label}{showSchool ? ` · ${s.schoolName}` : ''}
+          </div>
+        )
+      })}
 
       {/* Status badges */}
       <div className="flex flex-wrap gap-1.5 mt-2">
