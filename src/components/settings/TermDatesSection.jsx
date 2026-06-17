@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import Button from '../ui/Button'
+import BottomSheet from '../ui/BottomSheet'
 
 const HOLIDAY_TITLES = [
   'Summer Holiday',
@@ -28,9 +29,10 @@ function normaliseOrigin(url) {
 
 export default function TermDatesSection({ onNewDates }) {
   const { family, isParent } = useFamily()
-  const [events, setEvents]       = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [openPanel, setOpenPanel] = useState(null) // 'kb' | 'photos' | 'manual'
+  const [events, setEvents]         = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [showInspect, setShowInspect] = useState(false)
+  const [openPanel, setOpenPanel]   = useState(null) // 'kb' | 'photos' | 'manual'
 
   // Knowledge Base
   const [kbData, setKbData]           = useState(undefined) // undefined=checking, null=none, arr=found
@@ -248,13 +250,36 @@ export default function TermDatesSection({ onNewDates }) {
 
   const kbAvailable = Array.isArray(kbData) && kbData.length > 0
 
+  const dateRange = useMemo(() => {
+    if (!events.length) return null
+    const first = events[0].event_date
+    const last  = events[events.length - 1].event_date
+    return `${format(parseISO(first), 'MMM yyyy')} – ${format(parseISO(last), 'MMM yyyy')}`
+  }, [events])
+
   return (
     <div className="px-4 py-3 space-y-3">
-      {/* Existing term dates list */}
+      {/* Summary row */}
       {events.length === 0 ? (
         <p className="text-sm text-gray-400">No term dates added yet.</p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-3 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5">
+          <div>
+            <p className="text-sm font-medium text-gray-800">{events.length} term dates</p>
+            {dateRange && <p className="text-xs text-gray-400">{dateRange}</p>}
+          </div>
+          <button
+            onClick={() => setShowInspect(true)}
+            className="text-xs font-medium text-canopy-mid hover:text-canopy-deep shrink-0"
+          >
+            Inspect
+          </button>
+        </div>
+      )}
+
+      {/* Inspect bottom sheet */}
+      <BottomSheet open={showInspect} onClose={() => setShowInspect(false)} title="Term Dates">
+        <div className="px-4 py-3 space-y-1.5">
           {events.map(ev => {
             const type = classify(ev)
             return (
@@ -276,7 +301,7 @@ export default function TermDatesSection({ onNewDates }) {
             )
           })}
         </div>
-      )}
+      </BottomSheet>
 
       {/* Add options — parents only */}
       {isParent && (
