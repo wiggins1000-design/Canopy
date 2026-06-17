@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
         else console.log(`${label} returned null`)
       }
       if (!pageText) {
-        return respond({ error: 'This school\'s website blocked the request. Try entering the URL of the specific term dates page (e.g. https://school.com/term-dates), or add the details manually.' })
+        return respond({ error: 'This school\'s website blocked the request.' })
       }
 
       // Extract school info from this page (best effort — may only yield school name)
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
       return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
     }
     if (isBotBlocked(homepageText)) {
-      return respond({ error: 'This school\'s website blocked the request. Try entering the URL of the specific term dates page (e.g. https://school.com/term-dates), or add the details manually.' })
+      return respond({ error: 'This school\'s website blocked the request.' })
     }
 
     // ── Step 2: extract school info from homepage ─────────────────────────────

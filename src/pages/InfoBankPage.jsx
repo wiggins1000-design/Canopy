@@ -530,9 +530,6 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
             {extractResult.message}
           </p>
         )}
-        {extractResult?.type === 'error' && (
-          <p className="text-xs text-gray-500">To add term dates manually or upload a screenshot, go to Settings → School Term Dates.</p>
-        )}
       </div>
 
       <div className="border-t border-gray-100 pt-3 space-y-3">
