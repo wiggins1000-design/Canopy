@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
       for (const d of inferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
       }
+      termDates = deduplicateTermDates(termDates)
       console.log(`Multi-image: extracted ${termDates.length} term dates from ${validTexts.length} image${validTexts.length !== 1 ? 's' : ''}`)
       return respond({ ok: true, dates: termDates })
     } catch (e: any) {
@@ -84,6 +85,7 @@ Deno.serve(async (req) => {
       for (const d of inferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
       }
+      termDates = deduplicateTermDates(termDates)
       console.log(`Image upload: extracted ${termDates.length} term dates`)
 
       let eventsAdded = 0
@@ -199,6 +201,7 @@ Deno.serve(async (req) => {
           }
         }
 
+        termDates = deduplicateTermDates(termDates)
         console.log(`Extracted ${termDates.length} term dates (path URL mode)`)
       } else {
         console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
@@ -313,7 +316,8 @@ Deno.serve(async (req) => {
             }
           }
 
-          console.log(`Extracted ${dates.length} term dates total (inc. PDFs)`)
+          dates = deduplicateTermDates(dates)
+          console.log(`Extracted ${dates.length} term dates total (inc. PDFs, after dedup)`)
         }
 
         return { termDates: dates, url: url ?? termDatesUrl }
@@ -522,6 +526,36 @@ function parseSchoolInfoJson(res: string | null): SchoolInfo {
 
 function emptySchoolInfo(): SchoolInfo {
   return { school_name: null, school_address: null, school_email: null, school_phone: null, head_teacher: null, school_hours: null, term_dates_url: null, contact_url: null }
+}
+
+// ── Deduplication ─────────────────────────────────────────────────────────────
+// When Claude extracts the same date range twice with different titles
+// (e.g. "Autumn Half Term" and "Summer Holiday" for the same October dates),
+// keep only the entry with the most semantically specific title.
+const _TITLE_PRIORITY: Record<string, number> = {
+  'Autumn Half Term':  10,
+  'Spring Half Term':  10,
+  'Summer Half Term':  10,
+  'Christmas Holiday': 10,
+  'Easter Holiday':    10,
+  'INSET Day':          8,
+  'Summer Holiday':     3,
+  'Bank Holiday':       3,
+}
+
+function deduplicateTermDates(dates: any[]): any[] {
+  function priority(title: string): number {
+    return _TITLE_PRIORITY[title] ?? 6
+  }
+  const byRange = new Map<string, any>()
+  for (const d of dates) {
+    const key = `${d.date}|${d.end_date ?? ''}`
+    const existing = byRange.get(key)
+    if (!existing || priority(d.title) > priority(existing.title)) {
+      byRange.set(key, d)
+    }
+  }
+  return [...byRange.values()]
 }
 
 // ── Shared date helpers for TypeScript inference ──────────────────────────────

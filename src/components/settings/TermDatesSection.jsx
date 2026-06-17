@@ -102,18 +102,28 @@ export default function TermDatesSection() {
   }
 
   async function importFromKB() {
+    if (!kbData?.length) return
     setKbImporting(true)
     setKbMsg(null)
-    const { data: res, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
+    let added = 0
+    for (const cal of kbData) {
+      for (const ev of cal.term_dates ?? []) {
+        if (!ev.date || !ev.title) continue
+        const { error } = await supabase.rpc('create_family_event', {
+          p_family_id:      family.id,
+          p_title:          ev.title,
+          p_event_date:     ev.date,
+          p_end_date:       ev.end_date ?? null,
+          p_source:         'term_dates',
+          p_source_subject: 'School term dates',
+        })
+        if (!error) added++
+      }
+    }
     setKbImporting(false)
-    if (error) { setKbMsg({ type: 'error', msg: 'Import failed. Please try again.' }); return }
-    const results = res?.results ?? []
-    const totalAdded = results.reduce((s, r) => s + (r.eventsAdded ?? 0), 0)
-    if (totalAdded > 0) {
-      setKbMsg({ type: 'success', msg: `${totalAdded} date${totalAdded !== 1 ? 's' : ''} added.` })
+    if (added > 0) {
+      setKbMsg({ type: 'success', msg: `${added} date${added !== 1 ? 's' : ''} added to your calendar.` })
       loadEvents()
-    } else if (results.some(r => r.status === 'error')) {
-      setKbMsg({ type: 'error', msg: 'Could not import dates. Try using photos instead.' })
     } else {
       setKbMsg({ type: 'info', msg: 'Calendar already up to date.' })
     }
