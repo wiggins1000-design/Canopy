@@ -25,6 +25,7 @@ export default function ConfigPage() {
   const [customCycle, setCustomCycle] = useState([])
   const [changeoverTime, setChangeoverTime] = useState('')
   const [changeoverLocation, setChangeoverLocation] = useState('')
+  const [hasNewTermDates, setHasNewTermDates] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState(null)
@@ -799,8 +800,8 @@ export default function ConfigPage() {
       </AccordionGroup>
 
       {/* ── School Term Dates ── */}
-      <AccordionGroup label="School Term Dates">
-        <TermDatesSection />
+      <AccordionGroup label="School Term Dates" badge={hasNewTermDates}>
+        <TermDatesSection onNewDates={setHasNewTermDates} />
       </AccordionGroup>
 
       {/* â"€â"€ Calendar sync â"€â"€ */}
@@ -947,7 +948,7 @@ export default function ConfigPage() {
 
 // â"€â"€ Layout helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-function AccordionGroup({ label, children, defaultOpen = false }) {
+function AccordionGroup({ label, children, defaultOpen = false, badge = false }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="mt-3 first:mt-0">
@@ -955,7 +956,10 @@ function AccordionGroup({ label, children, defaultOpen = false }) {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-1 py-2 text-left"
       >
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+        <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          {label}
+          {badge && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
+        </span>
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
           fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"

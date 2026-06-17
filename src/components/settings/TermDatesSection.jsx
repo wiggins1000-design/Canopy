@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
@@ -26,7 +26,7 @@ function normaliseOrigin(url) {
   } catch { return null }
 }
 
-export default function TermDatesSection() {
+export default function TermDatesSection({ onNewDates }) {
   const { family, isParent } = useFamily()
   const [events, setEvents]       = useState([])
   const [loading, setLoading]     = useState(true)
@@ -55,6 +55,16 @@ export default function TermDatesSection() {
   const [addError, setAddError] = useState(null)
 
   const thisYear = new Date().getFullYear()
+
+  const hasNewDates = useMemo(() => {
+    if (!kbData?.length) return false
+    const inCalendar = new Set(events.map(e => `${e.event_date}|${e.title}`))
+    return kbData.some(cal =>
+      (cal.term_dates ?? []).some(d => d.date && d.title && !inCalendar.has(`${d.date}|${d.title}`))
+    )
+  }, [kbData, events])
+
+  useEffect(() => { onNewDates?.(hasNewDates) }, [hasNewDates])
 
   async function loadEvents() {
     if (!family?.id) return
@@ -278,10 +288,13 @@ export default function TermDatesSection() {
             description={
               kbData === undefined ? 'Checking…' :
               kbAvailable
-                ? kbData.map(c => c.school_name ?? 'Your school').join(' · ')
+                ? hasNewDates
+                  ? `New dates available · ${kbData.map(c => c.school_name ?? 'Your school').join(', ')}`
+                  : kbData.map(c => c.school_name ?? 'Your school').join(' · ')
                 : 'Not yet available for your school'
             }
             disabled={!kbAvailable}
+            badge={hasNewDates}
             open={openPanel === 'kb'}
             onToggle={() => togglePanel('kb')}
           >
@@ -476,7 +489,7 @@ export default function TermDatesSection() {
 
 // ── Option panel accordion ────────────────────────────────────────────────────
 
-function OptionPanel({ label, description, disabled = false, open, onToggle, children }) {
+function OptionPanel({ label, description, disabled = false, badge = false, open, onToggle, children }) {
   return (
     <div className={`border rounded-xl overflow-hidden ${disabled ? 'border-gray-100' : 'border-gray-200 bg-white'}`}>
       <button
@@ -485,8 +498,11 @@ function OptionPanel({ label, description, disabled = false, open, onToggle, chi
         className={`w-full flex items-start gap-3 px-3 py-3 text-left ${!disabled ? 'hover:bg-gray-50 transition-colors' : ''}`}
       >
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-800'}`}>{label}</p>
-          <p className={`text-xs mt-0.5 ${disabled ? 'text-gray-300' : 'text-gray-400'}`}>{description}</p>
+          <div className="flex items-center gap-1.5">
+            <p className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-800'}`}>{label}</p>
+            {badge && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
+          </div>
+          <p className={`text-xs mt-0.5 ${disabled ? 'text-gray-300' : badge ? 'text-green-600 font-medium' : 'text-gray-400'}`}>{description}</p>
         </div>
         {!disabled && (
           <svg
