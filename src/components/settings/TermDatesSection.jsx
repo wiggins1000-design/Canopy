@@ -136,29 +136,50 @@ export default function TermDatesSection({ onNewDates }) {
     setKbImporting(true)
     setKbMsg(null)
     let added = 0
-    // Track (date|title) combos already saved this session to deduplicate
-    // shared dates (e.g. bank holidays) when importing from multiple schools
-    const saved = new Set(events.map(e => `${e.event_date}|${e.title}`))
+    let updated = 0
+
+    // Build a lookup of existing events by date|title so we can update
+    // source_subject on events that were previously added with a generic label
+    const existingByKey = new Map(events.map(e => [`${e.event_date}|${e.title}`, e]))
+    const seen = new Set(events.map(e => `${e.event_date}|${e.title}`))
+
     for (const cal of kbData) {
       const schoolLabel = cal.school_name ?? cal.homepage_url
       for (const ev of cal.term_dates ?? []) {
         if (!ev.date || !ev.title) continue
         const key = `${ev.date}|${ev.title}`
-        if (saved.has(key)) continue
-        const { error } = await supabase.rpc('create_family_event', {
-          p_family_id:      family.id,
-          p_title:          ev.title,
-          p_event_date:     ev.date,
-          p_end_date:       ev.end_date ?? null,
-          p_source:         'term_dates',
-          p_source_subject: schoolLabel,
-        })
-        if (!error) { added++; saved.add(key) }
+        const existing = existingByKey.get(key)
+
+        if (existing) {
+          // Already in calendar — update source_subject if it's a generic label
+          const isGeneric = !existing.source_subject || existing.source_subject === 'School term dates'
+          if (isGeneric) {
+            await supabase.from('family_events')
+              .update({ source_subject: schoolLabel })
+              .eq('id', existing.id)
+            updated++
+          }
+        } else if (!seen.has(key)) {
+          // New date — insert it
+          const { error } = await supabase.rpc('create_family_event', {
+            p_family_id:      family.id,
+            p_title:          ev.title,
+            p_event_date:     ev.date,
+            p_end_date:       ev.end_date ?? null,
+            p_source:         'term_dates',
+            p_source_subject: schoolLabel,
+          })
+          if (!error) { added++; seen.add(key) }
+        }
       }
     }
+
     setKbImporting(false)
-    if (added > 0) {
-      setKbMsg({ type: 'success', msg: `${added} date${added !== 1 ? 's' : ''} added to your calendar.` })
+    if (added > 0 || updated > 0) {
+      const parts = []
+      if (added)   parts.push(`${added} date${added !== 1 ? 's' : ''} added`)
+      if (updated) parts.push(`${updated} updated with school name`)
+      setKbMsg({ type: 'success', msg: `${parts.join(', ')}.` })
       loadEvents()
     } else {
       setKbMsg({ type: 'info', msg: 'Calendar already up to date.' })
