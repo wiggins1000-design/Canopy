@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
 import { validateEmail, validateUrl } from '../lib/validationUtils'
+import { useSessionActivity } from '../context/SessionActivityContext'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
@@ -26,6 +27,7 @@ const SECTION_TAGS = {
 
 export default function InfoBankPage() {
   const { family, isParent, member, members, userRole } = useFamily()
+  const { trackActivity } = useSessionActivity()
   const navigate = useNavigate()
   const children = (family?.config?.children ?? []).filter((c) => c.name)
   const pets     = (family?.config?.pets ?? []).filter((p) => p.name)
@@ -80,15 +82,9 @@ export default function InfoBankPage() {
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
       setAllUpdatedAt((prev) => ({ ...prev, [`${tab}||${section}`]: now }))
 
-      // Post activity to notice board
-      const authorName  = members?.find((m) => m.role === userRole)?.display_name ?? 'A parent'
       const subjectLabel = tab === 'Family' ? 'family' : `${tab}'s`
       const sectionLabel = SECTION_LABELS[section] ?? section
-      supabase.rpc('create_notice_post', {
-        p_family_id: family.id,
-        p_content:   `📋 ${authorName} updated ${subjectLabel} ${sectionLabel}`,
-        p_tag:       SECTION_TAGS[section] ?? null,
-      })
+      trackActivity(`Updated ${subjectLabel} ${sectionLabel}`)
 
       const siblings = children.filter((c) => c.name !== tab)
 

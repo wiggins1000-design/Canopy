@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase, sendPushNotification } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 import { compressImage } from '../../lib/imageUtils'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
+import { useSessionActivity } from '../../context/SessionActivityContext'
 import { formatDistanceToNow } from 'date-fns'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
@@ -37,6 +38,7 @@ function formatBytes(bytes) {
 export default function VaultSection({ childName }) {
   const { family, member, isParent, userRole, parentA, parentB } = useFamily()
   const { user } = useAuth()
+  const { trackActivity } = useSessionActivity()
   const fileRef = useRef(null)
 
   const [docs, setDocs]           = useState([])
@@ -112,28 +114,8 @@ export default function VaultSection({ childName }) {
 
     {
       const categoryLabel = CATEGORIES.find((c) => c.id === uploadCat)?.label ?? uploadCat
-      const childLabel    = childName === 'Family' ? 'family documents' : childName
-      const uploaderName  = member?.display_name ?? 'A parent'
-      const { error: noticeErr } = await supabase.rpc('create_notice_post', {
-        p_family_id: family.id,
-        p_content:   `📎 ${uploaderName} added a document to the vault\n${uploadTitle.trim()} · ${categoryLabel} · ${childLabel}`,
-        p_image_url: null,
-        p_file_url:  null,
-        p_file_name: null,
-        p_tag:       'notification',
-      })
-      if (noticeErr) console.error('Vault notice post error:', noticeErr)
-      const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
-      const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
-      if (recipientMember) {
-        await sendPushNotification({
-          familyId:     family.id,
-          recipientRole,
-          title:        'New vault document',
-          body:         `${uploaderName} added "${uploadTitle.trim()}" to the vault`,
-          url:          '/info',
-        })
-      }
+      const childLabel    = childName === 'Family' ? 'family' : childName
+      trackActivity(`Uploaded '${uploadTitle.trim()}' to ${childLabel}'s documents (${categoryLabel})`)
     }
 
     setUploading(false)
@@ -281,7 +263,7 @@ export default function VaultSection({ childName }) {
               ))}
             </div>
           </div>
-          <p className="text-xs text-gray-400">A notice will be posted on the notice board to let the other parent know.</p>
+          <p className="text-xs text-gray-400">This will be included in a summary update on the notice board.</p>
 
           {pendingFile && (
             <p className="text-xs text-gray-400">{pendingFile.name} · {formatBytes(pendingFile.size)}</p>

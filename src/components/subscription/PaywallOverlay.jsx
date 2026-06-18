@@ -31,24 +31,40 @@ export default function PaywallOverlay() {
           Subscribe to keep your family organised with Canopy.
         </p>
 
-        <div className="w-full rounded-3xl border-2 border-canopy-light bg-canopy-frost p-6 mb-6">
-          <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-3">Family plan</p>
-          <div className="flex items-end justify-center gap-1 mb-1">
-            <span className="text-5xl font-bold text-gray-900">£12.99</span>
-            <span className="text-gray-400 mb-1.5">/month</span>
+        <div className="w-full space-y-3 mb-6">
+          {/* Annual — highlighted */}
+          <div className="rounded-3xl border-2 bg-canopy-frost p-5 relative" style={{ borderColor: '#2d6a4f' }}>
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-canopy-deep text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Best value</span>
+            <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2 mt-1">Annual</p>
+            <div className="flex items-end justify-center gap-1 mb-0.5">
+              <span className="text-5xl font-bold text-gray-900">£119.99</span>
+              <span className="text-gray-400 mb-1.5">/year</span>
+            </div>
+            <p className="text-center text-xs text-canopy-deep font-semibold mb-1">Save £35.89 — over 2 months free</p>
+            <p className="text-center text-xs text-gray-400">Both parents included</p>
           </div>
-          <p className="text-center text-sm text-canopy-deep font-medium mb-5">Both parents included</p>
-          <ul className="space-y-2.5">
-            {FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm text-gray-700">
-                <svg className="w-4 h-4 text-canopy-mid mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                {f}
-              </li>
-            ))}
-          </ul>
+
+          {/* Monthly */}
+          <div className="rounded-3xl border-2 border-canopy-light bg-white p-5">
+            <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2">Monthly</p>
+            <div className="flex items-end justify-center gap-1 mb-1">
+              <span className="text-5xl font-bold text-gray-900">£12.99</span>
+              <span className="text-gray-400 mb-1.5">/month</span>
+            </div>
+            <p className="text-center text-xs text-gray-400">Both parents included</p>
+          </div>
         </div>
+
+        <ul className="w-full space-y-2.5 mb-6">
+          {FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2.5 text-sm text-gray-700">
+              <svg className="w-4 h-4 text-canopy-mid mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              {f}
+            </li>
+          ))}
+        </ul>
 
         <div className="w-full rounded-2xl bg-gray-50 border border-gray-200 px-5 py-4 text-center">
           <p className="text-sm font-semibold text-gray-700 mb-1">Subscribe via the App Store or Google Play</p>

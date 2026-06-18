@@ -1063,7 +1063,7 @@ function SubscriptionSection() {
     <AccordionGroup label="Subscription">
       <div className="px-4 py-3 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Family plan · £12.99/month</span>
+          <span className="text-sm text-gray-700">Family plan · £12.99/mo or £119.99/yr</span>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusLabel.cls}`}>
             {statusLabel.text}
           </span>

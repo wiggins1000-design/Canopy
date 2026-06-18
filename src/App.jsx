@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { FamilyProvider } from './context/FamilyContext'
+import { SessionActivityProvider } from './context/SessionActivityContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 import AdminRoute from './components/admin/AdminRoute'
@@ -29,6 +30,7 @@ export default function App() {
   return (
     <AuthProvider>
       <FamilyProvider>
+        <SessionActivityProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/2fa" element={<TwoFAPage />} />
@@ -64,6 +66,7 @@ export default function App() {
             <Route path="/expenses" element={<ExpensesPage />} />
           </Route>
         </Routes>
+        </SessionActivityProvider>
       </FamilyProvider>
     </AuthProvider>
   )

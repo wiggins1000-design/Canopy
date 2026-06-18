@@ -111,7 +111,7 @@
                  alt="Get it on Google Play" style="height:44px;">
           </a>
         </div>
-        <p class="text-xs text-gray-400 mt-3">10 days free. Then &pound;12.99/month for the whole family. Cancel anytime.</p>
+        <p class="text-xs text-gray-400 mt-3">10 days free. Then &pound;12.99/month &mdash; or &pound;119.99/year for the whole family. Cancel anytime.</p>
       </div>
 
       <!-- Hero phone -->
@@ -486,11 +486,30 @@
       </div>
 
       <div class="bg-white rounded-3xl shadow-xl p-8" style="border: 2px solid #d8f3dc;">
-        <p class="text-canopy-mid font-bold text-xs uppercase tracking-widest mb-3 text-center">Family plan</p>
-        <div class="flex items-end justify-center gap-1.5 mb-1">
+        <p class="text-canopy-mid font-bold text-xs uppercase tracking-widest mb-4 text-center">Family plan</p>
+
+        <!-- Billing toggle -->
+        <div class="flex items-center justify-center gap-2 mb-5">
+          <button id="btn-monthly" onclick="setBilling('monthly')"
+            class="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+            style="background:#1b4332;color:white;">Monthly</button>
+          <button id="btn-annual" onclick="setBilling('annual')"
+            class="px-4 py-1.5 rounded-full text-sm font-semibold transition-colors"
+            style="background:#e5e7eb;color:#6b7280;">Annual</button>
+        </div>
+
+        <div id="price-monthly" class="flex items-end justify-center gap-1.5 mb-1">
           <span class="text-6xl font-bold text-gray-900">&pound;12.99</span>
           <span class="text-gray-400 mb-2 text-lg">/month</span>
         </div>
+        <div id="price-annual" class="hidden flex items-end justify-center gap-1.5 mb-1">
+          <span class="text-6xl font-bold text-gray-900">&pound;119.99</span>
+          <span class="text-gray-400 mb-2 text-lg">/year</span>
+        </div>
+        <div id="saving-badge" class="hidden text-center mb-2">
+          <span class="inline-block bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">Save &pound;35.89 &mdash; over 2 months free</span>
+        </div>
+
         <p class="text-sm font-semibold text-canopy-deep text-center mb-1">Both parents included &mdash; one price</p>
         <p class="text-sm text-gray-400 text-center mb-8">10-day free trial, no card required to start</p>
 
@@ -548,13 +567,13 @@
           </a>
         </div>
         <p class="text-xs text-gray-400 text-center mt-3">10 days free. No contract. Cancel anytime.</p>
+        <p id="annual-note" class="hidden text-xs text-gray-400 text-center mt-1">&pound;119.99 billed once a year. Switch back to monthly anytime.</p>
       </div>
 
       <!-- Comparison callout -->
       <div class="mt-6 bg-white rounded-2xl border border-canopy-mist p-5">
         <p class="text-sm text-gray-500 text-center leading-relaxed">
-          <span class="font-semibold text-gray-700">How does Canopy compare?</span><br>
-          OurFamilyWizard charges &pound;19+/month <em>per parent</em>. TalkingParents &pound;25/month. Canopy is &pound;12.99 for the whole family &mdash; with AI features they don&rsquo;t have.
+          One price for the whole family. Most apps charge each parent separately.
         </p>
       </div>
     </div>
@@ -590,5 +609,16 @@
     </div>
   </footer>
 
+  <script>
+    function setBilling(type) {
+      var annual = type === 'annual';
+      document.getElementById('price-monthly').classList.toggle('hidden', annual);
+      document.getElementById('price-annual').classList.toggle('hidden', !annual);
+      document.getElementById('saving-badge').classList.toggle('hidden', !annual);
+      document.getElementById('annual-note').classList.toggle('hidden', !annual);
+      document.getElementById('btn-monthly').style.cssText = annual ? 'background:#e5e7eb;color:#6b7280;' : 'background:#1b4332;color:white;';
+      document.getElementById('btn-annual').style.cssText = annual ? 'background:#1b4332;color:white;' : 'background:#e5e7eb;color:#6b7280;';
+    }
+  </script>
 </body>
 </html>
