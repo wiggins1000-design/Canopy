@@ -138,25 +138,19 @@ export default function TermDatesSection({ onNewDates }) {
     let added = 0
     let updated = 0
 
-    // Lookup existing events by date|title
-    const existingByKey = new Map(events.map(e => [`${e.event_date}|${e.title}`, e]))
+    // `seen` deduplicates inserts across schools (shared bank holidays etc.)
     const seen = new Set(events.map(e => `${e.event_date}|${e.title}`))
 
     for (const cal of kbData) {
       const schoolLabel = cal.school_name ?? cal.homepage_url
-      const toRetag = []  // IDs of existing generic-label events to retag
+      const pairs = []  // all valid {date, title} pairs for this school's KB
 
       for (const ev of cal.term_dates ?? []) {
         if (!ev.date || !ev.title) continue
-        const key = `${ev.date}|${ev.title}`
-        const existing = existingByKey.get(key)
+        pairs.push({ date: ev.date, title: ev.title })
 
-        if (existing) {
-          // Already in calendar — queue for retag if source_subject is generic
-          const isGeneric = !existing.source_subject || existing.source_subject === 'School term dates'
-          if (isGeneric) toRetag.push(existing.id)
-        } else if (!seen.has(key)) {
-          // New date — insert it
+        const key = `${ev.date}|${ev.title}`
+        if (!seen.has(key)) {
           const { error } = await supabase.rpc('create_family_event', {
             p_family_id:      family.id,
             p_title:          ev.title,
@@ -169,12 +163,14 @@ export default function TermDatesSection({ onNewDates }) {
         }
       }
 
-      // Batch-update source_subject for existing generic-label events
-      if (toRetag.length) {
-        const { data: retagCount } = await supabase.rpc('update_term_date_school', {
+      // Retag any existing events that match this school's dates but still carry
+      // the generic 'School term dates' label. Done server-side so it covers all
+      // dates regardless of the client's load window.
+      if (pairs.length) {
+        const { data: retagCount } = await supabase.rpc('retag_term_dates', {
           p_family_id:    family.id,
-          p_event_ids:    toRetag,
           p_school_label: schoolLabel,
+          p_pairs:        pairs,
         })
         updated += retagCount ?? 0
       }
