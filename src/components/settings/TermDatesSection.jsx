@@ -74,6 +74,14 @@ export default function TermDatesSection({ onNewDates }) {
   const [addSaving, setAddSaving] = useState(false)
   const [addError, setAddError] = useState(null)
 
+  // School pickers — one selected-value + one custom-text per panel
+  const [photoSchool, setPhotoSchool]           = useState('')
+  const [photoSchoolCustom, setPhotoSchoolCustom] = useState('')
+  const [manualSchool, setManualSchool]           = useState('')
+  const [manualSchoolCustom, setManualSchoolCustom] = useState('')
+  const [iAddSchool, setIAddSchool]               = useState('')
+  const [iAddSchoolCustom, setIAddSchoolCustom]   = useState('')
+
   const thisYear = new Date().getFullYear()
 
   const hasNewDates = useMemo(() => {
@@ -85,6 +93,32 @@ export default function TermDatesSection({ onNewDates }) {
   }, [kbData, events])
 
   useEffect(() => { onNewDates?.(hasNewDates) }, [hasNewDates])
+
+  // School options derived from KB data + previously used names in existing events
+  const schoolOptions = useMemo(() => {
+    const opts = new Set()
+    for (const cal of kbData ?? []) {
+      const name = cal.school_name ?? cal.homepage_url
+      if (name) opts.add(name)
+    }
+    for (const ev of events) {
+      if (ev.source_subject && ev.source_subject !== 'School term dates') opts.add(ev.source_subject)
+    }
+    return [...opts]
+  }, [kbData, events])
+
+  // Set default school picker value once options are available
+  useEffect(() => {
+    if (!schoolOptions.length) return
+    setPhotoSchool(prev  => prev || schoolOptions[0])
+    setManualSchool(prev => prev || schoolOptions[0])
+    setIAddSchool(prev   => prev || schoolOptions[0])
+  }, [schoolOptions])
+
+  function resolveSchool(school, custom) {
+    if (school === '__other__') return custom.trim() || 'School term dates'
+    return school || schoolOptions[0] || 'School term dates'
+  }
 
   async function loadEvents() {
     if (!family?.id) return
@@ -227,6 +261,7 @@ export default function TermDatesSection({ onNewDates }) {
   async function savePhotoDates() {
     if (!photoDates?.length) return
     setPhotoSaving(true)
+    const schoolLabel = resolveSchool(photoSchool, photoSchoolCustom)
     let added = 0
     for (const ev of photoDates) {
       if (!ev.date || !ev.title) continue
@@ -236,7 +271,7 @@ export default function TermDatesSection({ onNewDates }) {
         p_event_date:     ev.date,
         p_end_date:       ev.end_date ?? null,
         p_source:         'term_dates',
-        p_source_subject: 'School term dates',
+        p_source_subject: schoolLabel,
       })
       if (!error) added++
     }
@@ -266,7 +301,7 @@ export default function TermDatesSection({ onNewDates }) {
       p_event_date:     addDate,
       p_end_date:       addType === 'holiday' ? addEnd : null,
       p_source:         'term_dates',
-      p_source_subject: 'School term dates',
+      p_source_subject: resolveSchool(manualSchool, manualSchoolCustom),
     })
     setAddSaving(false)
     if (error) { setAddError(error.message); return }
@@ -314,7 +349,7 @@ export default function TermDatesSection({ onNewDates }) {
       p_event_date:     iAddDate,
       p_end_date:       iAddType === 'holiday' ? iAddEnd : null,
       p_source:         'term_dates',
-      p_source_subject: 'School term dates',
+      p_source_subject: resolveSchool(iAddSchool, iAddSchoolCustom),
     })
     setIAddSaving(false)
     if (error) { setIAddError(error.message); return }
@@ -472,6 +507,13 @@ export default function TermDatesSection({ onNewDates }) {
               ) : (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-700">Add date</p>
+                  <SchoolPicker
+                    value={iAddSchool}
+                    onChange={setIAddSchool}
+                    customValue={iAddSchoolCustom}
+                    onCustomChange={setIAddSchoolCustom}
+                    options={schoolOptions}
+                  />
                   <div className="flex gap-2">
                     {[['holiday', 'Holiday'], ['inset', 'INSET Day']].map(([t, label]) => (
                       <button
@@ -621,6 +663,13 @@ export default function TermDatesSection({ onNewDates }) {
                     </div>
                   ))}
                 </div>
+                <SchoolPicker
+                  value={photoSchool}
+                  onChange={setPhotoSchool}
+                  customValue={photoSchoolCustom}
+                  onCustomChange={setPhotoSchoolCustom}
+                  options={schoolOptions}
+                />
                 {photoMsg && <p className={`text-xs font-medium ${msgCls(photoMsg.type)}`}>{photoMsg.msg}</p>}
                 <div className="flex gap-2">
                   <Button
@@ -641,7 +690,14 @@ export default function TermDatesSection({ onNewDates }) {
               </div>
             ) : (
               // Upload step
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <SchoolPicker
+                  value={photoSchool}
+                  onChange={setPhotoSchool}
+                  customValue={photoSchoolCustom}
+                  onCustomChange={setPhotoSchoolCustom}
+                  options={schoolOptions}
+                />
                 {photoProcessing ? (
                   <div className="flex items-center gap-3 py-3">
                     <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
@@ -681,6 +737,13 @@ export default function TermDatesSection({ onNewDates }) {
             onToggle={() => togglePanel('manual')}
           >
             <div className="space-y-3">
+              <SchoolPicker
+                value={manualSchool}
+                onChange={setManualSchool}
+                customValue={manualSchoolCustom}
+                onCustomChange={setManualSchoolCustom}
+                options={schoolOptions}
+              />
               {/* Type toggle */}
               <div className="flex gap-2">
                 {[['holiday', 'School Holiday'], ['inset', 'INSET Day']].map(([t, label]) => (
@@ -758,6 +821,42 @@ export default function TermDatesSection({ onNewDates }) {
           </>)}
 
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── School picker ─────────────────────────────────────────────────────────────
+
+function SchoolPicker({ value, onChange, customValue, onCustomChange, options }) {
+  const cls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green'
+  return (
+    <div>
+      <label className="text-xs text-gray-500 block mb-1">School</label>
+      {options.length > 0 ? (
+        <>
+          <select value={value} onChange={e => onChange(e.target.value)} className={cls}>
+            {options.map(o => <option key={o} value={o}>{o}</option>)}
+            <option value="__other__">Other school…</option>
+          </select>
+          {value === '__other__' && (
+            <input
+              type="text"
+              value={customValue}
+              onChange={e => onCustomChange(e.target.value)}
+              placeholder="School name"
+              className={`${cls} mt-2`}
+            />
+          )}
+        </>
+      ) : (
+        <input
+          type="text"
+          value={customValue}
+          onChange={e => onCustomChange(e.target.value)}
+          placeholder="School name (e.g. Reddam House)"
+          className={cls}
+        />
       )}
     </div>
   )
