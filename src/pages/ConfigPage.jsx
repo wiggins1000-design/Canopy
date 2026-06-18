@@ -828,7 +828,7 @@ export default function ConfigPage() {
           />
           <ToggleRow
             label="Direct messaging"
-            description="Private topic threads between parents. Not visible to read-only members."
+            description="Private topic threads between parents."
             enabled={!!family?.config?.messaging_enabled}
             onToggle={() => updateFamilyConfig({ messaging_enabled: !family?.config?.messaging_enabled })}
           />
@@ -875,6 +875,22 @@ export default function ConfigPage() {
             enabled={family?.config?.viewer_permissions?.schedule !== false}
             onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, schedule: !(family?.config?.viewer_permissions?.schedule !== false) } })}
           />
+          {!!family?.config?.messaging_enabled && (
+            <ToggleRow
+              label="Messages"
+              description="Allow read-only members to view message threads"
+              enabled={family?.config?.viewer_permissions?.messaging === true}
+              onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, messaging: !(family?.config?.viewer_permissions?.messaging === true) } })}
+            />
+          )}
+          {!!family?.config?.expenses_enabled && (
+            <ToggleRow
+              label="Expenses"
+              description="Allow read-only members to view shared expenses"
+              enabled={family?.config?.viewer_permissions?.expenses === true}
+              onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, expenses: !(family?.config?.viewer_permissions?.expenses === true) } })}
+            />
+          )}
         </AccordionGroup>
       )}
 

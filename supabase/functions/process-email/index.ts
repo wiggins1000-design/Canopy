@@ -281,6 +281,7 @@ async function handleRequest(req: Request): Promise<Response> {
   const today = new Date().toISOString().split('T')[0]
 
   const familyChildren: any[] = (family.config?.children ?? []).filter((c: any) => c.name)
+  const allChildNames: string[] = familyChildren.map((c: any) => c.name)
 
   // Fetch year group / class from info_bank school section (source of truth)
   const { data: schoolRows } = await supabase
@@ -330,7 +331,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "time": "HH:MM or null",
       "notes": "any extra detail or null",
       "existing_id": "id of matching existing event, or null if this is new",
-      "additional_notes": "any new information not already in the existing event's notes, or null"
+      "additional_notes": "any new information not already in the existing event's notes, or null",
+      "tagged_children": ["child name", ...]
     }
   ],
   "notice_post": "1-2 sentence summary for parents, or null if nothing important beyond the events"
@@ -347,6 +349,7 @@ Rules:
 - Compare each extracted event against the existing calendar events list. If an event matches (same or very similar title on the same date), set existing_id to its id
 - If it matches and the email adds genuinely new detail not already in the existing notes, set additional_notes to only that new information
 - If it matches but adds nothing new, set existing_id and leave additional_notes as null (pure duplicate — will be silently skipped)
+- For tagged_children: use ALL children in the family for whole-school, all-pupils, all-year-groups events, or any event where no specific year group or class is mentioned. Use only the matching child for year/class-specific events. Use an empty array [] for parent-only events (parents evenings, coffee mornings, school fairs, etc.)
 - notice_post should only be set if there is genuinely important information not captured by the events`
 
   const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -421,15 +424,19 @@ Rules:
       // else: pure duplicate — silently skip
     } else {
       // New event
+      const taggedChildren = Array.isArray(ev.tagged_children)
+        ? ev.tagged_children.filter((n: string) => allChildNames.includes(n))
+        : []
       const { error } = await supabase.rpc('create_family_event', {
-        p_family_id:      family.id,
-        p_title:          ev.title,
-        p_event_date:     ev.date,
-        p_end_date:       ev.end_date || null,
-        p_event_time:     ev.time     || null,
-        p_notes:          ev.notes    || null,
-        p_source:         'email_ai',
-        p_source_subject: subject,
+        p_family_id:       family.id,
+        p_title:           ev.title,
+        p_event_date:      ev.date,
+        p_end_date:        ev.end_date || null,
+        p_event_time:      ev.time     || null,
+        p_notes:           ev.notes    || null,
+        p_source:          'email_ai',
+        p_source_subject:  subject,
+        p_tagged_children: taggedChildren.length > 0 ? taggedChildren : null,
       })
       if (!error) {
         eventsCreated++

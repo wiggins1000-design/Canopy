@@ -7,6 +7,7 @@ import { useFamilyEvents } from '../hooks/useFamilyEvents'
 import { useTermDates } from '../hooks/useTermDates'
 import { useBirthdays } from '../hooks/useBirthdays'
 import { formatDate } from '../lib/scheduleEngine'
+import { shortSchoolName } from '../lib/termDatesUtils'
 import CalendarGrid from '../components/calendar/CalendarGrid'
 import DayDetailPanel from '../components/calendar/DayDetailPanel'
 import ScheduleChangePanel from '../components/calendar/ScheduleChangePanel'
@@ -198,7 +199,7 @@ export default function CalendarPage() {
           return [...seen.entries()]
             .sort(([a], [b]) => a - b)
             .map(([idx, name]) => {
-              const short = name === 'School term dates' ? 'School' : (name.split(' ')[0])
+              const short = shortSchoolName(name) || 'School'
               return <LegendStrip key={idx} color={STRIP_COLORS[idx] ?? 'bg-gray-400'} label={short} />
             })
         })()}

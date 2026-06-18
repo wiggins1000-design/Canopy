@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -16,6 +17,7 @@ export default function InvitePage() {
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState(null)
 
+  const navigate = useNavigate()
   const hasParentB = !!parentB
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
   const senderName = user?.user_metadata?.display_name ?? 'Someone'
@@ -42,9 +44,7 @@ export default function InvitePage() {
           },
         })
         if (emailErr) {
-          let detail = ''
-          try { detail = (await emailErr.context.json())?.detail ?? '' } catch {}
-          setEmailError(`Invite generated but email failed to send. Share the link below instead.${detail ? `\n\nResend: ${detail}` : ''}`)
+          setEmailError('Invite generated but email failed to send. Share the link below instead.')
         } else {
           setEmailSent(true)
         }
@@ -63,7 +63,14 @@ export default function InvitePage() {
 
   return (
     <div className="px-4 py-5 space-y-6">
-      <h1 className="text-xl font-bold text-gray-900">People</h1>
+      <div className="flex items-center gap-2">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500" aria-label="Back">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-xl font-bold text-gray-900">People</h1>
+      </div>
 
       {/* Children */}
       {family?.config?.children?.filter((c) => c.name).length > 0 && (
@@ -145,7 +152,7 @@ export default function InvitePage() {
             </div>
           )}
           {emailError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 whitespace-pre-wrap">
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
               {emailError}
             </div>
           )}

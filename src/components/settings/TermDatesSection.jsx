@@ -35,6 +35,23 @@ export default function TermDatesSection({ onNewDates }) {
   const [showAddOptions, setShowAddOptions] = useState(false)
   const [openPanel, setOpenPanel]     = useState(null) // 'kb' | 'photos' | 'manual'
 
+  // Inspect sheet — inline edit
+  const [editingId, setEditingId]     = useState(null)
+  const [editTitle, setEditTitle]     = useState('')
+  const [editDate, setEditDate]       = useState('')
+  const [editEnd, setEditEnd]         = useState('')
+  const [editSaving, setEditSaving]   = useState(false)
+
+  // Inspect sheet — inline add
+  const [showInspectAdd, setShowInspectAdd] = useState(false)
+  const [iAddType, setIAddType]   = useState('holiday')
+  const [iAddTitle, setIAddTitle] = useState(HOLIDAY_TITLES[0])
+  const [iAddCustom, setIAddCustom] = useState('')
+  const [iAddDate, setIAddDate]   = useState('')
+  const [iAddEnd, setIAddEnd]     = useState('')
+  const [iAddSaving, setIAddSaving] = useState(false)
+  const [iAddError, setIAddError] = useState(null)
+
   // Knowledge Base
   const [kbData, setKbData]           = useState(undefined) // undefined=checking, null=none, arr=found
   const [kbImporting, setKbImporting] = useState(false)
@@ -240,6 +257,50 @@ export default function TermDatesSection({ onNewDates }) {
     setEvents(p => p.filter(e => e.id !== id))
   }
 
+  function startEdit(ev) {
+    setEditingId(ev.id)
+    setEditTitle(ev.title)
+    setEditDate(ev.event_date)
+    setEditEnd(ev.end_date ?? '')
+  }
+
+  async function saveEdit(ev) {
+    setEditSaving(true)
+    await supabase.from('family_events').update({
+      title: editTitle.trim() || ev.title,
+      event_date: editDate,
+      end_date: editEnd || null,
+    }).eq('id', ev.id)
+    setEditSaving(false)
+    setEditingId(null)
+    loadEvents()
+  }
+
+  async function addInInspect() {
+    const title = iAddType === 'inset'
+      ? 'INSET Day'
+      : (iAddTitle === 'Other' ? iAddCustom.trim() : iAddTitle)
+    if (!iAddDate) { setIAddError('Enter a date.'); return }
+    if (iAddType === 'holiday' && !iAddEnd) { setIAddError('Enter an end date.'); return }
+    if (iAddType === 'holiday' && iAddEnd < iAddDate) { setIAddError('End date must be after start date.'); return }
+    setIAddSaving(true)
+    setIAddError(null)
+    const { error } = await supabase.rpc('create_family_event', {
+      p_family_id:      family.id,
+      p_title:          title,
+      p_event_date:     iAddDate,
+      p_end_date:       iAddType === 'holiday' ? iAddEnd : null,
+      p_source:         'term_dates',
+      p_source_subject: 'School term dates',
+    })
+    setIAddSaving(false)
+    if (error) { setIAddError(error.message); return }
+    setIAddDate('')
+    setIAddEnd('')
+    setShowInspectAdd(false)
+    loadEvents()
+  }
+
   const dateRange = useMemo(() => {
     if (!events.length) return null
     const first = events[0].event_date
@@ -306,7 +367,7 @@ export default function TermDatesSection({ onNewDates }) {
       )}
 
       {/* Inspect bottom sheet */}
-      <BottomSheet open={showInspect} onClose={() => setShowInspect(false)} title="Term Dates">
+      <BottomSheet open={showInspect} onClose={() => { setShowInspect(false); setEditingId(null); setShowInspectAdd(false) }} title="Term Dates">
         <div className="px-4 py-3 space-y-4">
           {groupedEvents.map(([school, evs]) => (
             <div key={school}>
@@ -316,20 +377,57 @@ export default function TermDatesSection({ onNewDates }) {
               <div className="space-y-1.5">
                 {evs.map(ev => {
                   const type = classify(ev)
+                  const isEditing = editingId === ev.id
                   return (
-                    <div key={ev.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${type === 'inset' ? 'bg-amber-400' : 'bg-purple-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{ev.title}</p>
-                        <p className="text-xs text-gray-400">
-                          {format(parseISO(ev.event_date), 'd MMM yyyy')}
-                          {ev.end_date && ` – ${format(parseISO(ev.end_date), 'd MMM yyyy')}`}
-                        </p>
-                      </div>
-                      {isParent && (
-                        <button onClick={() => removeEvent(ev.id)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">
-                          Remove
-                        </button>
+                    <div key={ev.id} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={e => setEditTitle(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-gray-500 block mb-1">Start date</label>
+                              <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-canopy-green" />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-gray-500 block mb-1">End date</label>
+                              <input type="date" value={editEnd} min={editDate} onChange={e => setEditEnd(e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-canopy-green" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => saveEdit(ev)} disabled={editSaving} className="flex-1 py-1.5 text-xs bg-canopy-mid text-white rounded-lg font-medium disabled:opacity-50">
+                              {editSaving ? 'Saving…' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="flex-1 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${type === 'inset' ? 'bg-amber-400' : 'bg-purple-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{ev.title}</p>
+                            <p className="text-xs text-gray-400">
+                              {format(parseISO(ev.event_date), 'd MMM yyyy')}
+                              {ev.end_date && ` – ${format(parseISO(ev.end_date), 'd MMM yyyy')}`}
+                            </p>
+                          </div>
+                          {isParent && (
+                            <div className="flex gap-2 shrink-0">
+                              <button onClick={() => startEdit(ev)} className="text-xs text-canopy-mid hover:text-canopy-deep px-1">
+                                Edit
+                              </button>
+                              <button onClick={() => removeEvent(ev.id)} className="text-xs text-red-400 hover:text-red-600 px-1">
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )
@@ -337,6 +435,84 @@ export default function TermDatesSection({ onNewDates }) {
               </div>
             </div>
           ))}
+
+          {/* Add date inline */}
+          {isParent && (
+            <div className="pt-1 border-t border-gray-100">
+              {!showInspectAdd ? (
+                <button
+                  onClick={() => setShowInspectAdd(true)}
+                  className="w-full py-2.5 text-sm text-canopy-mid font-medium border border-dashed border-canopy-mist rounded-xl hover:bg-canopy-frost transition-colors"
+                >
+                  + Add date
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-700">Add date</p>
+                  <div className="flex gap-2">
+                    {[['holiday', 'Holiday'], ['inset', 'INSET Day']].map(([t, label]) => (
+                      <button
+                        key={t}
+                        onClick={() => setIAddType(t)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          iAddType === t
+                            ? 'border-canopy-mid bg-canopy-frost text-canopy-deep'
+                            : 'border-gray-200 bg-white text-gray-500'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {iAddType === 'holiday' && (
+                    <div>
+                      <select
+                        value={iAddTitle}
+                        onChange={e => setIAddTitle(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green"
+                      >
+                        {HOLIDAY_TITLES.map(t => <option key={t}>{t}</option>)}
+                        <option value="Other">Other…</option>
+                      </select>
+                      {iAddTitle === 'Other' && (
+                        <input
+                          type="text"
+                          value={iAddCustom}
+                          onChange={e => setIAddCustom(e.target.value)}
+                          placeholder="Holiday name"
+                          className="w-full mt-2 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+                        />
+                      )}
+                    </div>
+                  )}
+                  <div className={iAddType === 'holiday' ? 'grid grid-cols-2 gap-2' : ''}>
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">{iAddType === 'holiday' ? 'Start date' : 'Date'}</label>
+                      <input type="date" value={iAddDate} onChange={e => setIAddDate(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green" />
+                    </div>
+                    {iAddType === 'holiday' && (
+                      <div>
+                        <label className="text-[10px] text-gray-500 block mb-1">End date</label>
+                        <input type="date" value={iAddEnd} min={iAddDate} onChange={e => setIAddEnd(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green" />
+                      </div>
+                    )}
+                  </div>
+                  {iAddError && <p className="text-xs text-red-600">{iAddError}</p>}
+                  <div className="flex gap-2">
+                    <Button className="flex-1 py-2 text-sm" loading={iAddSaving} onClick={addInInspect}>
+                      Add
+                    </Button>
+                    <button
+                      onClick={() => { setShowInspectAdd(false); setIAddError(null); setIAddDate(''); setIAddEnd('') }}
+                      className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </BottomSheet>
 

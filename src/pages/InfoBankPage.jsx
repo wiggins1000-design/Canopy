@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
+import { validateEmail, validateUrl } from '../lib/validationUtils'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
@@ -34,6 +35,7 @@ export default function InfoBankPage() {
   const [activeTab, setActiveTab]       = useState(null)
   const [activeSection, setActiveSection] = useState('medical')
   const [allData, setAllData]           = useState({})
+  const [allUpdatedAt, setAllUpdatedAt] = useState({})
   const [loading, setLoading]           = useState(true)
 
   useEffect(() => {
@@ -44,10 +46,13 @@ export default function InfoBankPage() {
     if (!family?.id) return
     const { data } = await supabase.from('info_bank').select('*').eq('family_id', family.id)
     const map = {}
+    const updatedAtMap = {}
     for (const row of data ?? []) {
       map[`${row.child_name}||${row.section}`] = row.data
+      updatedAtMap[`${row.child_name}||${row.section}`] = row.updated_at
     }
     setAllData(map)
+    setAllUpdatedAt(updatedAtMap)
     setLoading(false)
   }, [family?.id])
 
@@ -61,13 +66,19 @@ export default function InfoBankPage() {
     return allData[`${tab}||${section}`] ?? {}
   }
 
+  function getUpdatedAt(tab, section) {
+    return allUpdatedAt[`${tab}||${section}`] ?? null
+  }
+
   async function saveSection(tab, section, data) {
     const { error } = await supabase.from('info_bank').upsert(
       { family_id: family.id, child_name: tab, section, data, updated_at: new Date().toISOString() },
       { onConflict: 'family_id,child_name,section' }
     )
     if (!error) {
+      const now = new Date().toISOString()
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
+      setAllUpdatedAt((prev) => ({ ...prev, [`${tab}||${section}`]: now }))
 
       // Post activity to notice board
       const authorName  = members?.find((m) => m.role === userRole)?.display_name ?? 'A parent'
@@ -218,12 +229,14 @@ export default function InfoBankPage() {
             data={sectionData}
             isParent={isParent}
             onSave={(data) => saveSection(activeTab, 'vet', data)}
+            updatedAt={getUpdatedAt(activeTab, 'vet')}
           />
         ) : activeSection === 'medical' ? (
           <PetMedicalSection
             data={sectionData}
             isParent={isParent}
             onSave={(data) => saveSection(activeTab, 'medical', data)}
+            updatedAt={getUpdatedAt(activeTab, 'medical')}
           />
         ) : (
           <VaultSection childName={activeTab} />
@@ -235,6 +248,7 @@ export default function InfoBankPage() {
           onSave={(data) => saveSection(activeTab, 'medical', data)}
           memberConsents={member?.consents}
           onConsent={recordConsent}
+          updatedAt={getUpdatedAt(activeTab, 'medical')}
         />
       ) : activeSection === 'school' ? (
         <SchoolSection
@@ -244,12 +258,14 @@ export default function InfoBankPage() {
           childName={activeTab}
           onSave={(data) => saveSection(activeTab, 'school', data)}
           onExtracted={(data) => setAllData((prev) => ({ ...prev, [`${activeTab}||school`]: { ...prev[`${activeTab}||school`], ...data } }))}
+          updatedAt={getUpdatedAt(activeTab, 'school')}
         />
       ) : activeSection === 'contacts' ? (
         <ContactsSection
           data={sectionData}
           isParent={isParent}
           onSave={(data) => saveSection(activeTab, 'contacts', data)}
+          updatedAt={getUpdatedAt(activeTab, 'contacts')}
         />
       ) : activeSection === 'accounts' ? (
         <AccountsSection childName={activeTab} />
@@ -260,6 +276,7 @@ export default function InfoBankPage() {
           data={sectionData}
           isParent={isParent}
           onSave={(data) => saveSection(activeTab, 'personal', data)}
+          updatedAt={getUpdatedAt(activeTab, 'personal')}
         />
       )}
     </div>
@@ -267,24 +284,7 @@ export default function InfoBankPage() {
 }
 
 // ── Field validation ──────────────────────────────────────────
-
-function validateEmail(email) {
-  if (!email) return null
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? null : 'Enter a valid email address'
-}
-
-function validateUrl(url) {
-  if (!url) return null
-  const withScheme = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`
-  try {
-    const u = new URL(withScheme)
-    if (!['http:', 'https:'].includes(u.protocol)) return 'URL must start with https://'
-    if (!u.hostname.includes('.')) return 'Enter a full URL, e.g. https://stmarys.sch.uk'
-    return null
-  } catch {
-    return 'Enter a valid URL, e.g. https://stmarys.sch.uk'
-  }
-}
+// validateEmail and validateUrl are imported from lib/validationUtils
 
 // ── Shared field components ───────────────────────────────────
 
@@ -368,7 +368,10 @@ function TextArea({ label, value, onChange, placeholder, readOnly, rows = 2 }) {
   )
 }
 
-function SectionWrapper({ children, isParent, onSave, saved }) {
+function SectionWrapper({ children, isParent, onSave, saved, updatedAt }) {
+  const updatedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
   return (
     <div className="space-y-3">
       {children}
@@ -377,13 +380,16 @@ function SectionWrapper({ children, isParent, onSave, saved }) {
           {saved ? '✓ Saved' : 'Save'}
         </Button>
       )}
+      {updatedLabel && (
+        <p className="text-xs text-gray-400 text-center">Last updated {updatedLabel}</p>
+      )}
     </div>
   )
 }
 
 // ── Medical ───────────────────────────────────────────────────
 
-function MedicalSection({ data, isParent, onSave, memberConsents, onConsent }) {
+function MedicalSection({ data, isParent, onSave, memberConsents, onConsent, updatedAt }) {
   const defaults = { gp_practice: '', gp_name: '', gp_phone: '', gp_email: '', gp_address: '', dentist_practice: '', dentist_name: '', dentist_phone: '', dentist_email: '', dentist_address: '', nhs_number: '', blood_type: '', allergies: '', medications: '', notes: '' }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
@@ -423,7 +429,7 @@ function MedicalSection({ data, isParent, onSave, memberConsents, onConsent }) {
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">GP / Doctor</p>
       <Field label="Practice name" placeholder="Riverside Medical Centre" {...f('gp_practice')} />
       <Field label="Doctor name" placeholder="Dr Smith" {...f('gp_name')} />
@@ -450,7 +456,7 @@ function MedicalSection({ data, isParent, onSave, memberConsents, onConsent }) {
 
 // ── School ────────────────────────────────────────────────────
 
-function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted }) {
+function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted, updatedAt }) {
   const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
@@ -526,7 +532,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       {/* School URL + auto-extract */}
       <div className="space-y-1.5 pb-1">
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">School homepage URL</label>
@@ -591,7 +597,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
 
 // ── Contacts ──────────────────────────────────────────────────
 
-function ContactsSection({ data, isParent, onSave }) {
+function ContactsSection({ data, isParent, onSave, updatedAt }) {
   const blank = () => ({ id: crypto.randomUUID(), name: '', relationship: '', phone: '', notes: '' })
   const [contacts, setContacts] = useState((data?.contacts?.length ? data.contacts : [blank()]))
   const [saved, setSaved] = useState(false)
@@ -648,13 +654,18 @@ function ContactsSection({ data, isParent, onSave }) {
           {saved ? '✓ Saved' : 'Save'}
         </Button>
       )}
+      {updatedAt && (
+        <p className="text-xs text-gray-400 text-center">
+          Last updated {new Date(updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </p>
+      )}
     </div>
   )
 }
 
 // ── Vet ───────────────────────────────────────────────────────
 
-function VetSection({ data, isParent, onSave }) {
+function VetSection({ data, isParent, onSave, updatedAt }) {
   const [d, setD] = useState({ dob: '', species: '', breed: '', colour: '', neutered: '', vet_name: '', vet_phone: '', vet_email: '', vet_address: '', emergency_vet_name: '', emergency_vet_phone: '', emergency_vet_address: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
@@ -668,7 +679,7 @@ function VetSection({ data, isParent, onSave }) {
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Profile</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Species" placeholder="e.g. Dog, Cat, Rabbit" {...f('species')} />
@@ -699,7 +710,7 @@ function VetSection({ data, isParent, onSave }) {
 
 // ── Pet Medical ───────────────────────────────────────────────
 
-function PetMedicalSection({ data, isParent, onSave }) {
+function PetMedicalSection({ data, isParent, onSave, updatedAt }) {
   const [d, setD] = useState({ microchip: '', insurance_provider: '', insurance_policy: '', insurance_renewal: '', vaccinations: '', flea_treatment: '', worming: '', diet: '', medications: '', conditions: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
@@ -713,7 +724,7 @@ function PetMedicalSection({ data, isParent, onSave }) {
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Identity</p>
       <Field label="Microchip number" placeholder="123456789012345" {...f('microchip')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Insurance</p>
@@ -736,7 +747,7 @@ function PetMedicalSection({ data, isParent, onSave }) {
 
 // ── Personal ──────────────────────────────────────────────────
 
-function PersonalSection({ data, isParent, onSave }) {
+function PersonalSection({ data, isParent, onSave, updatedAt }) {
   const [d, setD] = useState({ dob: '', top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data })
   const [saved, setSaved] = useState(false)
 
@@ -750,7 +761,7 @@ function PersonalSection({ data, isParent, onSave }) {
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved}>
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       <Field label="Date of birth" type="date" {...f('dob')} />
       <div className="grid grid-cols-3 gap-3">
         <Field label="Top size" placeholder="Age 8 / 128cm" {...f('top_size')} />

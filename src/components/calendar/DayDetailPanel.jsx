@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import EditEventSheet from './EditEventSheet'
+import { shortSchoolName } from '../../lib/termDatesUtils'
 
 const OWNER_COLORS = {
   parent_a: 'text-pa-700 bg-pa-50 border-pa-200',
@@ -63,11 +64,11 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
       {/* Term type labels — one per school */}
       {termSchools?.map((s, i) => {
         const label = s.type === 'inset' ? 'INSET Day' : 'School Holiday'
-        const showSchool = s.schoolName && s.schoolName !== 'School term dates'
+        const shortName = shortSchoolName(s.schoolName)
         const color = SCHOOL_COLORS[s.schoolIndex] ?? SCHOOL_COLORS[0]
         return (
           <div key={i} className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${color}`}>
-            {label}{showSchool ? ` · ${s.schoolName}` : ''}
+            {label}{shortName ? ` · ${shortName}` : ''}
           </div>
         )
       })}

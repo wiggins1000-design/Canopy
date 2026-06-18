@@ -83,11 +83,11 @@ Deno.serve(async (req) => {
     { data: scheduleChanges },
   ] = await Promise.all([
     supabase.from('families').select('id, name, config, created_at').eq('id', familyId).single(),
-    supabase.from('family_members').select('display_name, role, created_at').eq('family_id', familyId),
+    supabase.from('family_members').select('display_name, role, user_id, created_at').eq('family_id', familyId),
     supabase.from('member_additional_emails').select('email, created_at').eq('user_id', user.id),
     supabase.from('family_events').select('title, event_date, end_date, event_time, notes, source, created_at').eq('family_id', familyId).order('event_date'),
     supabase.from('notice_posts').select('content, tag, created_at').eq('family_id', familyId).order('created_at', { ascending: false }),
-    supabase.from('messages').select('content, created_at').eq('family_id', familyId).order('created_at', { ascending: false }),
+    supabase.from('messages').select('content, sent_at, sender_id, message_threads(topic)').eq('family_id', familyId).order('sent_at', { ascending: false }),
     supabase.from('expenses').select('description, amount, paid_by, split_pct, settled, created_at').eq('family_id', familyId).order('created_at', { ascending: false }),
     supabase.from('info_bank').select('child_name, section, data, updated_at').eq('family_id', familyId),
     supabase.from('vault_documents').select('title, category, file_name, file_size, mime_type, created_at').eq('family_id', familyId),
@@ -97,7 +97,11 @@ Deno.serve(async (req) => {
 
   const now = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
   const memberMap: Record<string, string> = {}
-  for (const m of members ?? []) memberMap[(m as any).role] = (m as any).display_name
+  const userIdMap: Record<string, string> = {}
+  for (const m of members ?? []) {
+    memberMap[(m as any).role] = (m as any).display_name
+    userIdMap[(m as any).user_id] = (m as any).display_name
+  }
 
   // ── Build HTML sections ────────────────────────────────────────────────────
 
@@ -113,13 +117,12 @@ Deno.serve(async (req) => {
   ]))
 
   const familyHtml = section('Family', kv([
-    ['Family name', family?.name],
     ['Family created', fmtDate(family?.created_at)],
     ['Children', (family?.config?.children ?? []).map((c: any) => c.name).join(', ') || '—'],
     ['Pets', (family?.config?.pets ?? []).map((p: any) => `${p.name} (${p.type})`).join(', ') || '—'],
     ['Changeover time', family?.config?.changeover_time],
     ['Changeover location', family?.config?.changeover_location],
-    ['Family members', (members ?? []).map((m: any) => `${m.display_name} (${m.role})`).join(', ')],
+    ['Members', (members ?? []).map((m: any) => `${m.display_name} (${m.role})`).join(', ')],
   ]))
 
   const scheduleHtml = section('Custody schedule',
@@ -163,9 +166,11 @@ Deno.serve(async (req) => {
   ))
 
   const messagesHtml = section(`Messages (${messages?.length ?? 0})`, table(
-    ['Date', 'Content'],
+    ['Date', 'From', 'Thread', 'Content'],
     (messages ?? []).map((m: any) => [
-      esc(fmtDate(m.created_at)),
+      esc(fmtDate(m.sent_at)),
+      esc(userIdMap[m.sender_id] ?? 'Unknown'),
+      esc((m.message_threads as any)?.topic ?? '—'),
       `<span style="white-space:pre-wrap">${esc(m.content)}</span>`,
     ])
   ))

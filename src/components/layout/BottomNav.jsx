@@ -49,8 +49,8 @@ export default function BottomNav() {
 
   const vp = family?.config?.viewer_permissions ?? {}
   const noticeboardEnabled = family?.config?.noticeboard_enabled !== false
-  const messagingEnabled   = isParent && !!family?.config?.messaging_enabled
-  const expensesEnabled    = isParent && !!family?.config?.expenses_enabled
+  const messagingEnabled   = !!family?.config?.messaging_enabled && (isParent || vp.messaging === true)
+  const expensesEnabled    = !!family?.config?.expenses_enabled  && (isParent || vp.expenses  === true)
 
   const canSee = (key) => isParent || vp[key] !== false
 
