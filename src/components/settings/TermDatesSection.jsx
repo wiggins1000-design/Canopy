@@ -138,27 +138,23 @@ export default function TermDatesSection({ onNewDates }) {
     let added = 0
     let updated = 0
 
-    // Build a lookup of existing events by date|title so we can update
-    // source_subject on events that were previously added with a generic label
+    // Lookup existing events by date|title
     const existingByKey = new Map(events.map(e => [`${e.event_date}|${e.title}`, e]))
     const seen = new Set(events.map(e => `${e.event_date}|${e.title}`))
 
     for (const cal of kbData) {
       const schoolLabel = cal.school_name ?? cal.homepage_url
+      const toRetag = []  // IDs of existing generic-label events to retag
+
       for (const ev of cal.term_dates ?? []) {
         if (!ev.date || !ev.title) continue
         const key = `${ev.date}|${ev.title}`
         const existing = existingByKey.get(key)
 
         if (existing) {
-          // Already in calendar — update source_subject if it's a generic label
+          // Already in calendar — queue for retag if source_subject is generic
           const isGeneric = !existing.source_subject || existing.source_subject === 'School term dates'
-          if (isGeneric) {
-            await supabase.from('family_events')
-              .update({ source_subject: schoolLabel })
-              .eq('id', existing.id)
-            updated++
-          }
+          if (isGeneric) toRetag.push(existing.id)
         } else if (!seen.has(key)) {
           // New date — insert it
           const { error } = await supabase.rpc('create_family_event', {
@@ -172,13 +168,23 @@ export default function TermDatesSection({ onNewDates }) {
           if (!error) { added++; seen.add(key) }
         }
       }
+
+      // Batch-update source_subject for existing generic-label events
+      if (toRetag.length) {
+        const { data: retagCount } = await supabase.rpc('update_term_date_school', {
+          p_family_id:    family.id,
+          p_event_ids:    toRetag,
+          p_school_label: schoolLabel,
+        })
+        updated += retagCount ?? 0
+      }
     }
 
     setKbImporting(false)
     if (added > 0 || updated > 0) {
       const parts = []
       if (added)   parts.push(`${added} date${added !== 1 ? 's' : ''} added`)
-      if (updated) parts.push(`${updated} updated with school name`)
+      if (updated) parts.push(`${updated} labelled with school name`)
       setKbMsg({ type: 'success', msg: `${parts.join(', ')}.` })
       loadEvents()
     } else {
