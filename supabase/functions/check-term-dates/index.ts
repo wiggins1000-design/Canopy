@@ -612,11 +612,8 @@ ${content.slice(0, 8000)}`,
   } catch { return [] }
 }
 
-// Strip HTML tags when content is raw HTML (direct-fetch fallback).
-// Removes scripts/styles first, then all tags, then decodes common entities.
-// Reader output (markdown/plain text) passes through unchanged.
+// Always strip HTML/script/style tags. Regexes are no-ops on clean text so safe to call unconditionally.
 function cleanForClaude(raw: string): string {
-  if ((raw.match(/<[a-zA-Z][^>]{0,200}>/g) ?? []).length < 15) return raw
   return raw
     .replace(/<script\b[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[\s\S]*?<\/style>/gi, '')
@@ -626,9 +623,34 @@ function cleanForClaude(raw: string): string {
     .replace(/&#\d+;/g, ' ').replace(/\s{2,}/g, ' ').trim()
 }
 
+// Find where term dates content actually starts and return a focused 15k-char window.
+function extractTermDatesSection(content: string): string {
+  const markers = [
+    /school\s+term\s+dates?[\s\W]/i,
+    /\bterm\s+dates?\b/i,
+    /\bautumn\s+term\b/i,
+    /\bspring\s+term\b/i,
+    /\bsummer\s+term\b/i,
+    /\bacademic\s+(?:year|calendar)\b/i,
+  ]
+  for (const p of markers) {
+    const m = content.match(p)
+    if (m?.index !== undefined) {
+      const start = Math.max(0, m.index - 300)
+      const section = content.slice(start, start + 15000)
+      if (/20\d\d/.test(section)) return section
+    }
+  }
+  return content
+}
+
 async function extractTermDates(rawContent: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const today = new Date().toISOString().split('T')[0]
-  const content = cleanForClaude(rawContent)
+  const cleaned = cleanForClaude(rawContent)
+  const content = extractTermDatesSection(cleaned)
+
+  console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→section ${content.length} chars`)
+  console.log('section preview:', content.slice(0, 300))
 
   const res = await callClaude(
     `Extract all UK school term dates from this content. Today is ${today}.
@@ -659,11 +681,10 @@ Rules:
 - Summer holiday inference: many schools list when Summer Term ends and when Autumn Term begins without explicitly naming the "Summer Holiday". If the content shows a Summer Term end date and an Autumn Term start date (or INSET day) with no Summer Holiday in between, infer a "Summer Holiday" event: date = the day after the last day of Summer Term, end_date = the day before the first school day or INSET day of Autumn Term. Do not infer one if a Summer Holiday is already listed explicitly.
 
 Content:
-${content.slice(0, 20000)}`,
+${content.slice(0, 15000)}`,
     2048
   )
 
-  console.log('extractTermDates content preview:', content.slice(0, 300))
   console.log('Claude raw response:', res)
 
   if (!res) return { termDates: [], schoolName: null }
