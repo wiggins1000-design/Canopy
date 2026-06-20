@@ -119,133 +119,34 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
     }
   }
 
-  // Cache key is always just the hostname — path URLs still share the same school cache
+  // Cache key is always just the hostname
   const normalised = normaliseUrl(school_url)
 
-  // If the user pasted a specific page URL (e.g. /term-dates), use it directly
-  // to bypass bot-protected homepages.
-  const parsedInput = (() => {
-    try { return new URL(school_url.startsWith('http') ? school_url : `https://${school_url}`) }
-    catch { return null }
-  })()
-  const hasPath = !!(parsedInput && parsedInput.pathname.length > 1)
-
-  console.log(`extract-school-info: ${normalised}${hasPath ? ` (direct path: ${parsedInput!.pathname})` : ''}`)
+  console.log(`extract-school-info: ${normalised}`)
 
   try {
-    // ── Cache check (always — keyed on hostname) ──────────────────────────────
+    // ── Check cache for existing school info ──────────────────────────────────
     const { data: cached } = await supabase
       .from('school_calendars')
-      .select('*')
+      .select('school_name, school_address, school_email, school_phone, head_teacher, school_hours, last_fetched_at')
       .eq('homepage_url', normalised)
       .maybeSingle()
 
-    const cacheAgeMs = cached?.last_fetched_at
-      ? Date.now() - new Date(cached.last_fetched_at).getTime()
-      : Infinity
-    const cacheValid = cacheAgeMs < 30 * 24 * 60 * 60 * 1000   // 30 days
-
-    let termDates: any[]     = cached?.term_dates ?? []
-    let termDatesUrl: string = cached?.term_dates_url ?? normalised
-
-    if (hasPath) {
-      // ── Path URL mode: fetch the given URL directly for term dates ─────────
-      // This avoids the bot-blocked homepage entirely.
-      const directUrl = parsedInput!.href
-      termDatesUrl = directUrl
-
-      console.log(`Path URL mode — fetching: ${directUrl}`)
-      // Reader first (Jina is its built-in fallback); Direct as last resort
-      let pageText: string | null = null
-      for (const [label, fetchFn] of [
-        ['Reader', () => fetchViaReader(directUrl)],
-        ['Direct', () => fetchDirect(directUrl)],
-      ] as [string, () => Promise<string | null>][]) {
-        const text = await fetchFn()
-        if (text && !isBotBlocked(text)) {
-          pageText = text
-          console.log(`${label} succeeded: ${text.length} chars`)
-          break
-        }
-        if (text) console.log(`${label} returned bot-blocked content`)
-        else console.log(`${label} returned null`)
-      }
-      if (!pageText) {
-        return respond({ error: 'This school\'s website blocked the request.' })
-      }
-
-      // Extract school info from this page (best effort — may only yield school name)
-      let schoolInfo = await extractSchoolInfo(pageText, directUrl)
-      if (cached) {
-        schoolInfo = {
-          ...schoolInfo,
-          school_address: schoolInfo.school_address ?? cached.school_address ?? null,
-          school_email:   schoolInfo.school_email   ?? cached.school_email   ?? null,
-          school_phone:   schoolInfo.school_phone   ?? cached.school_phone   ?? null,
-          head_teacher:   schoolInfo.head_teacher   ?? cached.head_teacher   ?? null,
-          school_hours:   schoolInfo.school_hours   ?? cached.school_hours   ?? null,
-        }
-      }
-      console.log('Path page extraction:', JSON.stringify(schoolInfo))
-
-      // Fetch + extract term dates
-      if (!cacheValid || termDates.length === 0) {
-        termDates = await extractTermDates(pageText, 4096)
-
-        const pdfUrls = extractPdfUrls(pageText)
-        const pdfTexts: string[] = []
-        for (const pdfUrl of pdfUrls) {
-          console.log(`Fetching term dates PDF: ${pdfUrl}`)
-          const pdfText = await fetchViaReader(pdfUrl)
-          if (pdfText && pdfText.length > 50) {
-            pdfTexts.push(pdfText)
-            const pdfDates = await extractTermDates(pdfText, 4096)
-            const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-            for (const d of pdfDates) {
-              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
-            }
-          }
-        }
-
-        // TypeScript inference runs on all content regardless of whether PDFs were found
-        const combined = pdfTexts.length > 0 ? [pageText, ...pdfTexts].join('\n\n---\n\n') : pageText
-        const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
-        const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-        for (const d of inferred) {
-          if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
-            termDates.push(d)
-            console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
-          }
-        }
-
-        termDates = deduplicateTermDates(termDates)
-        console.log(`Extracted ${termDates.length} term dates (path URL mode)`)
-      } else {
-        console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
-      }
-
-      if (family_id && child_name) await storeSchoolInfo(family_id, child_name, schoolInfo)
-      await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
-      return respond({ ok: true, school_info: schoolInfo, term_dates: termDates.length })
-    }
-
-    // ── Homepage mode ─────────────────────────────────────────────────────────
-
-    // ── Step 1: fetch homepage ────────────────────────────────────────────────
+    // ── Fetch homepage ────────────────────────────────────────────────────────
     const homepageText = await fetchViaReader(normalised)
     if (!homepageText) {
       return respond({ error: 'Could not fetch school homepage. Check the URL is correct.' })
     }
     if (isBotBlocked(homepageText)) {
-      return respond({ error: 'This school\'s website blocked the request.' })
+      return respond({ error: 'This school\'s website is blocking automated access. Enter the school details manually.' })
     }
 
-    // ── Step 2: extract school info from homepage ─────────────────────────────
+    // ── Extract school info ───────────────────────────────────────────────────
     const origin = (() => { try { return new URL(normalised).origin } catch { return normalised } })()
     let schoolInfo = await extractSchoolInfo(homepageText, normalised)
     console.log('Homepage extraction:', JSON.stringify(schoolInfo))
 
-    // Fill contact blanks from cache — avoids extra requests when another family already fetched this school
+    // Fill contact blanks from cache
     if (cached) {
       schoolInfo = {
         ...schoolInfo,
@@ -255,104 +156,32 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
         head_teacher:   schoolInfo.head_teacher   ?? cached.head_teacher   ?? null,
         school_hours:   schoolInfo.school_hours   ?? cached.school_hours   ?? null,
       }
-      if (cached.school_address || cached.school_email || cached.school_phone)
-        console.log('Contact info populated from cache')
     }
 
-    // ── Steps 3 & 4 in parallel — contact enrichment and term-dates fetch are
-    // independent: term_dates_url comes from the homepage extraction, not from
-    // the contact page, so both branches can run at the same time.
-    const initialTermDatesUrl = schoolInfo.term_dates_url ?? termDatesUrl
+    // ── Enrich contact info if incomplete ────────────────────────────────────
+    if (isMissingContactInfo(schoolInfo)) {
+      schoolInfo = await enrichFromContactPage(schoolInfo, normalised, origin)
+      console.log('After contact enrichment:', JSON.stringify(schoolInfo))
+    }
 
-    const [enrichedInfo, termDatesResult] = await Promise.all([
-
-      // Branch A: enrich contact details from contact page
-      (async () => {
-        if (!isMissingContactInfo(schoolInfo)) return schoolInfo
-        const enriched = await enrichFromContactPage(schoolInfo, normalised, origin)
-        console.log('After contact page enrichment:', JSON.stringify(enriched))
-        return enriched
-      })(),
-
-      // Branch B: fetch + extract term dates
-      (async (): Promise<{ termDates: any[]; url: string }> => {
-        if (cacheValid && termDates.length > 0) {
-          console.log(`Cache hit — reusing ${termDates.length} cached term dates`)
-          return { termDates, url: termDatesUrl }
-        }
-        console.log('Cache miss — fetching term dates')
-        let url = initialTermDatesUrl
-        let termDatesText = ''
-
-        if (url && url !== normalised) {
-          console.log(`Fetching term dates from: ${url}`)
-          termDatesText = await fetchViaReader(url) ?? ''
-        }
-
-        if (!termDatesText) {
-          const found = await tryCommonTermDatePaths(normalised)
-          if (found) { url = found.url; termDatesText = found.text }
-        }
-
-        let dates: any[] = []
-        if (termDatesText) {
-          dates = await extractTermDates(termDatesText, 4096)
-
-          // Fetch all PDFs in parallel, then extract dates from each
-          const pdfUrls = extractPdfUrls(termDatesText)
-          const pdfResults = await Promise.all(
-            pdfUrls.map(async (pdfUrl) => {
-              console.log(`Fetching term dates PDF: ${pdfUrl}`)
-              const pdfText = await fetchViaReader(pdfUrl)
-              if (!pdfText || pdfText.length < 50) return null
-              return { text: pdfText, dates: await extractTermDates(pdfText, 4096) }
-            })
-          )
-          const pdfTexts: string[] = []
-          for (const result of pdfResults) {
-            if (!result) continue
-            pdfTexts.push(result.text)
-            const existingKeys = new Set(dates.map((e: any) => `${e.title}||${e.date}`))
-            for (const d of result.dates) {
-              if (d.date && d.title && !existingKeys.has(`${d.title}||${d.date}`)) dates.push(d)
-            }
-          }
-
-          const combined = pdfTexts.length > 0 ? [termDatesText, ...pdfTexts].join('\n\n---\n\n') : termDatesText
-          const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
-          const existingKeys = new Set(dates.map((e: any) => `${e.title}||${e.date}`))
-          for (const d of inferred) {
-            if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) {
-              dates.push(d)
-              console.log(`Inferred: ${d.title} ${d.date}${'end_date' in d && d.end_date ? ` – ${d.end_date}` : ''}`)
-            }
-          }
-
-          dates = deduplicateTermDates(dates)
-          console.log(`Extracted ${dates.length} term dates total (inc. PDFs, after dedup)`)
-        }
-
-        return { termDates: dates, url: url ?? termDatesUrl }
-      })(),
-    ])
-
-    schoolInfo   = enrichedInfo
-    termDates    = termDatesResult.termDates
-    termDatesUrl = termDatesResult.url
-
-    // ── Step 4: store school info in info_bank ────────────────────────────────
+    // ── Store in info_bank ────────────────────────────────────────────────────
     if (family_id && child_name) {
       await storeSchoolInfo(family_id, child_name, schoolInfo)
     }
 
-    // ── Step 5: cache contact info + term dates (always, so other families benefit) ──
-    await cacheSchoolData(normalised, termDatesUrl, termDates, schoolInfo)
+    // ── Cache school info (term dates are managed separately by check-term-dates) ──
+    await supabase.from('school_calendars').upsert({
+      homepage_url:    normalised,
+      school_name:     schoolInfo.school_name     ?? undefined,
+      school_address:  schoolInfo.school_address  ?? undefined,
+      school_email:    schoolInfo.school_email    ?? undefined,
+      school_phone:    schoolInfo.school_phone    ?? undefined,
+      head_teacher:    schoolInfo.head_teacher    ?? undefined,
+      school_hours:    schoolInfo.school_hours    ?? undefined,
+      last_fetched_at: new Date().toISOString(),
+    }, { onConflict: 'homepage_url' })
 
-    return respond({
-      ok:          true,
-      school_info: schoolInfo,
-      term_dates:  termDates.length,
-    })
+    return respond({ ok: true, school_info: schoolInfo })
   } catch (e: any) {
     console.error('extract-school-info error:', e)
     return respond({ error: e?.message ?? 'Extraction failed' })
@@ -777,19 +606,6 @@ function inferInsetDays(allContent: string): Array<{title: string, date: string,
   return results
 }
 
-function extractPdfUrls(content: string): string[] {
-  const seen = new Set<string>()
-  const urls: string[] = []
-  const addUrl = (u: string) => {
-    const clean = u.replace(/[)\]"'>\s]+$/, '')
-    if (clean && !seen.has(clean)) { seen.add(clean); urls.push(clean) }
-  }
-  // Markdown links to PDFs — by .pdf extension OR type=pdf / format=pdf query param
-  for (const m of content.matchAll(/\[[^\]]*\]\((https?:\/\/[^)]*(?:\.pdf|[?&]type=pdf|[?&]format=pdf)[^)]*)\)/gi)) addUrl(m[1])
-  // Bare PDF URLs
-  for (const m of content.matchAll(/https?:\/\/\S+(?:\.pdf|[?&]type=pdf|[?&]format=pdf)\S*/gi)) addUrl(m[0])
-  return urls.slice(0, 5)
-}
 
 function isBotBlocked(text: string): boolean {
   const lower = text.slice(0, 1000).toLowerCase()
@@ -983,27 +799,6 @@ async function storeSchoolInfo(
     )
 }
 
-async function cacheSchoolData(
-  homepageUrl:  string,
-  termDatesUrl: string,
-  termDates:    any[],
-  info:         SchoolInfo,
-): Promise<void> {
-  const contentHash = await hashString(JSON.stringify(termDates))
-  await supabase.from('school_calendars').upsert({
-    homepage_url:    homepageUrl,
-    term_dates_url:  termDatesUrl,
-    school_name:     info.school_name     ?? undefined,
-    school_address:  info.school_address  ?? undefined,
-    school_email:    info.school_email    ?? undefined,
-    school_phone:    info.school_phone    ?? undefined,
-    head_teacher:    info.head_teacher    ?? undefined,
-    school_hours:    info.school_hours    ?? undefined,
-    term_dates:      termDates,
-    content_hash:    contentHash,
-    last_fetched_at: new Date().toISOString(),
-  }, { onConflict: 'homepage_url' })
-}
 
 async function addTermDateEvents(
   familyId:    string,
@@ -1053,57 +848,6 @@ async function addTermDateEvents(
   return added
 }
 
-async function copyToSiblingFamilies(homepageUrl: string, termDates: any[], excludeFamilyId: string): Promise<void> {
-  try {
-    const { data: rows } = await supabase
-      .from('info_bank')
-      .select('family_id, data')
-      .eq('section', 'school')
-
-    const seen = new Set<string>()
-    for (const row of rows ?? []) {
-      if (row.family_id === excludeFamilyId) continue
-      if (seen.has(row.family_id)) continue
-      const schoolUrl = (row.data as any)?.school_url
-      if (!schoolUrl) continue
-      try { if (normaliseUrl(schoolUrl) !== homepageUrl) continue } catch { continue }
-      seen.add(row.family_id)
-      const added = await addTermDateEvents(row.family_id, homepageUrl, termDates)
-      if (added > 0) console.log(`Copied ${added} term dates to sibling family ${row.family_id}`)
-    }
-  } catch (e: any) {
-    console.warn('copyToSiblingFamilies failed:', e?.message)
-  }
-}
-
-// ── Common term date URL patterns ─────────────────────────────────────────────
-
-async function tryCommonTermDatePaths(homepageUrl: string): Promise<{ url: string; text: string } | null> {
-  const origin = (() => { try { return new URL(homepageUrl).origin } catch { return '' } })()
-  if (!origin) return null
-
-  const paths = [
-    '/term-dates', '/term-dates/', '/term_dates', '/termdates',
-    '/parents/term-dates', '/parents-and-carers/term-dates',
-    '/key-information/term-dates', '/school-information/term-dates',
-    '/about/term-dates', '/calendar', '/school-calendar', '/academic-calendar',
-    '/parents/calendar', '/term-times', '/holiday-dates',
-  ]
-
-  const urlChecks = await Promise.all(
-    paths.map(async (path) => {
-      try {
-        const url = `${origin}${path}`
-        const r = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(3000) })
-        return r.ok ? url : null
-      } catch { return null }
-    })
-  )
-  const url = urlChecks.find(Boolean)
-  if (!url) return null
-  const text = await fetchViaReader(url)
-  return (text && text.length > 200) ? { url, text } : null
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1143,10 +887,6 @@ function normaliseUrl(url: string): string {
   }
 }
 
-async function hashString(s: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
 
 function respond(body: object): Response {
   return new Response(JSON.stringify(body), {
