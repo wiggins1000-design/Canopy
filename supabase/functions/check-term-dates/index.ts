@@ -199,22 +199,21 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
     console.log(`Using direct term dates URL: ${homepageUrl}`)
     termDatesUrl = homepageUrl
   } else {
-    // Try a direct fetch of the homepage first — saves a Jina call for static sites
-    const homepageContent = await fetchPage(homepageUrl)
+    // Fetch homepage via reader (relaxed check — any real page, not just calendar-keyword pages)
+    const homepageContent = await fetchHomepage(homepageUrl)
     if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
 
     console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-    // Try 1: Jina link summary — scan for term dates URL patterns
-    const homepageLinks = await fetchJinaLinks(homepageUrl)
-    const cleanedLinks  = homepageLinks.map(l => l.replace(/[)>\s]+$/, ''))
-    console.log(`Homepage links found: ${cleanedLinks.length}`, cleanedLinks.slice(0, 30))
-    let found = findTermDatesLinkByPattern(cleanedLinks)
+    // Try 1: extract links from reader content — scan for term dates URL patterns
+    const links = extractLinksFromContent(homepageContent, origin)
+    console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
+    let found = findTermDatesLinkByPattern(links)
 
     // Try 2: ask Claude to pick from the link list
-    if (!found && cleanedLinks.length > 0) {
+    if (!found && links.length > 0) {
       console.log('Pattern match failed, asking Claude to pick…')
-      found = await pickTermDatesLink(cleanedLinks, origin)
+      found = await pickTermDatesLink(links, origin)
     }
 
     // Try 3: ask Claude to find a URL from page content
@@ -237,7 +236,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       }
     }
 
-    if (!found) return { error: 'Could not find term dates page. Enter the direct URL of your school\'s term dates page in the School website field.' }
+    if (!found) return { error: 'Could not find term dates page on this school\'s website.' }
     termDatesUrl = found
   }
 
@@ -295,9 +294,18 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 
-// Fetch page content using canopy-reader (Puppeteer + pdf-parse + Vision).
-// Falls back to Jina if reader is not configured, then direct fetch.
+// Fetch homepage — relaxed content check (just needs to be a real page, not bot-blocked).
+// Used for the first hop so school homepages without calendar keywords aren't rejected.
+async function fetchHomepage(url: string): Promise<string | null> {
+  return fetchPageWithCheck(url, isRealPage)
+}
+
+// Fetch term dates page — strict check requires calendar-relevant keywords.
 async function fetchPage(url: string): Promise<string | null> {
+  return fetchPageWithCheck(url, looksLikeUsefulContent)
+}
+
+async function fetchPageWithCheck(url: string, check: (t: string) => boolean): Promise<string | null> {
   const readerUrl    = Deno.env.get('READER_URL')
   const readerSecret = Deno.env.get('READER_SECRET') ?? ''
 
@@ -309,19 +317,20 @@ async function fetchPage(url: string): Promise<string | null> {
       })
       if (res.ok) {
         const text = await res.text()
-        if (text && looksLikeUsefulContent(text)) {
+        if (text && check(text)) {
           console.log(`Reader fetch succeeded for ${url}: ${text.length} chars`)
           return text
         }
+        if (text) console.log(`Reader returned content but failed check for ${url} (${text.length} chars)`)
       }
     } catch (e: any) {
       console.warn(`Reader fetch failed for ${url}: ${e?.message} — falling back to Jina`)
     }
   }
 
-  // Fallback: Jina (strips HTML boilerplate, handles most pages)
+  // Fallback: Jina
   const jina = await fetchViaJina(url)
-  if (jina && looksLikeUsefulContent(jina)) {
+  if (jina && check(jina)) {
     console.log(`Jina fetch succeeded for ${url}: ${jina.length} chars`)
     return jina
   }
@@ -329,12 +338,29 @@ async function fetchPage(url: string): Promise<string | null> {
   // Last resort: direct fetch
   console.log(`Jina insufficient for ${url}, trying direct fetch…`)
   const direct = await fetchDirect(url)
-  if (direct && looksLikeUsefulContent(direct)) {
+  if (direct && check(direct)) {
     console.log(`Direct fetch succeeded for ${url}: ${direct.length} chars`)
     return direct
   }
 
   return null
+}
+
+// Extract all links from reader-returned content (markdown format with embedded links).
+function extractLinksFromContent(content: string, origin: string): string[] {
+  const seen = new Set<string>()
+  const add = (raw: string) => {
+    const url = raw.replace(/[.,;)>\]"'\s]+$/, '')
+    if (url.startsWith('http') && !url.includes(' ') && url.length < 300) seen.add(url)
+  }
+
+  // Markdown links: [text](url) — absolute and relative
+  for (const m of content.matchAll(/\[[^\]]*\]\((\/[^)"\s]+)\)/g)) add(`${origin}${m[1]}`)
+  for (const m of content.matchAll(/\[[^\]]*\]\((https?:\/\/[^)"\s]+)\)/g)) add(m[1])
+  // Bare absolute URLs in text
+  for (const m of content.matchAll(/https?:\/\/[^\s\])"<]+/g)) add(m[0])
+
+  return [...seen].slice(0, 60)
 }
 
 async function fetchDirect(url: string): Promise<string | null> {
@@ -366,12 +392,20 @@ async function fetchDirect(url: string): Promise<string | null> {
   }
 }
 
+// Any real page — used for homepage fetching where calendar keywords aren't expected
+function isRealPage(text: string): boolean {
+  if (text.length < 200) return false
+  const lc = text.toLowerCase()
+  return !lc.includes('just a moment') && !lc.includes('captcha') &&
+         !lc.includes('security verification') && !lc.includes('verifying you are not a bot') &&
+         !lc.includes('enable javascript to continue')
+}
+
+// Term dates page — must contain calendar-relevant keywords
 function looksLikeUsefulContent(text: string): boolean {
   if (text.length < 200) return false
   const lc = text.toLowerCase()
-  // Reject pages that appear to be empty JS shells
   if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
-  // Must contain calendar-relevant keywords
   return lc.includes('term') || lc.includes('holiday') || lc.includes('inset') ||
          lc.includes('autumn') || lc.includes('spring') || lc.includes('summer')
 }
@@ -392,30 +426,6 @@ async function fetchViaJina(url: string): Promise<string | null> {
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
-  }
-}
-
-// Fetch all links from a page using Jina's link summary header
-async function fetchJinaLinks(url: string): Promise<string[]> {
-  try {
-    const res = await fetch(`https://r.jina.ai/${url}`, {
-      headers: {
-        'Accept':            'text/plain',
-        'X-With-Links-Summary': 'all',
-      },
-      signal: AbortSignal.timeout(25000),
-    })
-    if (!res.ok) return []
-    const text = await res.text()
-    const linksSection = text.split(/links\/buttons:|links:\n/i).pop() ?? ''
-    const links: string[] = []
-    for (const line of linksSection.split('\n')) {
-      const m = line.match(/https?:\/\/[^\s]+/)
-      if (m) links.push(m[0])
-    }
-    return [...new Set(links)].slice(0, 30)
-  } catch {
-    return []
   }
 }
 
