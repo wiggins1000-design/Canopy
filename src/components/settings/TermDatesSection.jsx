@@ -265,6 +265,18 @@ export default function TermDatesSection({ onNewDates }) {
     setKbData(freshData)
     await importFromKB(freshData)
 
+    // Surface any partial school failures even when other schools succeeded
+    if (failures.length > 0) {
+      const failedNames = failures.map(f => {
+        try { return new URL(f.homepageUrl).hostname.replace(/^www\./, '') } catch { return 'one school' }
+      })
+      setKbMsg(prev => ({
+        type: prev?.type ?? 'info',
+        msg: (prev?.msg ? prev.msg + ' ' : '') +
+          `Couldn't get dates for ${failedNames.join(', ')} — try the photo tool or add manually.`,
+      }))
+    }
+
     setKbRefreshing(false)
   }
 
