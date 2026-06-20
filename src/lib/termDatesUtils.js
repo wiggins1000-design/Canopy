@@ -5,6 +5,8 @@ export function classifyTermEvent(title, endDate) {
   const lower = (title ?? '').toLowerCase()
   if (lower.includes('inset')) return 'inset'
   if (endDate) return 'holiday'
+  // Single-day events with no end_date: bank holidays and explicit closed days
+  if (lower.includes('bank holiday') || lower.includes('closed')) return 'holiday'
   return null
 }
 

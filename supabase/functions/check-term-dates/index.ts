@@ -117,6 +117,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     const isStale = ageMs > 30 * 24 * 60 * 60 * 1000
 
     let termDates: any[] = (cached as any)?.term_dates ?? []
+    let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
 
     if (!cached || isStale || forceRefresh) {
       const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
@@ -135,6 +136,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
       if (scraped.termDates?.length) {
         termDates = scraped.termDates
+        if (scraped.schoolName) resolvedSchoolName = scraped.schoolName
         await supabase.from('school_calendars').upsert({
           homepage_url:    homepageUrl,
           term_dates_url:  scraped.termDatesUrl,
@@ -150,9 +152,9 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
     let totalAdded = 0
     for (const familyId of familyIds) {
-      const added = await applyTermDatesToFamily(familyId, termDates)
+      const added = await applyTermDatesToFamily(familyId, termDates, resolvedSchoolName)
       if (added > 0) {
-        await postTermDatesNotice(familyId, added, (cached as any)?.school_name)
+        await postTermDatesNotice(familyId, added, resolvedSchoolName)
       }
       await cleanTermDateDuplicates(familyId)
       totalAdded += added
@@ -499,9 +501,9 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
   const res = await callClaude(
-    `Find all links to downloadable files (PDFs, Word documents, spreadsheets) on this school webpage.
-Look for patterns like "Download", "Click here", attachment links, file links, or any URLs ending in .pdf/.doc/.docx.
-Also look for links to Google Drive, OneDrive, or SharePoint.
+    `Find links to downloadable documents (PDFs, Word files, spreadsheets) on this school webpage that contain TERM DATES, SCHOOL HOLIDAY DATES, or ACADEMIC CALENDARS — i.e. documents specifically about when the school is open or closed during the academic year.
+
+Do NOT include: exam timetables, exam schedules, PPE timetables, assessment calendars, prospectuses, policies, handbooks, or any documents unrelated to school holidays and term dates.
 
 Base URL: ${pageUrl}
 
@@ -536,7 +538,7 @@ Return ONLY valid JSON — no markdown, no explanation:
   "school_name": "name of the school or null",
   "events": [
     {
-      "title": "clear title e.g. Autumn Term Starts / Half Term / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day / Term Ends",
+      "title": "clear title e.g. Half Term / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day",
       "date": "YYYY-MM-DD",
       "end_date": "YYYY-MM-DD or null (use for multi-day holidays and half terms)"
     }
@@ -547,9 +549,11 @@ Rules:
 - Include ALL academic years shown — past, present and future
 - Include: half-term holidays, school holidays (Christmas, Easter, summer), INSET days, bank holidays
 - Do NOT include term start dates or term end dates — only closed/holiday periods and INSET days
+- Do NOT include exam periods, assessment weeks, PPE (Pre-Public Exams), GCSE/A-level exam timetables, or any event where school is open for exams
 - For multi-day holiday periods always set end_date
 - Use the academic year context to determine the correct year for each date
 - If a table shows holiday date ranges, create one event per holiday period with start and end_date
+- Summer holiday inference: many schools list when Summer Term ends and when Autumn Term begins without explicitly naming the "Summer Holiday". If the content shows a Summer Term end date and an Autumn Term start date (or INSET day) with no Summer Holiday in between, infer a "Summer Holiday" event: date = the day after the last day of Summer Term, end_date = the day before the first school day or INSET day of Autumn Term. Do not infer one if a Summer Holiday is already listed explicitly.
 
 Content:
 ${content}`,
@@ -573,7 +577,7 @@ ${content}`,
 
 // ── Apply to family ───────────────────────────────────────────────────────────
 
-async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promise<number> {
+async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null): Promise<number> {
   const { data: existing } = await supabase
     .from('family_events')
     .select('title, event_date')
@@ -585,6 +589,8 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 1)
   const cutoffStr = cutoff.toISOString().split('T')[0]
+
+  const sourceSubject = schoolName ?? 'School term dates'
 
   let added = 0
   for (const event of termDates) {
@@ -599,7 +605,7 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[]): Promi
       p_event_date:     event.date,
       p_end_date:       event.end_date ?? null,
       p_source:         'term_dates',
-      p_source_subject: 'School term dates',
+      p_source_subject: sourceSubject,
     })
 
     if (error) {

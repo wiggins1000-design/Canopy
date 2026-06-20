@@ -56,6 +56,7 @@ export default function TermDatesSection({ onNewDates }) {
   const [kbData, setKbData]           = useState(undefined) // undefined=checking, null=none, arr=found
   const [kbImporting, setKbImporting] = useState(false)
   const [kbMsg, setKbMsg]             = useState(null)
+  const [kbRefreshing, setKbRefreshing] = useState(false)
 
   // Photos
   const photosRef                         = useRef(null)
@@ -143,6 +144,12 @@ export default function TermDatesSection({ onNewDates }) {
 
   async function checkKB() {
     setKbData(undefined)
+    const found = await fetchKBData()
+    setKbData(found)
+    return found
+  }
+
+  async function fetchKBData() {
     const { data: infoRows } = await supabase
       .from('info_bank')
       .select('data')
@@ -154,7 +161,7 @@ export default function TermDatesSection({ onNewDates }) {
       .filter(Boolean)
       .filter((v, i, arr) => arr.indexOf(v) === i)
 
-    if (!urls.length) { setKbData(null); return }
+    if (!urls.length) return null
 
     const { data: cals } = await supabase
       .from('school_calendars')
@@ -162,11 +169,12 @@ export default function TermDatesSection({ onNewDates }) {
       .in('homepage_url', urls)
 
     const found = (cals ?? []).filter(c => c.term_dates?.length > 0)
-    setKbData(found.length > 0 ? found : null)
+    return found.length > 0 ? found : null
   }
 
-  async function importFromKB() {
-    if (!kbData?.length) return
+  async function importFromKB(dataOverride) {
+    const data = dataOverride ?? kbData
+    if (!data?.length) return
     setKbImporting(true)
     setKbMsg(null)
     let added = 0
@@ -175,7 +183,7 @@ export default function TermDatesSection({ onNewDates }) {
     // `seen` deduplicates inserts across schools (shared bank holidays etc.)
     const seen = new Set(events.map(e => `${e.event_date}|${e.title}`))
 
-    for (const cal of kbData) {
+    for (const cal of data) {
       const schoolLabel = cal.school_name ?? cal.homepage_url
       const pairs = []  // all valid {date, title} pairs for this school's KB
 
@@ -220,6 +228,26 @@ export default function TermDatesSection({ onNewDates }) {
     } else {
       setKbMsg({ type: 'info', msg: 'Calendar already up to date.' })
     }
+  }
+
+  async function syncFromSchool() {
+    setKbRefreshing(true)
+    setKbMsg(null)
+
+    // Step 1: re-scrape school website and apply directly to family_events
+    const { error } = await supabase.functions.invoke('check-term-dates', { body: {} })
+    if (error) {
+      setKbRefreshing(false)
+      setKbMsg({ type: 'error', msg: 'Could not reach school website.' })
+      return
+    }
+
+    // Step 2: reload KB then import — pass data directly to avoid stale state
+    const freshData = await fetchKBData()
+    setKbData(freshData)
+    await importFromKB(freshData)
+
+    setKbRefreshing(false)
   }
 
   async function handlePhotoFiles(files) {
@@ -623,8 +651,8 @@ export default function TermDatesSection({ onNewDates }) {
               </div>
             ))}
             {kbMsg && <p className={`text-xs font-medium mb-2 ${msgCls(kbMsg.type)}`}>{kbMsg.msg}</p>}
-            <Button className="w-full py-2.5 text-sm" loading={kbImporting} onClick={importFromKB}>
-              Import term dates
+            <Button className="w-full py-2.5 text-sm" loading={kbRefreshing || kbImporting} onClick={syncFromSchool}>
+              Sync from school website
             </Button>
           </OptionPanel>)}
 
