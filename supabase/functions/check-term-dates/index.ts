@@ -612,15 +612,21 @@ ${content.slice(0, 8000)}`,
   } catch { return [] }
 }
 
-// Always strip HTML/script/style tags. Regexes are no-ops on clean text so safe to call unconditionally.
+// Strip HTML while preserving line structure so Claude can parse date lists correctly.
+// Block-level elements become newlines; inline tags become spaces. No-op on clean text.
 function cleanForClaude(raw: string): string {
   return raw
     .replace(/<script\b[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|td|tr|th|h[1-6]|section|article|header|footer)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>').replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
-    .replace(/&#\d+;/g, ' ').replace(/\s{2,}/g, ' ').trim()
+    .replace(/&#\d+;/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 // Find where term dates content actually starts and return a focused 15k-char window.
