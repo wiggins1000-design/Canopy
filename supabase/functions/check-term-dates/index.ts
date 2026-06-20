@@ -199,40 +199,45 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
     console.log(`Using direct term dates URL: ${homepageUrl}`)
     termDatesUrl = homepageUrl
   } else {
-    // Fetch homepage via reader (relaxed check — any real page, not just calendar-keyword pages)
-    const homepageContent = await fetchHomepage(homepageUrl)
-    if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
+    // Try 1: sitemap.xml — single request, no homepage fetch needed if this succeeds
+    let found: string | null = await fetchSitemapTermDatesUrl(origin)
 
-    console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
-
-    // Try 1: extract links from reader content — scan for term dates URL patterns
-    const links = extractLinksFromContent(homepageContent, origin)
-    console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
-    let found = findTermDatesLinkByPattern(links)
-
-    // Try 2: ask Claude to pick from the link list
-    if (!found && links.length > 0) {
-      console.log('Pattern match failed, asking Claude to pick…')
-      found = await pickTermDatesLink(links, origin)
-    }
-
-    // Try 3: ask Claude to find a URL from page content
     if (!found) {
-      console.log('Trying content-based search…')
-      found = await findTermDatesUrl(homepageContent, origin)
-    }
+      // Fetch homepage via reader (relaxed check — any real page, not just calendar-keyword pages)
+      const homepageContent = await fetchHomepage(homepageUrl)
+      if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
 
-    // Try 4: common UK school URL patterns
-    if (!found) {
-      console.log('Trying common URL patterns…')
-      found = await tryCommonPaths(origin)
-    }
+      console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-    // Try 5: homepage itself contains term dates
-    if (!found) {
-      const lc = homepageContent.toLowerCase()
-      if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
-        found = homepageUrl
+      // Try 2: extract links from reader content — scan for term dates URL patterns
+      const links = extractLinksFromContent(homepageContent, origin)
+      console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
+      found = findTermDatesLinkByPattern(links)
+
+      // Try 3: ask Claude to pick from the link list
+      if (!found && links.length > 0) {
+        console.log('Pattern match failed, asking Claude to pick…')
+        found = await pickTermDatesLink(links, origin)
+      }
+
+      // Try 4: ask Claude to find a URL from page content
+      if (!found) {
+        console.log('Trying content-based search…')
+        found = await findTermDatesUrl(homepageContent, origin)
+      }
+
+      // Try 5: common UK school URL patterns
+      if (!found) {
+        console.log('Trying common URL patterns…')
+        found = await tryCommonPaths(origin)
+      }
+
+      // Try 6: homepage itself contains term dates
+      if (!found) {
+        const lc = homepageContent.toLowerCase()
+        if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
+          found = homepageUrl
+        }
       }
     }
 
@@ -458,18 +463,23 @@ Rules:
 }
 
 function findTermDatesLinkByPattern(links: string[]): string | null {
-  const patterns = [/term.?dates/i, /term.?times/i, /school.?calendar/i, /key.?dates/i, /holiday.?dates/i, /school.?dates/i, /academic.?calendar/i, /dates.?deadlines/i]
-  for (const link of links) {
-    for (const p of patterns) {
-      if (p.test(link)) return link
-    }
+  // More specific patterns first — /calendar alone is a weaker signal
+  const patterns = [
+    /term.?dates/i, /term.?times/i, /school.?calendar/i, /key.?dates/i,
+    /holiday.?dates/i, /school.?dates/i, /academic.?calendar/i, /dates.?deadlines/i,
+    /\/calendar(?:$|[/?#])/i,
+  ]
+  for (const p of patterns) {
+    const match = links.find(l => p.test(l))
+    if (match) return match
   }
   return null
 }
 
 async function pickTermDatesLink(links: string[], origin: string): Promise<string | null> {
   const res = await callClaude(
-    `From this list of URLs from a UK school website (${origin}), return the single URL most likely to be the term dates or school calendar page.
+    `From this list of URLs from a UK school website (${origin}), return the single URL most likely to be the term dates, school calendar, or calendar page.
+Look for URLs containing: term-dates, term-times, school-calendar, academic-calendar, key-dates, holiday-dates, school-dates, calendar.
 Return ONLY the URL — nothing else. If none are relevant, return: null
 
 URLs:
@@ -508,6 +518,71 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
   const url = checks.find(Boolean) ?? null
   if (url) console.log(`Found via common path: ${url}`)
   return url
+}
+
+// Fetch sitemap.xml and return the URL most likely to contain term dates/calendar.
+// This is the fastest discovery method — one HTTP request, no Puppeteer, no Claude.
+async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> {
+  // Ordered by specificity — more specific patterns ranked higher
+  const score = (url: string): number => {
+    if (/term[_-]?dates/i.test(url))         return 10
+    if (/term[_-]?times/i.test(url))          return 9
+    if (/academic[_-]?calendar/i.test(url))   return 8
+    if (/school[_-]?calendar/i.test(url))     return 7
+    if (/key[_-]?dates/i.test(url))           return 6
+    if (/holiday[_-]?dates/i.test(url))       return 5
+    if (/school[_-]?dates/i.test(url))        return 4
+    if (/\/calendar(?:$|[/?#])/i.test(url))   return 3
+    return 0
+  }
+
+  const extractLocs = (xml: string): string[] =>
+    [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map(m => m[1].trim())
+
+  for (const path of ['/sitemap.xml', '/sitemap_index.xml']) {
+    try {
+      const res = await fetch(`${origin}${path}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Canopy/1.0; +https://canopy.app)', Accept: 'application/xml,text/xml,*/*' },
+        signal: AbortSignal.timeout(8000),
+        redirect: 'follow',
+      })
+      if (!res.ok) continue
+      const xml = await res.text()
+      let locs = extractLocs(xml)
+      console.log(`Sitemap ${path}: ${locs.length} URLs`)
+
+      // If it's a sitemap index, fetch child sitemaps and accumulate page URLs
+      if (xml.includes('<sitemapindex')) {
+        const childSitemaps = locs.filter(u => u.endsWith('.xml'))
+        const childResults = await Promise.all(
+          childSitemaps.slice(0, 5).map(async (childUrl) => {
+            try {
+              const cr = await fetch(childUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' })
+              return cr.ok ? extractLocs(await cr.text()) : []
+            } catch { return [] }
+          })
+        )
+        locs = childResults.flat()
+        console.log(`Sitemap index expanded to ${locs.length} page URLs`)
+      }
+
+      const scored = locs
+        .map(url => ({ url, s: score(url) }))
+        .filter(x => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+
+      if (scored.length > 0) {
+        console.log(`Sitemap match: ${scored[0].url} (score ${scored[0].s})`)
+        return scored[0].url
+      }
+
+      console.log(`Sitemap found but no term-date URLs matched`)
+      return null // sitemap found but no relevant URLs — no point trying the other path
+    } catch (e: any) {
+      console.log(`Sitemap not available at ${origin}${path}: ${e?.message}`)
+    }
+  }
+  return null
 }
 
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
