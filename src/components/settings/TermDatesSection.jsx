@@ -235,10 +235,19 @@ export default function TermDatesSection({ onNewDates }) {
     setKbMsg(null)
 
     // Step 1: re-scrape school website and apply directly to family_events
-    const { error } = await supabase.functions.invoke('check-term-dates', { body: {} })
+    const { data: fnData, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
     if (error) {
       setKbRefreshing(false)
       setKbMsg({ type: 'error', msg: 'Could not reach school website.' })
+      return
+    }
+
+    // Surface any per-school scrape failures
+    const failures = (fnData?.results ?? []).filter(r => r.status === 'error')
+    if (failures.length) {
+      const msgs = failures.map(r => `${new URL(r.homepageUrl).hostname}: ${r.error}`).join(' | ')
+      setKbMsg({ type: 'error', msg: `Scrape failed — ${msgs}` })
+      setKbRefreshing(false)
       return
     }
 
