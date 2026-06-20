@@ -174,11 +174,11 @@ export default function TermDatesSection({ onNewDates }) {
     return found.length > 0 ? found : null
   }
 
-  async function importFromKB(dataOverride) {
+  async function importFromKB(dataOverride, { suppressMessage = false } = {}) {
     const data = dataOverride ?? kbData
     if (!data?.length) return
     setKbImporting(true)
-    setKbMsg(null)
+    if (!suppressMessage) setKbMsg(null)
     let added = 0
     let updated = 0
 
@@ -222,12 +222,14 @@ export default function TermDatesSection({ onNewDates }) {
 
     setKbImporting(false)
     if (added > 0 || updated > 0) {
-      const parts = []
-      if (added)   parts.push(`${added} date${added !== 1 ? 's' : ''} added`)
-      if (updated) parts.push(`${updated} labelled with school name`)
-      setKbMsg({ type: 'success', msg: `${parts.join(', ')}.` })
+      if (!suppressMessage) {
+        const parts = []
+        if (added)   parts.push(`${added} date${added !== 1 ? 's' : ''} added`)
+        if (updated) parts.push(`${updated} labelled with school name`)
+        setKbMsg({ type: 'success', msg: `${parts.join(', ')}.` })
+      }
       loadEvents()
-    } else {
+    } else if (!suppressMessage) {
       setKbMsg({ type: 'info', msg: 'Calendar already up to date.' })
     }
   }
@@ -236,7 +238,6 @@ export default function TermDatesSection({ onNewDates }) {
     setKbRefreshing(true)
     setKbMsg(null)
 
-    // Step 1: re-scrape school website and apply directly to family_events
     const { data: fnData, error } = await supabase.functions.invoke('check-term-dates', { body: {} })
     if (error) {
       setKbRefreshing(false)
@@ -244,12 +245,13 @@ export default function TermDatesSection({ onNewDates }) {
       return
     }
 
-    // Surface per-school failures
-    const failures = (fnData?.results ?? []).filter(r => r.status === 'error' || r.status === 'no_dates')
-    const scraped  = (fnData?.results ?? []).filter(r => r.status === 'ok')
+    const results  = fnData?.results ?? []
+    const failures = results.filter(r => r.status === 'error' || r.status === 'no_dates')
+    const scraped  = results.filter(r => r.status === 'ok')
+
     if (failures.length && !scraped.length) {
-      const hasNoDates  = failures.some(r => r.error === 'no_dates')
-      const hasBlocked  = failures.some(r => r.error?.includes('blocking') || r.error?.includes('Failed to fetch'))
+      const hasNoDates = failures.some(r => r.error === 'no_dates')
+      const hasBlocked = failures.some(r => r.error?.includes('blocking') || r.error?.includes('Failed to fetch'))
       const msg = hasNoDates
         ? "Couldn't read dates from the school website — use the photo tool or add them manually below."
         : hasBlocked
@@ -260,24 +262,48 @@ export default function TermDatesSection({ onNewDates }) {
       return
     }
 
-    // Step 2: reload KB then import — pass data directly to avoid stale state
+    // Reload KB, run import (suppress its own message — we build per-school below)
     const freshData = await fetchKBData()
     setKbData(freshData)
-    await importFromKB(freshData)
+    await importFromKB(freshData, { suppressMessage: true })
+    loadEvents()
 
-    // Surface any partial school failures even when other schools succeeded
-    if (failures.length > 0) {
-      const failedNames = failures.map(f => {
-        try { return new URL(f.homepageUrl).hostname.replace(/^www\./, '') } catch { return 'one school' }
-      })
-      setKbMsg(prev => ({
-        type: prev?.type ?? 'info',
-        msg: (prev?.msg ? prev.msg + ' ' : '') +
-          `Couldn't get dates for ${failedNames.join(', ')} — try the photo tool or add manually.`,
-      }))
+    // Build school name lookup: KB data first, then info_bank as fallback
+    const nameFromKB = Object.fromEntries((freshData ?? []).map(c => [c.homepage_url, c.school_name]))
+    const { data: infoRows } = await supabase.from('info_bank')
+      .select('data').eq('family_id', family.id).eq('section', 'school')
+    const nameFromInfo = {}
+    for (const r of infoRows ?? []) {
+      const url = normaliseUrl(r.data?.school_url)
+      if (url && r.data?.school_name) nameFromInfo[url] = r.data.school_name
     }
+    const resolveName = url =>
+      nameFromKB[url] ?? nameFromInfo[url] ??
+      (() => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url } })()
 
+    // One status line per school
+    const lines = results.map(r => {
+      const name = resolveName(r.homepageUrl)
+      if (r.status === 'error' || r.status === 'no_dates') {
+        return `${name}: Sync failed — ${mapSyncError(r.error)}`
+      }
+      return r.eventsAdded > 0
+        ? `${name}: ${r.eventsAdded} new date${r.eventsAdded !== 1 ? 's' : ''} added`
+        : `${name}: Calendar up to date`
+    })
+
+    setKbMsg({ type: 'info', msg: lines.join('\n') })
     setKbRefreshing(false)
+  }
+
+  function mapSyncError(error) {
+    if (!error || error === 'no_dates') return 'no dates found on website'
+    if (error.includes('blocking') || error.includes('403')) return 'website is blocking access'
+    if (error.includes('Failed to fetch school homepage')) return 'could not reach the school website'
+    if (error.includes('Could not find')) return 'could not find the term dates page'
+    if (error.includes('Failed to fetch term dates')) return 'term dates page could not be loaded'
+    if (error.includes('extract dates')) return 'page found but dates could not be read'
+    return error.length < 80 ? error : 'check that the school website is accessible'
   }
 
   async function handlePhotoFiles(files) {
@@ -680,7 +706,7 @@ export default function TermDatesSection({ onNewDates }) {
                 </p>
               </div>
             ))}
-            {kbMsg && <p className={`text-xs font-medium mb-2 ${msgCls(kbMsg.type)}`}>{kbMsg.msg}</p>}
+            {kbMsg && <p className={`text-xs font-medium mb-2 whitespace-pre-line ${msgCls(kbMsg.type)}`}>{kbMsg.msg}</p>}
             <Button className="w-full py-2.5 text-sm" loading={kbRefreshing || kbImporting} onClick={syncFromSchool}>
               Sync from school website
             </Button>
