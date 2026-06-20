@@ -629,25 +629,25 @@ function cleanForClaude(raw: string): string {
     .trim()
 }
 
-// Find where term dates content actually starts and return a focused 15k-char window.
+// Find where the actual term dates content starts (not navigation/title mentions).
+// Uses year-anchored patterns that appear only in the dates section, not nav links.
 function extractTermDatesSection(content: string): string {
-  const markers = [
-    /school\s+term\s+dates?[\s\W]/i,
-    /\bterm\s+dates?\b/i,
-    /\bautumn\s+term\b/i,
-    /\bspring\s+term\b/i,
-    /\bsummer\s+term\b/i,
-    /\bacademic\s+(?:year|calendar)\b/i,
+  const specificMarkers = [
+    /school\s+term\s+dates?\s+20\d\d/i,              // "School Term Dates 2025-2026"
+    /\b(?:spring|autumn|summer)\s+term\s+20\d\d/i,   // "Spring Term 2026"
+    /\bhalf\s+term\b[^)]{0,50}20\d\d/i,              // "Half Term ... 2026"
+    /\binset\s+day\b/i,
   ]
-  for (const p of markers) {
+  for (const p of specificMarkers) {
     const m = content.match(p)
     if (m?.index !== undefined) {
-      const start = Math.max(0, m.index - 300)
+      const start = Math.max(0, m.index - 500)
       const section = content.slice(start, start + 15000)
       if (/20\d\d/.test(section)) return section
     }
   }
-  return content
+  // Fallback: dates are usually at the end of navigation-heavy pages
+  return content.length > 15000 ? content.slice(content.length - 15000) : content
 }
 
 async function extractTermDates(rawContent: string): Promise<{ termDates: any[], schoolName: string | null }> {
@@ -659,32 +659,25 @@ async function extractTermDates(rawContent: string): Promise<{ termDates: any[],
   console.log('section preview:', content.slice(0, 300))
 
   const res = await callClaude(
-    `Extract all UK school term dates from this content. Today is ${today}.
-
-The content may come from a webpage, PDF, or Word document. Dates may be in tables, lists, or paragraphs.
-Common formats: "Monday 4 September", "4th September 2025", "04/09/2025", "September 4".
+    `Extract all dated events from this UK school term calendar. Include everything: term start/end dates, half terms, holidays, INSET days, bank holidays.
 
 Return ONLY valid JSON — no markdown, no explanation:
 {
   "school_name": "name of the school or null",
   "events": [
     {
-      "title": "clear title e.g. Half Term / Christmas Holiday / Easter Holiday / Summer Holiday / INSET Day",
+      "title": "descriptive title e.g. Half Term / Christmas Holiday / INSET Day / Spring Term / Autumn Term begins",
       "date": "YYYY-MM-DD",
-      "end_date": "YYYY-MM-DD or null (use for multi-day holidays and half terms)"
+      "end_date": "YYYY-MM-DD or null (use for multi-day periods)"
     }
   ]
 }
 
 Rules:
-- Include ALL academic years shown — past, present and future
-- Include: half-term holidays, school holidays (Christmas, Easter, summer), INSET days, bank holidays
-- Do NOT include term start dates or term end dates — only closed/holiday periods and INSET days
-- Do NOT include exam periods, assessment weeks, PPE (Pre-Public Exams), GCSE/A-level exam timetables, or any event where school is open for exams
-- For multi-day holiday periods always set end_date
-- Use the academic year context to determine the correct year for each date
-- If a table shows holiday date ranges, create one event per holiday period with start and end_date
-- Summer holiday inference: many schools list when Summer Term ends and when Autumn Term begins without explicitly naming the "Summer Holiday". If the content shows a Summer Term end date and an Autumn Term start date (or INSET day) with no Summer Holiday in between, infer a "Summer Holiday" event: date = the day after the last day of Summer Term, end_date = the day before the first school day or INSET day of Autumn Term. Do not infer one if a Summer Holiday is already listed explicitly.
+- Include ALL dates shown — past, present and future
+- For multi-day periods always set end_date
+- Use the academic year context to infer the year for any dates missing it
+- Summer holiday inference: if a term ends and the next term begins with no Summer Holiday listed, infer one: date = day after Summer Term end, end_date = day before first Autumn school day or INSET day
 
 Content:
 ${content.slice(0, 15000)}`,
@@ -703,6 +696,16 @@ ${content.slice(0, 15000)}`,
     console.error('Raw response was:', res)
     return { termDates: [], schoolName: null }
   }
+}
+
+// Returns false for events where school is open (term start/end, parents evenings, sports days etc.)
+function isSchoolClosedEvent(title: string): boolean {
+  const lc = title.toLowerCase()
+  if (/\b(term (start|begin|open|return|end|close)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
+  if (/\b(pupils? (return|in school|back)|students? (return|back)|all year groups? in school|year \d+ in school)\b/.test(lc)) return false
+  if (/\b(parents?' evening|open evening|information evening|sports day|prize giving|graduation|speech day)\b/.test(lc)) return false
+  if (/\b(exam(ination)?|assessment|ppe|gcse|a.?level)\b/.test(lc) && !/\b(holiday|break|closed)\b/.test(lc)) return false
+  return true
 }
 
 // ── Apply to family ───────────────────────────────────────────────────────────
@@ -726,6 +729,7 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
   for (const event of termDates) {
     if (!event.date || !event.title) continue
     if (event.date < cutoffStr) continue
+    if (!isSchoolClosedEvent(event.title)) continue
     const key = `${event.title}||${event.date}`
     if (existingKeys.has(key)) continue
 
