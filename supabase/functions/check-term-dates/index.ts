@@ -85,7 +85,9 @@ Deno.serve(async (req) => {
   }
 
   // ── Process all schools in parallel ──────────────────────────────────────
-  const forceRefresh = !!targetFamilyId
+  // forceRefresh is only true for the monthly cron (targetFamilyId is null in cron mode).
+  // Manual sync uses cached KB data when available; only scrapes if KB is empty.
+  const forceRefresh = !targetFamilyId
 
   const results = await Promise.all(
     Object.entries(urlToFamilies).map(async ([homepageUrl, familyIds]) => {
@@ -148,7 +150,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       }
     }
 
-    if (!termDates.length) return { status: 'no_dates' }
+    if (!termDates.length) return { status: 'no_dates', error: 'no_dates' }
 
     let totalAdded = 0
     for (const familyId of familyIds) {

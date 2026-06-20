@@ -244,11 +244,18 @@ export default function TermDatesSection({ onNewDates }) {
       return
     }
 
-    // Surface any per-school scrape failures
-    const failures = (fnData?.results ?? []).filter(r => r.status === 'error')
-    if (failures.length) {
-      const msgs = failures.map(r => `${new URL(r.homepageUrl).hostname}: ${r.error}`).join(' | ')
-      setKbMsg({ type: 'error', msg: `Scrape failed — ${msgs}` })
+    // Surface per-school failures
+    const failures = (fnData?.results ?? []).filter(r => r.status === 'error' || r.status === 'no_dates')
+    const scraped  = (fnData?.results ?? []).filter(r => r.status === 'ok')
+    if (failures.length && !scraped.length) {
+      const hasNoDates  = failures.some(r => r.error === 'no_dates')
+      const hasBlocked  = failures.some(r => r.error?.includes('blocking') || r.error?.includes('Failed to fetch'))
+      const msg = hasNoDates
+        ? "Couldn't read dates from the school website — use the photo tool or add them manually below."
+        : hasBlocked
+          ? "The school website is blocking access. Use the photo tool or add the dates manually below."
+          : "Couldn't get dates from the school website. Use the photo tool or add them manually below."
+      setKbMsg({ type: 'error', msg })
       setKbRefreshing(false)
       return
     }
