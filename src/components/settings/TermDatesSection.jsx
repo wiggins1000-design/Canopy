@@ -20,10 +20,12 @@ function classify(ev) {
   return 'other'
 }
 
-function normaliseOrigin(url) {
+function normaliseUrl(url) {
   try {
     const u = new URL(url.startsWith('http') ? url : `https://${url}`)
-    return `${u.protocol}//${u.hostname}`.toLowerCase()
+    const base = `${u.protocol}//${u.hostname}`.toLowerCase()
+    const hasPath = u.pathname.length > 1 || u.search.length > 0
+    return hasPath ? (base + u.pathname + u.search).toLowerCase() : base
   } catch { return null }
 }
 
@@ -157,7 +159,7 @@ export default function TermDatesSection({ onNewDates }) {
       .eq('section', 'school')
 
     const urls = (infoRows ?? [])
-      .map(r => normaliseOrigin(r.data?.school_url))
+      .map(r => normaliseUrl(r.data?.school_url))
       .filter(Boolean)
       .filter((v, i, arr) => arr.indexOf(v) === i)
 

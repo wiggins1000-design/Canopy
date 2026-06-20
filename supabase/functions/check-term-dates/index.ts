@@ -501,9 +501,10 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
   const res = await callClaude(
-    `Find links to downloadable documents (PDFs, Word files, spreadsheets) on this school webpage that contain TERM DATES, SCHOOL HOLIDAY DATES, or ACADEMIC CALENDARS — i.e. documents specifically about when the school is open or closed during the academic year.
+    `Find links to downloadable documents (PDFs, Word files, spreadsheets) on this school webpage that contain term dates, school holidays, or academic calendars — i.e. when the school is open or closed.
 
-Do NOT include: exam timetables, exam schedules, PPE timetables, assessment calendars, prospectuses, policies, handbooks, or any documents unrelated to school holidays and term dates.
+Include documents labelled: term dates, school calendar, academic calendar, holiday dates, school dates, key dates, term times.
+Exclude documents that are ONLY about: exam timetables, GCSE/A-level schedules, PPE schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates).
 
 Base URL: ${pageUrl}
 
@@ -556,7 +557,7 @@ Rules:
 - Summer holiday inference: many schools list when Summer Term ends and when Autumn Term begins without explicitly naming the "Summer Holiday". If the content shows a Summer Term end date and an Autumn Term start date (or INSET day) with no Summer Holiday in between, infer a "Summer Holiday" event: date = the day after the last day of Summer Term, end_date = the day before the first school day or INSET day of Autumn Term. Do not infer one if a Summer Holiday is already listed explicitly.
 
 Content:
-${content}`,
+${content.slice(0, 12000)}`,
     2048
   )
 
