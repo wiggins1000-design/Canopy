@@ -351,7 +351,7 @@ async function fetchPageWithCheck(url: string, check: (t: string) => boolean): P
   return null
 }
 
-// Extract all links from reader-returned content (markdown format with embedded links).
+// Extract all links from reader-returned content (handles both markdown and raw HTML).
 function extractLinksFromContent(content: string, origin: string): string[] {
   const seen = new Set<string>()
   const add = (raw: string) => {
@@ -359,6 +359,12 @@ function extractLinksFromContent(content: string, origin: string): string[] {
     if (url.startsWith('http') && !url.includes(' ') && url.length < 300) seen.add(url)
   }
 
+  // HTML href attributes — catches raw HTML from reader (e.g. href="/106/term-dates")
+  for (const m of content.matchAll(/href=["']([^"'#?][^"']*?)["']/gi)) {
+    const href = m[1].trim()
+    if (href.startsWith('http')) add(href)
+    else if (href.startsWith('/')) add(`${origin}${href}`)
+  }
   // Markdown links: [text](url) — absolute and relative
   for (const m of content.matchAll(/\[[^\]]*\]\((\/[^)"\s]+)\)/g)) add(`${origin}${m[1]}`)
   for (const m of content.matchAll(/\[[^\]]*\]\((https?:\/\/[^)"\s]+)\)/g)) add(m[1])
