@@ -158,20 +158,32 @@ export default function TermDatesSection({ onNewDates }) {
       .eq('family_id', family.id)
       .eq('section', 'school')
 
-    const urls = (infoRows ?? [])
-      .map(r => normaliseUrl(r.data?.school_url))
-      .filter(Boolean)
-      .filter((v, i, arr) => arr.indexOf(v) === i)
+    const urlNamePairs = (infoRows ?? [])
+      .map(r => ({ url: normaliseUrl(r.data?.school_url), name: r.data?.school_name }))
+      .filter(p => p.url)
+      .filter((p, i, arr) => arr.findIndex(q => q.url === p.url) === i)
 
-    if (!urls.length) return null
+    if (!urlNamePairs.length) return null
+
+    const urls = urlNamePairs.map(p => p.url)
+    const infoNames = Object.fromEntries(urlNamePairs.map(p => [p.url, p.name]).filter(([, n]) => n))
 
     const { data: cals } = await supabase
       .from('school_calendars')
       .select('homepage_url, school_name, term_dates, last_fetched_at')
       .in('homepage_url', urls)
 
-    const found = (cals ?? []).filter(c => c.term_dates?.length > 0)
-    return found.length > 0 ? found : null
+    const calByUrl = Object.fromEntries((cals ?? []).map(c => [c.homepage_url, c]))
+
+    // Return ALL configured schools — ones without a cache entry show as "Not yet synced"
+    const all = urlNamePairs.map(({ url }) => {
+      const cal = calByUrl[url]
+      return cal
+        ? { ...cal, school_name: cal.school_name ?? infoNames[url] }
+        : { homepage_url: url, school_name: infoNames[url] ?? url, term_dates: [], last_fetched_at: null }
+    })
+
+    return all.length > 0 ? all : null
   }
 
   async function importFromKB(dataOverride, { suppressMessage = false } = {}) {
@@ -701,8 +713,9 @@ export default function TermDatesSection({ onNewDates }) {
               <div key={cal.homepage_url} className="mb-3 space-y-0.5">
                 <p className="text-sm font-medium text-gray-800">{cal.school_name ?? cal.homepage_url}</p>
                 <p className="text-xs text-gray-400">
-                  {cal.term_dates.length} dates available
-                  {cal.last_fetched_at ? ` · last updated ${format(new Date(cal.last_fetched_at), 'd MMM yyyy')}` : ''}
+                  {cal.term_dates?.length > 0
+                    ? `${cal.term_dates.length} dates available${cal.last_fetched_at ? ` · last updated ${format(new Date(cal.last_fetched_at), 'd MMM yyyy')}` : ''}`
+                    : 'Not yet synced'}
                 </p>
               </div>
             ))}

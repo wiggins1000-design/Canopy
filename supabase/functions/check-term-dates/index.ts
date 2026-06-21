@@ -697,7 +697,10 @@ Rules:
 - Include ALL dates shown — past, present and future
 - For multi-day periods always set end_date
 - Use the academic year context to infer the year for any dates missing it
-- Summer holiday inference: if a term ends and the next term begins with no Summer Holiday listed, infer one: date = day after Summer Term end, end_date = day before first Autumn school day or INSET day
+- Holiday inference: if two consecutive terms have no holiday listed between them, infer one:
+  • Michaelmas/Autumn term ends → Lent/Spring term begins: infer "Christmas Holiday" (date = day after term end, end_date = day before next term start or INSET day)
+  • Lent/Spring term ends → Summer term begins: infer "Easter Holiday" (date = day after term end, end_date = day before next term start or INSET day)
+  • Summer term ends → Michaelmas/Autumn term begins: infer "Summer Holiday" (date = day after term end, end_date = day before next term start or INSET day)
 
 Content:
 ${content.slice(0, 15000)}`,
