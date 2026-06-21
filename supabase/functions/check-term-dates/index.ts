@@ -625,8 +625,20 @@ function cleanForClaude(raw: string): string {
     .replace(/&gt;/g, '>').replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
     .replace(/&#\d+;/g, ' ')
     .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+$/gm, '')      // trim trailing whitespace from each line
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
+
+// When HTML is fetched (vs Jina markdown), navigation menus produce a long preamble before the
+// actual dates section. Find where the term dates content begins and discard everything before it.
+function findDatesSection(content: string): string {
+  if (content.length <= 2500) return content
+  const idx = content.search(
+    /(?:ACADEMIC YEAR|School\s+Term\s+Dates?|Term\s+Dates?\s*\n|(?:Autumn|Spring|Summer)\s+Term)\s+20\d\d/i
+  )
+  if (idx > 300) return content.slice(Math.max(0, idx - 80))
+  return content
 }
 
 // Strip URLs and navigation noise from content.
@@ -656,10 +668,11 @@ function stripUrls(content: string): string {
 async function extractTermDates(rawContent: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const today = new Date().toISOString().split('T')[0]
   const cleaned = cleanForClaude(rawContent)
-  const content = stripUrls(cleaned)
+  const stripped = stripUrls(cleaned)
+  const content = findDatesSection(stripped)
 
-  console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→stripped ${content.length} chars`)
-  console.log('stripped preview:', content.slice(0, 500))
+  console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→stripped ${stripped.length}→section ${content.length} chars`)
+  console.log('section preview:', content.slice(0, 500))
 
   const res = await callClaude(
     `Extract all dated events from this UK school term calendar. Include everything: term start/end dates, half terms, holidays, INSET days, bank holidays.
@@ -810,9 +823,10 @@ async function callClaude(prompt: string, maxTokens: number): Promise<string | n
       },
       signal: AbortSignal.timeout(25000),
       body: JSON.stringify({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: maxTokens,
-        messages:   [{ role: 'user', content: prompt }],
+        model:       'claude-haiku-4-5-20251001',
+        max_tokens:  maxTokens,
+        temperature: 0,
+        messages:    [{ role: 'user', content: prompt }],
       }),
     })
     console.log(`callClaude: response status ${res.status}`)
