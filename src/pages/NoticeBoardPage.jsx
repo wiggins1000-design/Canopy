@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { startOfWeek, startOfMonth, subMonths } from 'date-fns'
 import { useNoticeboard } from '../hooks/useNoticeboard'
@@ -6,6 +6,8 @@ import { useFamily } from '../context/FamilyContext'
 import PostCard from '../components/noticeboard/PostCard'
 import NewPostSheet from '../components/noticeboard/NewPostSheet'
 import { NOTICE_TAGS } from '../lib/noticeTags'
+
+const PAGE_SIZE = 10
 
 const DATE_PRESETS = [
   { id: '',        label: 'All time' },
@@ -29,6 +31,10 @@ export default function NoticeBoardPage() {
   const [showNewPost, setShowNewPost] = useState(false)
   const [activeTags,  setActiveTags]  = useState(new Set())
   const [datePreset,  setDatePreset]  = useState('')
+  const [page,        setPage]        = useState(1)
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1) }, [activeTags, datePreset])
 
   function toggleTag(tagId) {
     setActiveTags((prev) => {
@@ -48,6 +54,9 @@ export default function NoticeBoardPage() {
 
   const filteredPinned = applyFilters(pinnedPosts)
   const filteredFeed   = applyFilters(feedPosts)
+  const totalPages     = Math.max(1, Math.ceil(filteredFeed.length / PAGE_SIZE))
+  const safePage       = Math.min(page, totalPages)
+  const pagedFeed      = filteredFeed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <div className="px-4 pt-5 pb-6">
@@ -159,11 +168,63 @@ export default function NoticeBoardPage() {
                 )}
               </div>
             ) : (
-              filteredFeed.map((post) => (
+              pagedFeed.map((post) => (
                 <PostCard key={post.id} post={post} reads={reads[post.id] ?? new Set()} onVisible={markRead} />
               ))
             )}
           </section>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Previous page"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(n => n === 1 || n === totalPages || Math.abs(n - safePage) <= 1)
+                .reduce((acc, n, idx, arr) => {
+                  if (idx > 0 && n - arr[idx - 1] > 1) acc.push('…')
+                  acc.push(n)
+                  return acc
+                }, [])
+                .map((item, idx) =>
+                  item === '…' ? (
+                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item)}
+                      className={`w-8 h-8 rounded-xl text-xs font-semibold transition-colors ${
+                        item === safePage
+                          ? 'bg-canopy-mid text-white'
+                          : 'text-gray-500 hover:bg-gray-100'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Next page"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

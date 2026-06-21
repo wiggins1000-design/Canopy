@@ -84,10 +84,17 @@ Deno.serve(async (req) => {
     })
   }
 
+  // ── Cron housekeeping ─────────────────────────────────────────────────────
+  const forceRefresh = !targetFamilyId
+  if (forceRefresh) {
+    const { error: archiveErr } = await supabase.rpc('archive_old_notifications')
+    if (archiveErr) console.error('archive_old_notifications error:', archiveErr)
+    else console.log('archive_old_notifications: done')
+  }
+
   // ── Process all schools in parallel ──────────────────────────────────────
   // forceRefresh is only true for the monthly cron (targetFamilyId is null in cron mode).
   // Manual sync uses cached KB data when available; only scrapes if KB is empty.
-  const forceRefresh = !targetFamilyId
 
   const results = await Promise.all(
     Object.entries(urlToFamilies).map(async ([homepageUrl, familyIds]) => {
