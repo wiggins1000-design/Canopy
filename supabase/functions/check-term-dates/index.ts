@@ -629,34 +629,36 @@ function cleanForClaude(raw: string): string {
     .trim()
 }
 
-// Find where the actual term dates content starts (not navigation/title mentions).
-// Uses year-anchored patterns that appear only in the dates section, not nav links.
-function extractTermDatesSection(content: string): string {
-  const specificMarkers = [
-    /school\s+term\s+dates?\s+20\d\d/i,              // "School Term Dates 2025-2026"
-    /\b(?:spring|autumn|summer)\s+term\s+20\d\d/i,   // "Spring Term 2026"
-    /\bhalf\s+term\b[^)]{0,50}20\d\d/i,              // "Half Term ... 2026"
-    /\binset\s+day\b/i,
-  ]
-  for (const p of specificMarkers) {
-    const m = content.match(p)
-    if (m?.index !== undefined) {
-      const start = Math.max(0, m.index - 500)
-      const section = content.slice(start, start + 15000)
-      if (/20\d\d/.test(section)) return section
-    }
-  }
-  // Fallback: dates are usually at the end of navigation-heavy pages
-  return content.length > 15000 ? content.slice(content.length - 15000) : content
+// Strip URLs and navigation noise from content.
+// We're already on the term dates page, so links/nav are pure noise.
+// Bullet list items are kept only if they contain holiday-related keywords
+// (some schools format dates as bullets; navigation items never do).
+function stripUrls(content: string): string {
+  const holidayBullet = /\b(inset\s*day|half.?term|bank\s+holiday|christmas|easter|summer\s+holid|school\s+term\s+dates?|break\s+up|academic\s+year)\b/i
+  return content
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .split('\n')
+    .filter(line => {
+      const t = line.trim()
+      if (!t) return true
+      if (/^\*+\s/.test(t)) return holidayBullet.test(t)
+      return true
+    })
+    .join('\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 async function extractTermDates(rawContent: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const today = new Date().toISOString().split('T')[0]
   const cleaned = cleanForClaude(rawContent)
-  const content = extractTermDatesSection(cleaned)
+  const content = stripUrls(cleaned)
 
-  console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→section ${content.length} chars`)
-  console.log('section preview:', content.slice(0, 300))
+  console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→stripped ${content.length} chars`)
+  console.log('stripped preview:', content.slice(0, 500))
 
   const res = await callClaude(
     `Extract all dated events from this UK school term calendar. Include everything: term start/end dates, half terms, holidays, INSET days, bank holidays.
