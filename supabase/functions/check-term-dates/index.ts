@@ -411,6 +411,10 @@ function looksLikeUsefulContent(text: string): boolean {
   if (text.length < 200) return false
   const lc = text.toLowerCase()
   if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
+  // Reject cookie consent walls — keywords appear only in meta/title, not actual content
+  if ((lc.includes('we value your privacy') || lc.includes('cookie consent') ||
+       (lc.includes('accept all') && lc.includes('reject all'))) &&
+      !(/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(text))) return false
   return lc.includes('term') || lc.includes('holiday') || lc.includes('inset') ||
          lc.includes('autumn') || lc.includes('spring') || lc.includes('summer')
 }
