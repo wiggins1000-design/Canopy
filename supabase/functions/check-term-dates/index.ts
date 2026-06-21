@@ -427,7 +427,7 @@ async function fetchViaJina(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Jina fetched ${url}: ${text.length} chars`)
-    return text.slice(0, 12000)
+    return text.slice(0, 30000)
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
