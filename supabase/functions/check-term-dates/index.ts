@@ -643,6 +643,7 @@ function stripUrls(content: string): string {
     .filter(line => {
       const t = line.trim()
       if (!t) return true
+      if (/^\*+$/.test(t)) return false          // bare asterisk(s) — stripped nav icon
       if (/^\*+\s/.test(t)) return holidayBullet.test(t)
       return true
     })
