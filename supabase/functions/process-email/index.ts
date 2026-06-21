@@ -78,13 +78,15 @@ Deno.serve(async (req) => {
 })
 
 async function handleRequest(req: Request): Promise<Response> {
-  // Verify shared webhook token (set in Postmark inbound webhook settings)
+  // Verify shared webhook token — fail-closed: reject if token is not configured
   const webhookToken = Deno.env.get('EMAIL_WEBHOOK_TOKEN')
-  if (webhookToken) {
-    const incoming = req.headers.get('x-webhook-token')
-    if (incoming !== webhookToken) {
-      return new Response('Unauthorized', { status: 401, headers: CORS })
-    }
+  if (!webhookToken) {
+    console.error('EMAIL_WEBHOOK_TOKEN not set — rejecting request')
+    return new Response('Service misconfigured', { status: 503, headers: CORS })
+  }
+  const incoming = req.headers.get('x-webhook-token')
+  if (incoming !== webhookToken) {
+    return new Response('Unauthorized', { status: 401, headers: CORS })
   }
 
   const payload = await req.json()
@@ -151,6 +153,23 @@ async function handleRequest(req: Request): Promise<Response> {
 
   if (!family) {
     return new Response(JSON.stringify({ skipped: 'family not found' }), { status: 200, headers: CORS })
+  }
+
+  // ── Check FamilyFeed consent ───────────────────────────────────────────────
+  // Each parent must individually consent to AI processing of email content.
+  if (authorId) {
+    const { data: memberRow } = await supabase
+      .from('family_members')
+      .select('consents')
+      .eq('user_id', authorId)
+      .eq('family_id', familyId)
+      .single()
+    const hasConsented = !!(memberRow?.consents as any)?.familyfeed_ai?.given
+    if (!hasConsented) {
+      await sendRejectionEmail({ to: fromEmail, originalSubject: subject })
+        .catch((e) => console.error('Rejection email failed:', e))
+      return new Response(JSON.stringify({ skipped: 'consent not given' }), { status: 200, headers: CORS })
+    }
   }
 
   // ── Fetch existing events for duplicate detection ─────────────────────────
@@ -389,6 +408,7 @@ Rules:
   const events = parsed.events ?? []
   let eventsCreated = 0
   let eventsUpdated = 0
+  let eventsSkipped = 0
   const newEventLines: string[]     = []
   const updatedEventLines: string[] = []
 
@@ -420,8 +440,10 @@ Rules:
           const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date)}` : ''
           updatedEventLines.push(`• ${ev.title} — ${fmtDate(ev.date)}${end}${time}`)
         }
+      } else {
+        // Pure duplicate — already on the calendar, nothing to add
+        eventsSkipped++
       }
-      // else: pure duplicate — silently skip
     } else {
       // New event
       const taggedChildren = Array.isArray(ev.tagged_children)
@@ -466,7 +488,7 @@ Rules:
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,
-      p_tag:       null,
+      p_tag:       'notification',
       p_author_id: authorId,
     })
     if (noticeErr1) console.error('Notice post error (events):', noticeErr1)
@@ -485,13 +507,216 @@ Rules:
     else noticeCreated = true
   }
 
-  console.log(`Processed email for family ${family.id}: ${eventsCreated} created, ${eventsUpdated} updated, ${docsSaved} docs, notice=${noticeCreated}`)
+  console.log(`Processed email for family ${family.id}: ${eventsCreated} created, ${eventsUpdated} updated, ${eventsSkipped} skipped, ${docsSaved} docs, notice=${noticeCreated}`)
+
+  // Send feedback email to the person who forwarded the email
+  await sendFeedbackEmail({
+    to:               fromEmail,
+    originalSubject:  subject,
+    eventsCreated,
+    newEventLines,
+    eventsUpdated,
+    updatedEventLines,
+    eventsSkipped,
+    docsSaved,
+  }).catch((e) => console.error('Feedback email failed:', e))
 
   return new Response(JSON.stringify({
     ok:              true,
     events_created:  eventsCreated,
     events_updated:  eventsUpdated,
+    events_skipped:  eventsSkipped,
     docs_saved:      docsSaved,
     notice_created:  noticeCreated,
   }), { status: 200, headers: CORS })
+}
+
+// ── Feedback email ─────────────────────────────────────────────────────────────
+
+async function sendFeedbackEmail(opts: {
+  to:               string
+  originalSubject:  string
+  eventsCreated:    number
+  newEventLines:    string[]
+  eventsUpdated:    number
+  updatedEventLines: string[]
+  eventsSkipped:    number
+  docsSaved:        number
+}): Promise<void> {
+  const resendKey = Deno.env.get('RESEND_API_KEY')
+  if (!resendKey) return
+
+  const { to, originalSubject, eventsCreated, newEventLines, eventsUpdated, updatedEventLines, eventsSkipped, docsSaved } = opts
+
+  const hasActivity = eventsCreated > 0 || eventsUpdated > 0 || docsSaved > 0
+
+  let summaryHtml = ''
+  if (eventsCreated > 0) {
+    summaryHtml += `
+      <div style="margin-bottom:20px;">
+        <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1b4332;">
+          📅 ${eventsCreated} new event${eventsCreated > 1 ? 's' : ''} added to your calendar
+        </p>
+        <div style="background:#f4fbf4;border:1px solid #d8f3dc;border-radius:10px;padding:12px 16px;">
+          ${newEventLines.map(l => `<p style="margin:4px 0;font-size:13px;color:#374151;">${l}</p>`).join('')}
+        </div>
+      </div>`
+  }
+  if (eventsUpdated > 0) {
+    summaryHtml += `
+      <div style="margin-bottom:20px;">
+        <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1b4332;">
+          ✏️ ${eventsUpdated} existing event${eventsUpdated > 1 ? 's' : ''} updated with new details
+        </p>
+        <div style="background:#f4fbf4;border:1px solid #d8f3dc;border-radius:10px;padding:12px 16px;">
+          ${updatedEventLines.map(l => `<p style="margin:4px 0;font-size:13px;color:#374151;">${l}</p>`).join('')}
+        </div>
+      </div>`
+  }
+  if (docsSaved > 0) {
+    summaryHtml += `
+      <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+        📎 ${docsSaved} attachment${docsSaved > 1 ? 's' : ''} saved to your Notice Board.
+      </p>`
+  }
+  if (eventsSkipped > 0) {
+    summaryHtml += `
+      <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">
+        ${eventsSkipped} event${eventsSkipped > 1 ? 's were' : ' was'} already on your calendar — skipped.
+      </p>`
+  }
+  if (!hasActivity) {
+    summaryHtml = `
+      <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+        No calendar events were found in this email. If you expected events to be extracted, check that the email contains clear dates.
+      </p>`
+  }
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4fbf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf4;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
+
+        <tr><td style="background:#ffffff;padding:24px 40px 16px;border-bottom:3px solid #1b4332;">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#111827;">FamilyFeed</p>
+          <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Canopy · Share what matters.</p>
+        </td></tr>
+
+        <tr><td style="padding:28px 40px;">
+          <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">Your email:</p>
+          <p style="margin:0 0 24px;font-size:14px;font-weight:600;color:#111827;">${originalSubject}</p>
+          ${summaryHtml}
+        </td></tr>
+
+        <tr><td style="padding:16px 40px 24px;border-top:1px solid #d8f3dc;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
+            Events and notices appear in your Canopy app. To stop receiving these emails, remove your forwarding address in Canopy Settings → FamilyFeed.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from:    'FamilyFeed <familyfeed@canopy-app.app>',
+      to:      [to],
+      subject: `FamilyFeed processed: ${originalSubject}`,
+      html,
+    }),
+  })
+}
+
+// ── Rejection email (consent not yet given) ────────────────────────────────────
+
+async function sendRejectionEmail(opts: { to: string; originalSubject: string }): Promise<void> {
+  const resendKey = Deno.env.get('RESEND_API_KEY')
+  if (!resendKey) return
+
+  const { to, originalSubject } = opts
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4fbf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf4;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
+
+        <tr><td style="background:#ffffff;padding:24px 40px 16px;border-bottom:3px solid #1b4332;">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#111827;">FamilyFeed</p>
+          <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Canopy · Share what matters.</p>
+        </td></tr>
+
+        <tr><td style="padding:28px 40px;">
+          <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">Your email:</p>
+          <p style="margin:0 0 20px;font-size:14px;font-weight:600;color:#111827;">${originalSubject}</p>
+
+          <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+            This email wasn't processed because you haven't enabled FamilyFeed on your account yet. To start using FamilyFeed, open Canopy and go to <strong>Settings → FamilyFeed</strong>, then tap <em>"I understand — enable FamilyFeed"</em>.
+          </p>
+
+          <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+            <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#92400e;">Why do we ask?</p>
+            <p style="margin:0;font-size:13px;color:#78350f;line-height:1.6;">
+              FamilyFeed uses AI to read your emails and extract dates, events, and notices. Because emails can contain personal information, UK data protection law requires us to record your explicit agreement before processing them. This is a one-time step per account.
+            </p>
+          </div>
+
+          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#374151;">Good emails to forward</p>
+          <ul style="margin:0 0 20px;padding-left:20px;">
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">School newsletters and term date notices</li>
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Medical appointment letters and reminders</li>
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Activity and club booking confirmations</li>
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Sports fixture lists and match schedules</li>
+          </ul>
+
+          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#374151;">Please don't forward</p>
+          <ul style="margin:0 0 20px;padding-left:20px;">
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Bank statements, invoices, or anything with account numbers — the content is sent to AI for processing</li>
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Solicitor or legal correspondence — use the Court Orders feature in Canopy instead</li>
+            <li style="font-size:13px;color:#374151;margin-bottom:4px;line-height:1.5;">Emails that contain private information you wouldn't want the other parent to see — both parents will see what FamilyFeed extracts</li>
+          </ul>
+
+          <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
+            Once you've enabled FamilyFeed, simply forward this email again and it will be processed automatically.
+          </p>
+        </td></tr>
+
+        <tr><td style="padding:16px 40px 24px;border-top:1px solid #d8f3dc;">
+          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">
+            To stop receiving these emails, do not forward further emails to FamilyFeed, or remove your forwarding address in Canopy Settings → FamilyFeed.
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from:    'FamilyFeed <familyfeed@canopy-app.app>',
+      to:      [to],
+      subject: `FamilyFeed: action needed to process your email`,
+      html,
+    }),
+  })
 }
