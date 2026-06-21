@@ -390,7 +390,7 @@ async function fetchDirect(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Direct fetch OK for ${url}: ${text.length} chars, type: ${contentType}`)
-    return text.slice(0, 15000)
+    return text.slice(0, 30000)
   } catch (e) {
     console.log(`Direct fetch threw for ${url}:`, e)
     return null
