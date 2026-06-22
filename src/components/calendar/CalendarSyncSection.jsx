@@ -109,12 +109,14 @@ export default function CalendarSyncSection() {
             </p>
           </div>
         ) : (
-          <Button variant="secondary" className="w-full" loading={loadingToken} onClick={getIcalToken}>
-            Generate subscription link
-          </Button>
-          {tokenError && (
-            <p className="text-xs text-red-600 mt-1">{tokenError}</p>
-          )}
+          <>
+            <Button variant="secondary" className="w-full" loading={loadingToken} onClick={getIcalToken}>
+              Generate subscription link
+            </Button>
+            {tokenError && (
+              <p className="text-xs text-red-600 mt-1">{tokenError}</p>
+            )}
+          </>
         )}
       </div>
 
