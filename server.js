@@ -23,6 +23,6 @@ app.get('/cal/:token', async (req, res) => {
 
 // Static SPA
 app.use(express.static(join(__dirname, 'dist')))
-app.get('*', (_req, res) => res.sendFile(join(__dirname, 'dist', 'index.html')))
+app.get('/{*path}', (_req, res) => res.sendFile(join(__dirname, 'dist', 'index.html')))
 
 app.listen(PORT, () => console.log(`Canopy server on port ${PORT}`))
