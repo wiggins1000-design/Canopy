@@ -480,7 +480,7 @@ Rules:
     if (eventsUpdated > 0) {
       parts.push(`✏️ ${eventsUpdated} existing event${eventsUpdated > 1 ? 's' : ''} updated with new details:\n${updatedEventLines.join('\n')}`)
     }
-    const content = `${parts.join('\n\n')}\n\n_From email: "${subject}"_`
+    const content = `${parts.join('\n\n')}\n\nFrom email: "${subject}"`
 
     const { error: noticeErr1 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
@@ -496,7 +496,7 @@ Rules:
   } else if (parsed.notice_post) {
     const { error: noticeErr2 } = await supabase.rpc('create_notice_post', {
       p_family_id: family.id,
-      p_content:   `${parsed.notice_post}\n\n_From email: "${subject}"_`,
+      p_content:   `${parsed.notice_post}\n\nFrom email: "${subject}"`,
       p_image_url: null,
       p_file_url:  null,
       p_file_name: null,

@@ -108,8 +108,21 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
         <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${t.chip}`}>{t.label}</span>
       ) : null })()}
 
-      {/* Content */}
-      <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+      {/* Content — split off trailing "From email:" attribution line */}
+      {(() => {
+        const raw = (post.content ?? '').replace(/_From email:/g, 'From email:').replace(/_$/gm, '')
+        const attrMatch = raw.match(/\n\nFrom email: "(.+)"$/)
+        const body = attrMatch ? raw.slice(0, attrMatch.index) : raw
+        const subject = attrMatch ? attrMatch[1] : null
+        return (
+          <>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{body}</p>
+            {subject && (
+              <p className="text-xs text-gray-400 italic mt-1">From email: "{subject}"</p>
+            )}
+          </>
+        )
+      })()}
 
       {/* Image attachment */}
       {post.image_url && signedImageUrl && (
