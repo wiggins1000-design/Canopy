@@ -172,8 +172,9 @@ Deno.serve(async (req) => {
   return new Response(ical, {
     headers: {
       ...CORS,
-      'Content-Type':  'text/calendar; charset=utf-8',
-      'Cache-Control': 'no-cache, no-store',
+      'Content-Type':        'text/calendar; charset=utf-8',
+      'Content-Disposition': 'inline; filename="CanopyCalendar.ics"',
+      'Cache-Control':       'no-cache, no-store',
     },
   })
 })
