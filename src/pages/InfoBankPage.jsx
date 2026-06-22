@@ -688,16 +688,12 @@ function VetSection({ data, isParent, onSave, updatedAt }) {
       <Field label="Date of birth" type="date" {...f('dob')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Vet</p>
       <Field label="Practice name" placeholder="Riverside Vets" {...f('vet_name')} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('vet_phone')} />
-        <Field label="Email" placeholder="info@riversidevets.co.uk" type="email" {...f('vet_email')} />
-      </div>
+      <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('vet_phone')} />
+      <Field label="Email" placeholder="info@riversidevets.co.uk" type="email" {...f('vet_email')} />
       <Field label="Address" placeholder="1 High Street, London" {...f('vet_address')} />
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide pt-1">Emergency vet</p>
       <Field label="Practice name" placeholder="24hr Animal Hospital" {...f('emergency_vet_name')} />
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('emergency_vet_phone')} />
-      </div>
+      <Field label="Phone" placeholder="+44 20 1234 5678" type="tel" {...f('emergency_vet_phone')} />
       <Field label="Address" placeholder="2 High Street, London" {...f('emergency_vet_address')} />
       <TextArea label="Notes" placeholder="e.g. Preferred appointment day, parking notes…" rows={3} {...f('notes')} />
     </SectionWrapper>
