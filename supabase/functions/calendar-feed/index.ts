@@ -34,11 +34,11 @@ Deno.serve(async (req) => {
   }
 
   // Look up family by token
-  const { data: family } = await supabase
+  const { data: family, error: familyErr } = await supabase
     .from('families')
-    .select('id, name, config')
+    .select('id, config')
     .eq('ical_token', token)
-    .single()
+    .maybeSingle()
 
   if (!family) {
     return new Response('Invalid token', { status: 401, headers: CORS })
@@ -172,9 +172,8 @@ Deno.serve(async (req) => {
   return new Response(ical, {
     headers: {
       ...CORS,
-      'Content-Type':        'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="canopy-${familyId}.ics"`,
-      'Cache-Control':       'no-cache, no-store',
+      'Content-Type':  'text/calendar; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store',
     },
   })
 })
