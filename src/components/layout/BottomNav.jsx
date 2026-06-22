@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useFamily } from '../../context/FamilyContext'
+import { useSubscription } from '../../hooks/useSubscription'
 
 const SETTINGS_NAV = {
   to: '/config',
@@ -45,6 +46,8 @@ const NAV = [
 
 export default function BottomNav() {
   const { family, isParent } = useFamily()
+  const { isTrialing, daysLeft } = useSubscription()
+  const showTrialBadge = isTrialing && daysLeft <= 7
   if (!family) return null
 
   const vp = family?.config?.viewer_permissions ?? {}
@@ -100,7 +103,12 @@ export default function BottomNav() {
           >
             {({ isActive }) => (
               <>
-                {icon(isActive)}
+                <span className="relative">
+                  {icon(isActive)}
+                  {to === '/config' && showTrialBadge && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 border border-white" />
+                  )}
+                </span>
                 {label}
               </>
             )}

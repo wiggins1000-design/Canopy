@@ -1049,35 +1049,70 @@ function ToggleRow({ label, description, enabled, onToggle }) {
 }
 
 function SubscriptionSection() {
-  const { isTrialing, isActive, isPastDue, daysLeft, periodEnd, trialEndsAt } = useSubscription()
-
-  const statusLabel = isActive
-    ? { text: 'Active', cls: 'bg-green-100 text-green-700' }
-    : isTrialing
-    ? { text: `Trial — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`, cls: 'bg-amber-100 text-amber-700' }
-    : isPastDue
-    ? { text: 'Payment overdue', cls: 'bg-red-100 text-red-700' }
-    : { text: 'Cancelled', cls: 'bg-gray-100 text-gray-600' }
+  const { isTrialing, isActive, isPastDue, isCancelled, daysLeft, periodEnd, trialEndsAt } = useSubscription()
+  const urgent = isTrialing && daysLeft <= 7
 
   return (
     <AccordionGroup label="Subscription">
       <div className="px-4 py-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">Family plan · £12.99/mo or £119.99/yr</span>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusLabel.cls}`}>
-            {statusLabel.text}
-          </span>
-        </div>
 
+        {/* Active subscription */}
+        {isActive && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700">Family plan</span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Active</span>
+          </div>
+        )}
         {isActive && periodEnd && (
           <p className="text-xs text-gray-400">
             Next billing: {periodEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         )}
-        {isTrialing && trialEndsAt && (
-          <p className="text-xs text-gray-400">
-            Trial ends: {trialEndsAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+
+        {/* Trial — card with CTA */}
+        {isTrialing && (
+          <div className={`rounded-xl p-3.5 space-y-2.5 ${urgent ? 'bg-amber-50 border border-amber-200' : 'bg-canopy-frost border border-canopy-mist'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-sm font-semibold ${urgent ? 'text-amber-800' : 'text-canopy-deep'}`}>
+                {daysLeft} day{daysLeft !== 1 ? 's' : ''} left in your free trial
+              </span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${urgent ? 'bg-amber-200 text-amber-800' : 'bg-canopy-mist text-canopy-deep'}`}>
+                Trial
+              </span>
+            </div>
+            {trialEndsAt && (
+              <p className={`text-xs ${urgent ? 'text-amber-700' : 'text-canopy-mid'}`}>
+                Expires {trialEndsAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
+            {/* Subscribe button — wired up when RevenueCat is integrated */}
+            <button
+              disabled
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-canopy-mid text-white opacity-50 cursor-not-allowed"
+            >
+              Subscribe — £12.99/mo or £119.99/yr
+            </button>
+            <p className="text-xs text-gray-400 text-center">Coming soon via the App Store</p>
+          </div>
+        )}
+
+        {/* Past due */}
+        {isPastDue && (
+          <div className="rounded-xl p-3.5 space-y-2 bg-red-50 border border-red-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-red-800">Payment overdue</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-200 text-red-800">Action needed</span>
+            </div>
+            <p className="text-xs text-red-700">Please update your payment method in the App Store to keep access.</p>
+          </div>
+        )}
+
+        {/* Cancelled */}
+        {isCancelled && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700">Family plan</span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">Cancelled</span>
+          </div>
         )}
 
         <p className="text-xs text-gray-400">Managed via the App Store or Google Play. Both parents included.</p>
