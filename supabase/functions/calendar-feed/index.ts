@@ -131,9 +131,14 @@ Deno.serve(async (req) => {
       .gte('event_date', cutoff.toISOString().split('T')[0])
       .order('event_date')
 
+    // Deduplicate: multiple schools can produce the same holiday — keep one per title+date range
+    const seenTerm = new Set<string>()
     for (const ev of termEvents ?? []) {
+      const key = `${ev.title}|${ev.event_date}|${ev.end_date ?? ''}`
+      if (seenTerm.has(key)) continue
+      seenTerm.add(key)
       events.push({
-        uid:     `canopy-term-${ev.id}`,
+        uid:     `canopy-term-${ev.event_date}-${ev.title.replace(/\s+/g, '-')}`,
         summary: `🏫 ${ev.title}`,
         dtstart: ev.event_date,
         dtend:   ev.end_date ?? ev.event_date,
