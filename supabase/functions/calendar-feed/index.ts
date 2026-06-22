@@ -64,29 +64,44 @@ Deno.serve(async (req) => {
       const paName = members?.find(m => m.role === 'parent_a')?.display_name ?? 'Parent A'
       const pbName = members?.find(m => m.role === 'parent_b')?.display_name ?? 'Parent B'
 
-      // Generate schedule days for the next 6 months
+      // Generate schedule days then group consecutive same-parent days into runs
       const cycle: string[] = schedule.pattern_data?.cycle ?? []
       if (cycle.length > 0) {
         const start = new Date(schedule.start_date)
         const end   = new Date()
         end.setMonth(end.getMonth() + 6)
 
+        type Run = { owner: string; name: string; startDate: string; lastDate: string }
+        let currentRun: Run | null = null
+        const runs: Run[] = []
+
         let d = new Date(start)
         let dayIndex = 0
         while (d <= end) {
-          const owner  = cycle[dayIndex % cycle.length]
-          const name   = owner === 'parent_a' ? paName : pbName
+          const owner   = cycle[dayIndex % cycle.length]
+          const name    = owner === 'parent_a' ? paName : pbName
           const dateStr = formatDate(d)
+
+          if (!currentRun || currentRun.owner !== owner) {
+            currentRun = { owner, name, startDate: dateStr, lastDate: dateStr }
+            runs.push(currentRun)
+          } else {
+            currentRun.lastDate = dateStr
+          }
+
+          d.setDate(d.getDate() + 1)
+          dayIndex++
+        }
+
+        for (const run of runs) {
           events.push({
-            uid:     `canopy-schedule-${familyId}-${dateStr}`,
-            summary: `With ${name}`,
-            dtstart: dateStr,
-            dtend:   formatDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)),
+            uid:     `canopy-schedule-${familyId}-${run.startDate}`,
+            summary: `With ${run.name}`,
+            dtstart: run.startDate,
+            dtend:   run.lastDate,  // buildICal adds 1 day for RFC 5545 exclusive end
             allDay:  true,
             color:   'green',
           })
-          d.setDate(d.getDate() + 1)
-          dayIndex++
         }
       }
     }
