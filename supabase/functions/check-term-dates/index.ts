@@ -749,11 +749,14 @@ function isSchoolClosedEvent(title: string): boolean {
 async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null): Promise<number> {
   const { data: existing } = await supabase
     .from('family_events')
-    .select('title, event_date, source_subject')
+    .select('id, title, event_date, end_date, source_subject')
     .eq('family_id', familyId)
     .eq('source', 'term_dates')
 
   const existingKeys = new Set((existing ?? []).map((e: any) => `${e.source_subject}||${e.title}||${e.event_date}`))
+
+  // Events from this school already in the DB, for containment checks
+  const schoolExisting = (existing ?? []).filter((e: any) => e.source_subject === (schoolName ?? 'School term dates'))
 
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 1)
@@ -768,6 +771,27 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
     if (!isSchoolClosedEvent(event.title)) continue
     const key = `${sourceSubject}||${event.title}||${event.date}`
     if (existingKeys.has(key)) continue
+
+    const evStart = event.date
+    const evEnd   = event.end_date ?? event.date
+
+    // Skip if this event is fully contained within an existing event from the same school
+    const containedByExisting = schoolExisting.some((e: any) => {
+      const eEnd = e.end_date ?? e.event_date
+      return e.event_date <= evStart && eEnd >= evEnd &&
+        (e.event_date < evStart || eEnd > evEnd)
+    })
+    if (containedByExisting) continue
+
+    // Delete any existing events from this school that the new (wider) event contains
+    const toDelete = schoolExisting.filter((e: any) => {
+      const eEnd = e.end_date ?? e.event_date
+      return e.event_date >= evStart && eEnd <= evEnd &&
+        (e.event_date > evStart || eEnd < evEnd)
+    })
+    for (const d of toDelete) {
+      await supabase.from('family_events').delete().eq('id', d.id)
+    }
 
     const { error } = await supabase.rpc('create_family_event', {
       p_family_id:      familyId,
