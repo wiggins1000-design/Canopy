@@ -749,11 +749,11 @@ function isSchoolClosedEvent(title: string): boolean {
 async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null): Promise<number> {
   const { data: existing } = await supabase
     .from('family_events')
-    .select('title, event_date')
+    .select('title, event_date, source_subject')
     .eq('family_id', familyId)
     .eq('source', 'term_dates')
 
-  const existingKeys = new Set((existing ?? []).map((e: any) => `${e.title}||${e.event_date}`))
+  const existingKeys = new Set((existing ?? []).map((e: any) => `${e.source_subject}||${e.title}||${e.event_date}`))
 
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 1)
@@ -766,7 +766,7 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
     if (!event.date || !event.title) continue
     if (event.date < cutoffStr) continue
     if (!isSchoolClosedEvent(event.title)) continue
-    const key = `${event.title}||${event.date}`
+    const key = `${sourceSubject}||${event.title}||${event.date}`
     if (existingKeys.has(key)) continue
 
     const { error } = await supabase.rpc('create_family_event', {
