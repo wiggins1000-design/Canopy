@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { useCalendar } from '../hooks/useCalendar'
@@ -22,6 +22,11 @@ export default function CalendarPage() {
   const { family, parentA, parentB, schedule, isParent } = useFamily()
   const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
   const termDays = useTermDates(viewDate.getFullYear())
+  const totalSchoolCount = useMemo(() => {
+    const seen = new Set()
+    for (const entries of termDays.values()) for (const s of entries) seen.add(s.schoolIndex)
+    return seen.size
+  }, [termDays])
   const birthdayList = useBirthdays()
   // Build a map of dateStr → child names for the current view year
   const birthdayDates = new Map()
@@ -244,6 +249,7 @@ export default function CalendarPage() {
               dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
               birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
               termSchools={termDays?.get(selectedDay.dateStr) ?? null}
+              totalSchoolCount={totalSchoolCount}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}

@@ -19,7 +19,7 @@ const SCHOOL_COLORS = [
   'text-orange-700 bg-orange-50 border-orange-200',
 ]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
@@ -61,17 +61,37 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         </div>
       )}
 
-      {/* Term type labels — one per school */}
-      {termSchools?.map((s, i) => {
-        const label = s.type === 'inset' ? 'INSET Day' : 'School Holiday'
-        const shortName = shortSchoolName(s.schoolName)
-        const color = SCHOOL_COLORS[s.schoolIndex] ?? SCHOOL_COLORS[0]
-        return (
-          <div key={i} className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${color}`}>
-            {label}{shortName ? ` · ${shortName}` : ''}
-          </div>
-        )
-      })}
+      {/* Term type labels — consolidated when all schools share the same event */}
+      {termSchools && termSchools.length > 0 && (() => {
+        // Group by event type (holiday / inset)
+        const byType = {}
+        for (const s of termSchools) {
+          if (!byType[s.type]) byType[s.type] = []
+          byType[s.type].push(s)
+        }
+        return Object.entries(byType).flatMap(([type, schools]) => {
+          const label = type === 'inset' ? 'INSET Day' : 'School Holiday'
+          const allClosed = totalSchoolCount > 0 && schools.length === totalSchoolCount
+          if (allClosed) {
+            const suffix = totalSchoolCount === 1
+              ? shortSchoolName(schools[0].schoolName)
+              : totalSchoolCount === 2 ? 'Both schools' : 'All schools'
+            return [(
+              <div key={type} className="mt-2 border rounded-xl px-3 py-2 text-sm font-medium text-canopy-deep bg-canopy-frost border-canopy-mist">
+                {label}{suffix ? ` · ${suffix}` : ''}
+              </div>
+            )]
+          }
+          return schools.map((s, i) => {
+            const color = SCHOOL_COLORS[s.schoolIndex] ?? SCHOOL_COLORS[0]
+            return (
+              <div key={`${type}-${i}`} className={`mt-2 border rounded-xl px-3 py-2 text-sm font-medium ${color}`}>
+                {label}{shortSchoolName(s.schoolName) ? ` · ${shortSchoolName(s.schoolName)}` : ''}
+              </div>
+            )
+          })
+        })
+      })()}
 
       {/* Status badges */}
       <div className="flex flex-wrap gap-1.5 mt-2">
