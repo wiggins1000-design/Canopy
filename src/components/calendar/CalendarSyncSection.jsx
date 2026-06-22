@@ -22,11 +22,19 @@ export default function CalendarSyncSection() {
   const [icalTypes,    setIcalTypes]    = useState(['schedule', 'events', 'term_dates', 'schedule_changes'])
   const [loadingToken, setLoadingToken] = useState(false)
   const [copied,       setCopied]       = useState(false)
+  const [tokenError,   setTokenError]   = useState(null)
 
   async function getIcalToken() {
     setLoadingToken(true)
+    setTokenError(null)
     const { data, error } = await supabase.rpc('get_or_create_ical_token')
-    if (!error && data) setIcalToken(data)
+    if (error) {
+      setTokenError(error.message)
+    } else if (!data) {
+      setTokenError('No token returned — you may not have a parent role in this family.')
+    } else {
+      setIcalToken(data)
+    }
     setLoadingToken(false)
   }
 
@@ -104,6 +112,9 @@ export default function CalendarSyncSection() {
           <Button variant="secondary" className="w-full" loading={loadingToken} onClick={getIcalToken}>
             Generate subscription link
           </Button>
+          {tokenError && (
+            <p className="text-xs text-red-600 mt-1">{tokenError}</p>
+          )}
         )}
       </div>
 
