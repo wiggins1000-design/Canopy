@@ -11,7 +11,8 @@ const SYNC_TYPE_OPTIONS = [
   { id: 'schedule_changes', label: 'Schedule changes',       desc: 'Approved swaps and holiday requests' },
 ]
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
+const APP_URL = 'https://my.canopy-app.app'
+const ALL_TYPES = ['schedule', 'events', 'term_dates', 'schedule_changes']
 
 
 export default function CalendarSyncSection() {
@@ -19,7 +20,7 @@ export default function CalendarSyncSection() {
   const { user } = useAuth()
 
   const [icalToken,    setIcalToken]    = useState(null)
-  const [icalTypes,    setIcalTypes]    = useState(['schedule', 'events', 'term_dates', 'schedule_changes'])
+  const [icalTypes,    setIcalTypes]    = useState(ALL_TYPES)
   const [loadingToken, setLoadingToken] = useState(false)
   const [copied,       setCopied]       = useState(false)
   const [tokenError,   setTokenError]   = useState(null)
@@ -40,8 +41,10 @@ export default function CalendarSyncSection() {
 
   function icalUrl() {
     if (!icalToken) return null
-    const types = icalTypes.join(',')
-    return `${SUPABASE_URL}/functions/v1/calendar-feed?token=${icalToken}&types=${types}`
+    const allSelected = ALL_TYPES.every(t => icalTypes.includes(t)) && icalTypes.length === ALL_TYPES.length
+    return allSelected
+      ? `${APP_URL}/cal/${icalToken}`
+      : `${APP_URL}/cal/${icalToken}?types=${icalTypes.join(',')}`
   }
 
   function copyUrl() {
