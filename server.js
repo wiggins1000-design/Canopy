@@ -13,8 +13,9 @@ app.get('/cal/:token', async (req, res) => {
   const upstream = `${SUPABASE_URL}/functions/v1/calendar-feed?token=${req.params.token}&types=${types}`
   try {
     const r = await fetch(upstream)
-    res.set('Content-Type', r.headers.get('Content-Type') || 'text/calendar; charset=utf-8')
+    res.set('Content-Type', 'text/calendar; charset=utf-8')
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    // No Content-Disposition — Outlook treats 'attachment' as a download, not a subscription
     res.status(r.status).send(await r.text())
   } catch {
     res.status(502).send('Calendar feed unavailable')

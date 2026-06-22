@@ -206,9 +206,11 @@ function buildICal(events: ICalEvent[], calName: string): string {
     const dtstart = ev.allDay
       ? `DTSTART;VALUE=DATE:${ev.dtstart.replace(/-/g, '').slice(0, 8)}`
       : `DTSTART:${ev.dtstart.replace(/-/g, '')}`
+    // RFC 5545: all-day DTEND is exclusive (day after last day)
+    const dtendDate = ev.allDay ? addDay(ev.dtend) : ev.dtend
     const dtend   = ev.allDay
-      ? `DTEND;VALUE=DATE:${ev.dtend.replace(/-/g, '').slice(0, 8)}`
-      : `DTEND:${ev.dtend.replace(/-/g, '')}`
+      ? `DTEND;VALUE=DATE:${dtendDate.replace(/-/g, '').slice(0, 8)}`
+      : `DTEND:${dtendDate.replace(/-/g, '')}`
 
     lines.push('BEGIN:VEVENT')
     lines.push(`UID:${ev.uid}@canopy.app`)
@@ -239,6 +241,12 @@ function foldLine(line: string): string {
     i += 74
   }
   return chunks.join('\r\n')
+}
+
+function addDay(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + 1)
+  return formatDate(d)
 }
 
 function formatDate(d: Date): string {
