@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext'
 import { useFamily } from '../../context/FamilyContext'
 import { supabase } from '../../lib/supabase'
 import OnboardingPage from '../../pages/OnboardingPage'
-import PWAInstallPrompt from '../ui/PWAInstallPrompt'
 import TrialBanner from '../subscription/TrialBanner'
 import PaywallOverlay from '../subscription/PaywallOverlay'
 import { useSubscription } from '../../hooks/useSubscription'
@@ -34,7 +33,6 @@ function AppLayoutInner({ showSuccessToast, onToastDone }) {
         <Outlet />
       </main>
       <BottomNav />
-      <PWAInstallPrompt />
     </div>
   )
 }

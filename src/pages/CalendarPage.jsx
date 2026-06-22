@@ -112,7 +112,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="px-3 pt-4" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div className="px-3 pt-4 overflow-x-hidden" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <h1 className="text-xl font-bold text-gray-900 mb-3">Calendar</h1>
       {/* Month nav */}
       <div className="flex items-center justify-between mb-4">
