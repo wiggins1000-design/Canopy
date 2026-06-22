@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext'
 import { useFamily } from '../../context/FamilyContext'
 import { supabase } from '../../lib/supabase'
 import OnboardingPage from '../../pages/OnboardingPage'
-import TrialBanner from '../subscription/TrialBanner'
 import PaywallOverlay from '../subscription/PaywallOverlay'
 import { useSubscription } from '../../hooks/useSubscription'
 
@@ -22,13 +21,10 @@ function SubscriptionSuccessToast({ onDone }) {
 }
 
 function AppLayoutInner({ showSuccessToast, onToastDone }) {
-  const { needsPaywall } = useSubscription()
-
   return (
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
       <PaywallOverlay />
-      {!needsPaywall && <TrialBanner />}
       <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0">
         <Outlet />
       </main>
