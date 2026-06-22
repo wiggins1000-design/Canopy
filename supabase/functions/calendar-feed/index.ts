@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
             dtstart: dateStr,
             dtend:   formatDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)),
             allDay:  true,
+            color:   'green',
           })
           d.setDate(d.getDate() + 1)
           dayIndex++
@@ -112,6 +113,7 @@ Deno.serve(async (req) => {
         dtend:       ev.end_date ?? ev.event_date,
         allDay:      !ev.event_time,
         description: ev.notes ?? undefined,
+        color:       'sky blue',
       })
     }
   }
@@ -136,6 +138,7 @@ Deno.serve(async (req) => {
         dtstart: ev.event_date,
         dtend:   ev.end_date ?? ev.event_date,
         allDay:  true,
+        color:   'teal',
       })
     }
   }
@@ -162,6 +165,7 @@ Deno.serve(async (req) => {
         dtend:       ch.end_date ?? ch.start_date,
         allDay:      true,
         description: ch.note ?? undefined,
+        color:       'orange',
       })
     }
   }
@@ -188,6 +192,7 @@ interface ICalEvent {
   dtend:        string
   allDay:       boolean
   description?: string
+  color?:       string
 }
 
 function buildICal(events: ICalEvent[], calName: string): string {
@@ -199,7 +204,11 @@ function buildICal(events: ICalEvent[], calName: string): string {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeText(calName)}`,
+    'X-WR-CALDESC:Your family calendar from Canopy',
     'X-WR-TIMEZONE:Europe/London',
+    'X-APPLE-CALENDAR-COLOR:#1b4332',
+    'REFRESH-INTERVAL;VALUE=DURATION:PT4H',
+    'X-PUBLISHED-TTL:PT4H',
   ]
 
   for (const ev of events) {
@@ -218,6 +227,7 @@ function buildICal(events: ICalEvent[], calName: string): string {
     lines.push(dtstart)
     lines.push(dtend)
     lines.push(`SUMMARY:${escapeText(ev.summary)}`)
+    if (ev.color)       lines.push(`COLOR:${ev.color}`)
     if (ev.description) lines.push(foldLine(`DESCRIPTION:${escapeText(ev.description)}`))
     lines.push('END:VEVENT')
   }
