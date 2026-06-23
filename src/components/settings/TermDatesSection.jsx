@@ -170,7 +170,7 @@ export default function TermDatesSection({ onNewDates }) {
 
     const { data: cals } = await supabase
       .from('school_calendars')
-      .select('homepage_url, school_name, term_dates, last_fetched_at')
+      .select('id, homepage_url, school_name, term_dates, last_fetched_at')
       .in('homepage_url', urls)
 
     const calByUrl = Object.fromEntries((cals ?? []).map(c => [c.homepage_url, c]))
@@ -208,12 +208,13 @@ export default function TermDatesSection({ onNewDates }) {
         const key = `${ev.date}|${ev.title}`
         if (!seen.has(key)) {
           const { error } = await supabase.rpc('create_family_event', {
-            p_family_id:      family.id,
-            p_title:          ev.title,
-            p_event_date:     ev.date,
-            p_end_date:       ev.end_date ?? null,
-            p_source:         'term_dates',
-            p_source_subject: schoolLabel,
+            p_family_id:          family.id,
+            p_title:              ev.title,
+            p_event_date:         ev.date,
+            p_end_date:           ev.end_date ?? null,
+            p_source:             'term_dates',
+            p_source_subject:     schoolLabel,
+            p_school_calendar_id: cal.id ?? null,
           })
           if (!error) { added++; seen.add(key) }
         }
