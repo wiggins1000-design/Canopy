@@ -69,6 +69,8 @@ export default function ConfigPage() {
   const [deleteConfirm, setDeleteConfirm]           = useState(false)
   const [deletingAccount, setDeletingAccount]       = useState(false)
   const [deleteError, setDeleteError]               = useState(null)
+  const [childToDelete, setChildToDelete]           = useState(null)
+  const [childDeleting, setChildDeleting]           = useState(false)
   const [justConsentedFeed, setJustConsentedFeed]   = useState(false)
   const [consentingFeed, setConsentingFeed]         = useState(false)
 
@@ -278,8 +280,22 @@ export default function ConfigPage() {
     setChildren((prev) => prev.map((c) => c.id === id ? { ...c, [field]: value } : c))
   }
 
-  function removeChild(id) {
-    setChildren((prev) => prev.filter((c) => c.id !== id))
+  function removeChild(child) {
+    setChildToDelete(child)
+  }
+
+  async function confirmDeleteChild() {
+    if (!childToDelete) return
+    setChildDeleting(true)
+    await supabase.rpc('delete_child_and_data', {
+      p_family_id: family.id,
+      p_child_name: childToDelete.name,
+    })
+    const updated = children.filter((c) => c.id !== childToDelete.id)
+    setChildren(updated)
+    await updateFamilyConfig({ children: updated })
+    setChildToDelete(null)
+    setChildDeleting(false)
   }
 
   async function saveChildren() {
@@ -468,15 +484,30 @@ export default function ConfigPage() {
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs text-gray-400">Add each child's name. Add school details in Info Bank for better FamilyFeed results.</p>
           {children.map((child, index) => (
-            <div key={child.id} className="flex items-center gap-2">
-              <input
-                type="text"
-                value={child.name}
-                onChange={(e) => updateChild(child.id, 'name', e.target.value)}
-                placeholder={`Child ${index + 1} name`}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
-              />
-              <button onClick={() => removeChild(child.id)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">Remove</button>
+            <div key={child.id}>
+              {childToDelete?.id === child.id ? (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-semibold text-red-900">Remove {child.name}?</p>
+                  <p className="text-xs text-red-700">This will delete all calendar events tagged to {child.name} and their Info Bank entries. If no other child in your family attends the same school, their term dates will also be removed. This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setChildToDelete(null)} className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 bg-white">Cancel</button>
+                    <button onClick={confirmDeleteChild} disabled={childDeleting} className="flex-1 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50">
+                      {childDeleting ? 'Removing…' : 'Yes, remove'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={child.name}
+                    onChange={(e) => updateChild(child.id, 'name', e.target.value)}
+                    placeholder={`Child ${index + 1} name`}
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
+                  />
+                  <button onClick={() => removeChild(child)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">Remove</button>
+                </div>
+              )}
             </div>
           ))}
           <button
@@ -847,9 +878,14 @@ export default function ConfigPage() {
               pb={pb}
             />
           )}
-          <div className="px-4 pt-4 pb-1">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Read-only member access</p>
-            <p className="text-xs text-gray-400 mt-1">Choose what grandparents, carers, and other read-only members can see.</p>
+        </AccordionGroup>
+      )}
+
+      {/* ── Read-only member access ── */}
+      {isParent && (
+        <AccordionGroup label="Read-only member access">
+          <div className="px-4 pt-3 pb-1">
+            <p className="text-xs text-gray-400">Choose what grandparents, carers, and other read-only members can see.</p>
           </div>
           <ToggleRow
             label="Calendar"
