@@ -358,7 +358,7 @@ export default function TermDatesSection({ onNewDates }) {
       setPhotoMsg({ type: 'info', msg: 'No term dates found in these images. Try a clearer photo of the term dates.' })
       return
     }
-    setPhotoDates(res.dates)
+    setPhotoDates(prev => prev ? [...prev, ...res.dates] : res.dates)
   }
 
   async function savePhotoDates() {
@@ -372,7 +372,7 @@ export default function TermDatesSection({ onNewDates }) {
         p_family_id:      family.id,
         p_title:          ev.title,
         p_event_date:     ev.date,
-        p_end_date:       ev.end_date ?? null,
+        p_end_date:       ev.end_date || null,
         p_source:         'term_dates',
         p_source_subject: schoolLabel,
       })
@@ -828,6 +828,14 @@ export default function TermDatesSection({ onNewDates }) {
                   >
                     Save {photoDates.length} date{photoDates.length !== 1 ? 's' : ''}
                   </Button>
+                  <button
+                    onClick={() => photosRef.current?.click()}
+                    disabled={photoProcessing}
+                    className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                    title="Add more photos"
+                  >
+                    + Photo
+                  </button>
                   <button
                     onClick={() => { setPhotoDates(null); setPhotoFileCount(0); setPhotoMsg(null) }}
                     className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
