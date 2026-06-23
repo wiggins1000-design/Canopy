@@ -358,7 +358,10 @@ export default function TermDatesSection({ onNewDates }) {
       setPhotoMsg({ type: 'info', msg: 'No term dates found in these images. Try a clearer photo of the term dates.' })
       return
     }
-    setPhotoDates(prev => prev ? [...prev, ...res.dates] : res.dates)
+    setPhotoDates(prev => {
+      const combined = prev ? [...prev, ...res.dates] : res.dates
+      return combined.slice().sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+    })
   }
 
   async function savePhotoDates() {
