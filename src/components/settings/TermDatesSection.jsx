@@ -262,19 +262,6 @@ export default function TermDatesSection({ onNewDates }) {
     const failures = results.filter(r => r.status === 'error' || r.status === 'no_dates')
     const scraped  = results.filter(r => r.status === 'ok')
 
-    if (failures.length && !scraped.length) {
-      const hasNoDates = failures.some(r => r.error === 'no_dates')
-      const hasBlocked = failures.some(r => r.error?.includes('blocking') || r.error?.includes('Failed to fetch'))
-      const msg = hasNoDates
-        ? "Couldn't read dates from the school website — use the photo tool or add them manually below."
-        : hasBlocked
-          ? "The school website is blocking access. Use the photo tool or add the dates manually below."
-          : "Couldn't get dates from the school website. Use the photo tool or add them manually below."
-      setKbMsg({ type: 'error', msg })
-      setKbRefreshing(false)
-      return
-    }
-
     // Reload KB, run import (suppress its own message — we build per-school below)
     const freshData = await fetchKBData()
     setKbData(freshData)
@@ -298,14 +285,25 @@ export default function TermDatesSection({ onNewDates }) {
     const lines = results.map(r => {
       const name = resolveName(r.homepageUrl)
       if (r.status === 'error' || r.status === 'no_dates') {
-        return `${name}: Sync failed — ${mapSyncError(r.error)}`
+        return `${name}: Couldn't read dates — add via photos or manually below`
       }
       return r.eventsAdded > 0
         ? `${name}: ${r.eventsAdded} new date${r.eventsAdded !== 1 ? 's' : ''} added`
         : `${name}: Calendar up to date`
     })
 
-    setKbMsg({ type: 'info', msg: lines.join('\n') })
+    setKbMsg({ type: failures.length ? 'error' : 'info', msg: lines.join('\n') })
+
+    // If any schools failed, open the photos panel pre-set to the first failed school
+    if (failures.length) {
+      const firstFailedName = resolveName(failures[0].homepageUrl)
+      setShowAddOptions(true)
+      setPhotoSchool(firstFailedName)
+      setManualSchool(firstFailedName)
+      setIAddSchool(firstFailedName)
+      setOpenPanel('photos')
+    }
+
     setKbRefreshing(false)
   }
 
