@@ -71,6 +71,8 @@ export default function ConfigPage() {
   const [deleteError, setDeleteError]               = useState(null)
   const [childToDelete, setChildToDelete]           = useState(null)
   const [childDeleting, setChildDeleting]           = useState(false)
+  const [manualTermDatesPrompt, setManualTermDatesPrompt] = useState(null) // { schoolName, count }
+  const [manualTermDatesDeleting, setManualTermDatesDeleting] = useState(false)
   const [justConsentedFeed, setJustConsentedFeed]   = useState(false)
   const [consentingFeed, setConsentingFeed]         = useState(false)
 
@@ -287,7 +289,7 @@ export default function ConfigPage() {
   async function confirmDeleteChild() {
     if (!childToDelete) return
     setChildDeleting(true)
-    await supabase.rpc('delete_child_and_data', {
+    const { data: result } = await supabase.rpc('delete_child_and_data', {
       p_family_id: family.id,
       p_child_name: childToDelete.name,
     })
@@ -296,6 +298,23 @@ export default function ConfigPage() {
     await updateFamilyConfig({ children: updated })
     setChildToDelete(null)
     setChildDeleting(false)
+    if (result?.manual_school_name) {
+      setManualTermDatesPrompt({ schoolName: result.manual_school_name, count: result.manual_term_count })
+    }
+  }
+
+  async function deleteManualTermDates() {
+    if (!manualTermDatesPrompt) return
+    setManualTermDatesDeleting(true)
+    await supabase
+      .from('family_events')
+      .delete()
+      .eq('family_id', family.id)
+      .eq('source', 'term_dates')
+      .eq('source_subject', manualTermDatesPrompt.schoolName)
+      .is('school_calendar_id', null)
+    setManualTermDatesDeleting(false)
+    setManualTermDatesPrompt(null)
   }
 
   async function saveChildren() {
@@ -483,6 +502,18 @@ export default function ConfigPage() {
       <AccordionGroup label="Children">
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs text-gray-400">Add each child's name. Add school details in Info Bank for better FamilyFeed results.</p>
+          {manualTermDatesPrompt && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-900">Delete term dates for {manualTermDatesPrompt.schoolName}?</p>
+              <p className="text-xs text-amber-800">{manualTermDatesPrompt.count} manually-added term date{manualTermDatesPrompt.count !== 1 ? 's' : ''} for this school are still in the calendar. No other child in your family attends this school.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setManualTermDatesPrompt(null)} className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 bg-white">Keep them</button>
+                <button onClick={deleteManualTermDates} disabled={manualTermDatesDeleting} className="flex-1 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50">
+                  {manualTermDatesDeleting ? 'Deleting…' : 'Yes, delete'}
+                </button>
+              </div>
+            </div>
+          )}
           {children.map((child, index) => (
             <div key={child.id}>
               {childToDelete?.id === child.id ? (
