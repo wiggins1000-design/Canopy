@@ -44,6 +44,10 @@ export default function TermDatesSection({ onNewDates }) {
   const [editEnd, setEditEnd]         = useState('')
   const [editSaving, setEditSaving]   = useState(false)
 
+  // Inspect sheet — delete school
+  const [deleteSchoolTarget, setDeleteSchoolTarget] = useState(null) // { school, count }
+  const [deleteSchoolDeleting, setDeleteSchoolDeleting] = useState(false)
+
   // Inspect sheet — inline add
   const [showInspectAdd, setShowInspectAdd] = useState(false)
   const [iAddType, setIAddType]   = useState('holiday')
@@ -410,6 +414,19 @@ export default function TermDatesSection({ onNewDates }) {
     setEvents(p => p.filter(e => e.id !== id))
   }
 
+  async function deleteSchool() {
+    if (!deleteSchoolTarget) return
+    setDeleteSchoolDeleting(true)
+    const { school } = deleteSchoolTarget
+    await supabase.from('family_events').delete()
+      .eq('family_id', family.id)
+      .eq('source', 'term_dates')
+      .eq('source_subject', school)
+    setEvents(p => p.filter(e => e.source_subject !== school))
+    setDeleteSchoolDeleting(false)
+    setDeleteSchoolTarget(null)
+  }
+
   function startEdit(ev) {
     setEditingId(ev.id)
     setEditTitle(ev.title)
@@ -520,12 +537,44 @@ export default function TermDatesSection({ onNewDates }) {
       )}
 
       {/* Inspect bottom sheet */}
-      <BottomSheet open={showInspect} onClose={() => { setShowInspect(false); setEditingId(null); setShowInspectAdd(false) }} title="Term Dates">
+      <BottomSheet open={showInspect} onClose={() => { setShowInspect(false); setEditingId(null); setShowInspectAdd(false); setDeleteSchoolTarget(null) }} title="Term Dates">
         <div className="px-4 py-3 space-y-4">
           {groupedEvents.map(([school, evs]) => (
             <div key={school}>
               {groupedEvents.length > 1 && (
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{school}</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{school}</p>
+                  {isParent && school !== 'Other' && deleteSchoolTarget?.school !== school && (
+                    <button
+                      onClick={() => setDeleteSchoolTarget({ school, count: evs.length })}
+                      className="text-xs text-red-400 hover:text-red-600"
+                    >
+                      Delete all
+                    </button>
+                  )}
+                </div>
+              )}
+              {deleteSchoolTarget?.school === school && (
+                <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 mb-2 space-y-2">
+                  <p className="text-xs font-medium text-red-800">
+                    Delete all {deleteSchoolTarget.count} term dates for {school}?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteSchoolTarget(null)}
+                      className="flex-1 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={deleteSchool}
+                      disabled={deleteSchoolDeleting}
+                      className="flex-1 py-1.5 rounded-lg bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                      {deleteSchoolDeleting ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
               )}
               <div className="space-y-1.5">
                 {evs.map(ev => {
