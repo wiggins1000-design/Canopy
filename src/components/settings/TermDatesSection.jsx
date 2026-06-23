@@ -62,6 +62,7 @@ export default function TermDatesSection({ onNewDates }) {
   const [kbData, setKbData]           = useState(undefined) // undefined=checking, null=none, arr=found
   const [kbImporting, setKbImporting] = useState(false)
   const [kbMsg, setKbMsg]             = useState(null)
+  const [failedSchoolNames, setFailedSchoolNames] = useState([])
   const [kbRefreshing, setKbRefreshing] = useState(false)
 
   // Photos
@@ -300,12 +301,15 @@ export default function TermDatesSection({ onNewDates }) {
 
     // If any schools failed, open the photos panel pre-set to the first failed school
     if (failures.length) {
-      const firstFailedName = resolveName(failures[0].homepageUrl)
+      const failedNames = failures.map(r => resolveName(r.homepageUrl))
+      setFailedSchoolNames(failedNames)
       setShowAddOptions(true)
-      setPhotoSchool(firstFailedName)
-      setManualSchool(firstFailedName)
-      setIAddSchool(firstFailedName)
+      setPhotoSchool(failedNames[0])
+      setManualSchool(failedNames[0])
+      setIAddSchool(failedNames[0])
       setOpenPanel('photos')
+    } else {
+      setFailedSchoolNames([])
     }
 
     setKbRefreshing(false)
@@ -773,7 +777,11 @@ export default function TermDatesSection({ onNewDates }) {
           {/* ── (b) Photos ── */}
           <OptionPanel
             label="Add from photos"
-            description="Upload one or more photos of a term dates letter or calendar"
+            description={
+              failedSchoolNames.length
+                ? `For ${failedSchoolNames.join(' and ')} — upload a photo of the term dates`
+                : 'Upload one or more photos of a term dates letter or calendar'
+            }
             open={openPanel === 'photos'}
             onToggle={() => togglePanel('photos')}
           >
@@ -872,7 +880,11 @@ export default function TermDatesSection({ onNewDates }) {
           {/* ── (c) Manual ── */}
           <OptionPanel
             label="Add manually"
-            description="Enter a single INSET day or holiday period"
+            description={
+              failedSchoolNames.length
+                ? `For ${failedSchoolNames.join(' and ')} — enter dates by hand`
+                : 'Enter a single INSET day or holiday period'
+            }
             open={openPanel === 'manual'}
             onToggle={() => togglePanel('manual')}
           >
