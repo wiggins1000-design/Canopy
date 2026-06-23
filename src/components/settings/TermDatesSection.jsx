@@ -109,7 +109,7 @@ export default function TermDatesSection({ onNewDates }) {
       if (name) opts.add(name)
     }
     for (const ev of events) {
-      if (ev.source_subject && ev.source_subject !== 'School term dates') opts.add(ev.source_subject)
+      if (ev.source_subject) opts.add(ev.source_subject)
     }
     return [...opts]
   }, [kbData, events])
@@ -479,18 +479,13 @@ export default function TermDatesSection({ onNewDates }) {
   }, [events])
 
   const schoolCount = useMemo(() => {
-    const names = new Set(
-      events.map(e => e.source_subject).filter(s => s && s !== 'School term dates')
-    )
-    return names.size
+    return new Set(events.map(e => e.source_subject).filter(Boolean)).size
   }, [events])
 
   const groupedEvents = useMemo(() => {
     const groups = {}
     for (const ev of events) {
-      const label = ev.source_subject && ev.source_subject !== 'School term dates'
-        ? ev.source_subject
-        : 'Other'
+      const label = ev.source_subject || ''
       if (!groups[label]) groups[label] = []
       groups[label].push(ev)
     }
@@ -544,7 +539,7 @@ export default function TermDatesSection({ onNewDates }) {
               {groupedEvents.length > 1 && (
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{school}</p>
-                  {isParent && school !== 'Other' && deleteSchoolTarget?.school !== school && (
+                  {isParent && school && deleteSchoolTarget?.school !== school && (
                     <button
                       onClick={() => setDeleteSchoolTarget({ school, count: evs.length })}
                       className="text-xs text-red-400 hover:text-red-600"
