@@ -41,7 +41,7 @@ export function buildTermDaysMap(events) {
       const existing = map.get(ds) ?? []
       const schoolEntry = existing.find(e => e.schoolIndex === idx)
       if (!schoolEntry) {
-        map.set(ds, [...existing, { type, schoolIndex: idx, schoolName }])
+        map.set(ds, [...existing, { type, schoolIndex: idx, schoolName }].sort((a, b) => a.schoolIndex - b.schoolIndex))
       } else if (typePriority(type) > typePriority(schoolEntry.type)) {
         // INSET overrides holiday for the same school on the same day
         map.set(ds, existing.map(e => e.schoolIndex === idx ? { ...e, type } : e))
