@@ -327,6 +327,7 @@ export default function TermDatesSection({ onNewDates }) {
 
   async function handlePhotoFiles(files) {
     if (!files.length) return
+    const existingDates = photoDates // capture before clearing
     setPhotoFileCount(files.length)
     setPhotoProcessing(true)
     setPhotoDates(null)
@@ -358,8 +359,8 @@ export default function TermDatesSection({ onNewDates }) {
       setPhotoMsg({ type: 'info', msg: 'No term dates found in these images. Try a clearer photo of the term dates.' })
       return
     }
-    setPhotoDates(prev => {
-      const combined = prev ? [...prev, ...res.dates] : res.dates
+    setPhotoDates(() => {
+      const combined = existingDates ? [...existingDates, ...res.dates] : res.dates
       return combined.slice().sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
     })
   }
