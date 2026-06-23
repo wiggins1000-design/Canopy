@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
@@ -452,6 +452,16 @@ function MedicalSection({ data, isParent, onSave, memberConsents, onConsent, upd
 
 // ── School ────────────────────────────────────────────────────
 
+function normaliseUrl(url) {
+  if (!url) return ''
+  try {
+    const u = new URL(url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`)
+    const base = `${u.protocol}//${u.hostname}`.toLowerCase()
+    const hasPath = u.pathname.length > 1 || u.search.length > 0
+    return hasPath ? (base + u.pathname + u.search).toLowerCase() : base
+  } catch { return url.toLowerCase().trim() }
+}
+
 function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted, updatedAt }) {
   const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
   const [d, setD] = useState({ ...defaults, ...data })
@@ -459,14 +469,96 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   const [extracting, setExtracting] = useState(false)
   const [extractResult, setExtractResult] = useState(null)
   const [urlError, setUrlError] = useState(null)
+  const [schoolChangePrompt, setSchoolChangePrompt] = useState(null)
+  const [schoolChangeDeleting, setSchoolChangeDeleting] = useState(false)
+  const originalSchoolUrl = useRef(data?.school_url ?? '')
 
   useEffect(() => { setD({ ...defaults, ...data }); setExtractResult(null) }, [JSON.stringify(data)])
+  useEffect(() => { originalSchoolUrl.current = data?.school_url ?? '' }, [data?.school_url])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
+  async function checkSchoolChange(oldNorm, oldSchoolName) {
+    const { data: siblingRows } = await supabase
+      .from('info_bank')
+      .select('data')
+      .eq('family_id', familyId)
+      .eq('section', 'school')
+      .neq('child_name', childName)
+    const siblingsAtOldSchool = (siblingRows ?? []).filter(
+      r => normaliseUrl(r.data?.school_url) === oldNorm
+    )
+    if (siblingsAtOldSchool.length > 0) return
+
+    const { data: oldCal } = await supabase
+      .from('school_calendars')
+      .select('id, school_name')
+      .eq('homepage_url', oldNorm)
+      .maybeSingle()
+
+    const resolvedName = oldCal?.school_name ?? oldSchoolName ?? ''
+
+    let count = 0
+    if (oldCal?.id) {
+      const { count: kbCount } = await supabase
+        .from('family_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('family_id', familyId)
+        .eq('source', 'term_dates')
+        .eq('school_calendar_id', oldCal.id)
+      count += kbCount ?? 0
+    }
+    if (resolvedName) {
+      const { count: manualCount } = await supabase
+        .from('family_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('family_id', familyId)
+        .eq('source', 'term_dates')
+        .is('school_calendar_id', null)
+        .eq('source_subject', resolvedName)
+      count += manualCount ?? 0
+    }
+
+    if (count > 0) {
+      setSchoolChangePrompt({ schoolName: resolvedName, calId: oldCal?.id ?? null })
+    }
+  }
+
+  async function deleteOldTermDates() {
+    if (!schoolChangePrompt) return
+    setSchoolChangeDeleting(true)
+    const { calId, schoolName } = schoolChangePrompt
+    if (calId) {
+      await supabase.from('family_events').delete()
+        .eq('family_id', familyId)
+        .eq('source', 'term_dates')
+        .eq('school_calendar_id', calId)
+    }
+    if (schoolName) {
+      await supabase.from('family_events').delete()
+        .eq('family_id', familyId)
+        .eq('source', 'term_dates')
+        .is('school_calendar_id', null)
+        .eq('source_subject', schoolName)
+    }
+    setSchoolChangeDeleting(false)
+    setSchoolChangePrompt(null)
+  }
+
   async function save() {
+    const prevUrl = originalSchoolUrl.current
+    const prevSchoolName = data?.school_name ?? ''
     const { error } = await onSave(d)
-    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    if (!error) {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+      const oldNorm = normaliseUrl(prevUrl)
+      const newNorm = normaliseUrl(d.school_url)
+      if (oldNorm && newNorm && oldNorm !== newNorm) {
+        originalSchoolUrl.current = d.school_url
+        await checkSchoolChange(oldNorm, prevSchoolName)
+      }
+    }
     return { error }
   }
 
@@ -528,6 +620,7 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   }
 
   return (
+    <>
     <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
       {/* School URL + auto-extract */}
       <div className="space-y-1.5 pb-1">
@@ -588,6 +681,30 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       </div>
 
     </SectionWrapper>
+
+    {schoolChangePrompt && (
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
+        <p className="text-sm font-medium text-amber-900">
+          Term dates for <span className="font-semibold">{schoolChangePrompt.schoolName}</span> are still in your calendar. Remove them?
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSchoolChangePrompt(null)}
+            className="flex-1 py-2 rounded-xl border border-amber-300 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
+          >
+            Keep
+          </button>
+          <button
+            onClick={deleteOldTermDates}
+            disabled={schoolChangeDeleting}
+            className="flex-1 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
+          >
+            {schoolChangeDeleting ? 'Removing…' : 'Yes, remove'}
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
