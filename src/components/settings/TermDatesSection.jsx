@@ -370,6 +370,7 @@ export default function TermDatesSection({ onNewDates }) {
     setPhotoSaving(true)
     const schoolLabel = resolveSchool(photoSchool, photoSchoolCustom)
     let added = 0
+    let lastError = null
     for (const ev of photoDates) {
       if (!ev.date || !ev.title) continue
       const { error } = await supabase.rpc('create_family_event', {
@@ -381,6 +382,7 @@ export default function TermDatesSection({ onNewDates }) {
         p_source_subject: schoolLabel,
       })
       if (!error) added++
+      else lastError = error
     }
     setPhotoSaving(false)
     if (added > 0) {
@@ -388,6 +390,8 @@ export default function TermDatesSection({ onNewDates }) {
       setPhotoFileCount(0)
       setPhotoMsg({ type: 'success', msg: `${added} date${added !== 1 ? 's' : ''} saved.` })
       loadEvents()
+    } else if (lastError) {
+      setPhotoMsg({ type: 'error', msg: `Could not save dates: ${lastError.message ?? JSON.stringify(lastError)}` })
     } else {
       setPhotoMsg({ type: 'info', msg: 'All these dates are already in your calendar.' })
     }
