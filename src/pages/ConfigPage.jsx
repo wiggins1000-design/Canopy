@@ -741,7 +741,7 @@ export default function ConfigPage() {
           {!feedConsented ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
               <p className="text-xs font-semibold text-amber-900">AI processing notice</p>
-              <p className="text-xs text-amber-800">Emails you forward to FamilyFeed are processed by AI to extract events and notices. Content may include personal information. This processing is covered by your Canopy subscription and data is never used for advertising.</p>
+              <p className="text-xs text-amber-800">Emails you forward to FamilyFeed are processed by AI to extract events and notices. This feature is designed for school newsletters and similar communications — please do not forward emails containing medical or health information. For medical details, use the Info Bank instead. Data is never used for advertising or to train AI models.</p>
               <Button variant="secondary" className="w-full py-2 text-xs" loading={consentingFeed} onClick={consentFamilyFeed}>
                 I understand — enable FamilyFeed
               </Button>
