@@ -67,6 +67,7 @@ export default function TermDatesSection({ onNewDates }) {
 
   // Photos
   const photosRef                         = useRef(null)
+  const [photoImages, setPhotoImages]     = useState([]) // accumulated base64 images
   const [photoFileCount, setPhotoFileCount] = useState(0)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [photoDates, setPhotoDates]       = useState(null) // null=not started, arr=review list
@@ -327,13 +328,11 @@ export default function TermDatesSection({ onNewDates }) {
 
   async function handlePhotoFiles(files) {
     if (!files.length) return
-    const existingDates = photoDates // capture before clearing
-    setPhotoFileCount(files.length)
     setPhotoProcessing(true)
     setPhotoDates(null)
     setPhotoMsg(null)
 
-    const images = await Promise.all(
+    const newImages = await Promise.all(
       Array.from(files).map(
         file => new Promise(resolve => {
           const reader = new FileReader()
@@ -346,8 +345,13 @@ export default function TermDatesSection({ onNewDates }) {
       )
     )
 
+    // Always send ALL accumulated images together so cross-photo inference works
+    const allImages = [...photoImages, ...newImages]
+    setPhotoImages(allImages)
+    setPhotoFileCount(allImages.length)
+
     const { data: res, error } = await supabase.functions.invoke('extract-school-info', {
-      body: { family_id: family?.id, images },
+      body: { family_id: family?.id, images: allImages },
     })
     setPhotoProcessing(false)
 
@@ -359,10 +363,7 @@ export default function TermDatesSection({ onNewDates }) {
       setPhotoMsg({ type: 'info', msg: 'No term dates found in these images. Try a clearer photo of the term dates.' })
       return
     }
-    setPhotoDates(() => {
-      const combined = existingDates ? [...existingDates, ...res.dates] : res.dates
-      return combined.slice().sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
-    })
+    setPhotoDates(res.dates.slice().sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')))
   }
 
   async function savePhotoDates() {
@@ -388,6 +389,7 @@ export default function TermDatesSection({ onNewDates }) {
     setPhotoSaving(false)
     if (added > 0) {
       setPhotoDates(null)
+      setPhotoImages([])
       setPhotoFileCount(0)
       setPhotoMsg({ type: 'success', msg: `${added} date${added !== 1 ? 's' : ''} saved.` })
       loadEvents()
@@ -513,7 +515,7 @@ export default function TermDatesSection({ onNewDates }) {
     setOpenPanel(prev => {
       if (prev === id) return null
       // Reset photo state when leaving photos panel
-      if (prev === 'photos') { setPhotoDates(null); setPhotoFileCount(0); setPhotoMsg(null) }
+      if (prev === 'photos') { setPhotoDates(null); setPhotoImages([]); setPhotoFileCount(0); setPhotoMsg(null) }
       if (id === 'kb')     setKbMsg(null)
       if (id === 'manual') setAddError(null)
       return id
@@ -857,7 +859,7 @@ export default function TermDatesSection({ onNewDates }) {
                     + Photo
                   </button>
                   <button
-                    onClick={() => { setPhotoDates(null); setPhotoFileCount(0); setPhotoMsg(null) }}
+                    onClick={() => { setPhotoDates(null); setPhotoImages([]); setPhotoFileCount(0); setPhotoMsg(null) }}
                     className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
                   >
                     Cancel
