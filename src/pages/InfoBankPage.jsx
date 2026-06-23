@@ -471,10 +471,14 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   const [urlError, setUrlError] = useState(null)
   const [schoolChangePrompt, setSchoolChangePrompt] = useState(null)
   const [schoolChangeDeleting, setSchoolChangeDeleting] = useState(false)
-  const originalSchoolUrl = useRef(data?.school_url ?? '')
+  const originalSchoolUrl  = useRef(data?.school_url  ?? '')
+  const originalSchoolName = useRef(data?.school_name ?? '')
 
   useEffect(() => { setD({ ...defaults, ...data }); setExtractResult(null) }, [JSON.stringify(data)])
-  useEffect(() => { originalSchoolUrl.current = data?.school_url ?? '' }, [data?.school_url])
+  useEffect(() => {
+    originalSchoolUrl.current  = data?.school_url  ?? ''
+    originalSchoolName.current = data?.school_name ?? ''
+  }, [data?.school_url, data?.school_name])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
@@ -524,6 +528,33 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     }
   }
 
+  async function checkNameChange(oldName) {
+    // Skip if a sibling is also at the same URL (they share the school)
+    const { data: siblingRows } = await supabase
+      .from('info_bank')
+      .select('data')
+      .eq('family_id', familyId)
+      .eq('section', 'school')
+      .neq('child_name', childName)
+    const currentNorm = normaliseUrl(d.school_url)
+    const siblingsAtSameUrl = (siblingRows ?? []).filter(
+      r => normaliseUrl(r.data?.school_url) === currentNorm
+    )
+    if (siblingsAtSameUrl.length > 0) return
+
+    const { count } = await supabase
+      .from('family_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('family_id', familyId)
+      .eq('source', 'term_dates')
+      .is('school_calendar_id', null)
+      .eq('source_subject', oldName)
+
+    if ((count ?? 0) > 0) {
+      setSchoolChangePrompt({ schoolName: oldName, calId: null })
+    }
+  }
+
   async function deleteOldTermDates() {
     if (!schoolChangePrompt) return
     setSchoolChangeDeleting(true)
@@ -546,8 +577,8 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   }
 
   async function save() {
-    const prevUrl = originalSchoolUrl.current
-    const prevSchoolName = data?.school_name ?? ''
+    const prevUrl  = originalSchoolUrl.current
+    const prevName = originalSchoolName.current
     const { error } = await onSave(d)
     if (!error) {
       setSaved(true)
@@ -555,8 +586,12 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
       const oldNorm = normaliseUrl(prevUrl)
       const newNorm = normaliseUrl(d.school_url)
       if (oldNorm && newNorm && oldNorm !== newNorm) {
-        originalSchoolUrl.current = d.school_url
-        await checkSchoolChange(oldNorm, prevSchoolName)
+        originalSchoolUrl.current  = d.school_url
+        originalSchoolName.current = d.school_name ?? ''
+        await checkSchoolChange(oldNorm, prevName)
+      } else if (prevName && d.school_name && prevName !== d.school_name) {
+        originalSchoolName.current = d.school_name
+        await checkNameChange(prevName)
       }
     }
     return { error }
