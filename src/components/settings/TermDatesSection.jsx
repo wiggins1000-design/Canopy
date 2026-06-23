@@ -728,6 +728,15 @@ export default function TermDatesSection({ onNewDates }) {
         </div>
       </BottomSheet>
 
+      {/* Sync failure notice — shown outside accordions so it persists when photos panel opens */}
+      {failedSchoolNames.length > 0 && (
+        <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+          <p className="text-xs font-medium text-red-700">
+            Couldn't read dates from {failedSchoolNames.join(' and ')} — add via photos or manually below.
+          </p>
+        </div>
+      )}
+
       {/* Add options — parents only */}
       {isParent && (
         <div className="space-y-2 pt-1">
