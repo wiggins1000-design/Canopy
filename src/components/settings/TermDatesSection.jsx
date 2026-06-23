@@ -873,19 +873,20 @@ export default function TermDatesSection({ onNewDates }) {
                   </button>
                 )}
                 {photoMsg && <p className={`text-xs font-medium ${msgCls(photoMsg.type)}`}>{photoMsg.msg}</p>}
-                <input
-                  ref={photosRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={e => {
-                    if (e.target.files?.length) handlePhotoFiles(e.target.files)
-                    e.target.value = ''
-                  }}
-                />
               </div>
             )}
+            {/* Always mounted so photosRef works in both upload and review steps */}
+            <input
+              ref={photosRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={e => {
+                if (e.target.files?.length) handlePhotoFiles(e.target.files)
+                e.target.value = ''
+              }}
+            />
           </OptionPanel>
 
           {/* ── (c) Manual ── */}
