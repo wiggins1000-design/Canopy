@@ -374,12 +374,13 @@ export default function TermDatesSection({ onNewDates }) {
     for (const ev of photoDates) {
       if (!ev.date || !ev.title) continue
       const { error } = await supabase.rpc('create_family_event', {
-        p_family_id:      family.id,
-        p_title:          ev.title,
-        p_event_date:     ev.date,
-        p_end_date:       ev.end_date || null,
-        p_source:         'term_dates',
-        p_source_subject: schoolLabel,
+        p_family_id:          family.id,
+        p_title:              ev.title,
+        p_event_date:         ev.date,
+        p_end_date:           ev.end_date || null,
+        p_source:             'term_dates',
+        p_source_subject:     schoolLabel,
+        p_school_calendar_id: null,
       })
       if (!error) added++
       else lastError = error
@@ -407,12 +408,13 @@ export default function TermDatesSection({ onNewDates }) {
     setAddSaving(true)
     setAddError(null)
     const { error } = await supabase.rpc('create_family_event', {
-      p_family_id:      family.id,
-      p_title:          title,
-      p_event_date:     addDate,
-      p_end_date:       addType === 'holiday' ? addEnd : null,
-      p_source:         'term_dates',
-      p_source_subject: resolveSchool(manualSchool, manualSchoolCustom),
+      p_family_id:          family.id,
+      p_title:              title,
+      p_event_date:         addDate,
+      p_end_date:           addType === 'holiday' ? addEnd : null,
+      p_source:             'term_dates',
+      p_source_subject:     resolveSchool(manualSchool, manualSchoolCustom),
+      p_school_calendar_id: null,
     })
     setAddSaving(false)
     if (error) { setAddError(error.message); return }
@@ -468,12 +470,13 @@ export default function TermDatesSection({ onNewDates }) {
     setIAddSaving(true)
     setIAddError(null)
     const { error } = await supabase.rpc('create_family_event', {
-      p_family_id:      family.id,
-      p_title:          title,
-      p_event_date:     iAddDate,
-      p_end_date:       iAddType === 'holiday' ? iAddEnd : null,
-      p_source:         'term_dates',
-      p_source_subject: resolveSchool(iAddSchool, iAddSchoolCustom),
+      p_family_id:          family.id,
+      p_title:              title,
+      p_event_date:         iAddDate,
+      p_end_date:           iAddType === 'holiday' ? iAddEnd : null,
+      p_source:             'term_dates',
+      p_source_subject:     resolveSchool(iAddSchool, iAddSchoolCustom),
+      p_school_calendar_id: null,
     })
     setIAddSaving(false)
     if (error) { setIAddError(error.message); return }
