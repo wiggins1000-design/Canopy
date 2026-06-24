@@ -1129,6 +1129,20 @@ export default function ConfigPage() {
         </div>
       </AccordionGroup>
 
+      <div className="mt-3 border-t border-gray-100 pt-3 pb-1 flex justify-center">
+        <a
+          href="https://canopy-app.app/faq.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-sm text-canopy-mid hover:text-canopy-deep transition-colors py-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+          </svg>
+          Help &amp; FAQ
+        </a>
+      </div>
+
       <div className="h-4" />
     </div>
   )
@@ -1230,15 +1244,18 @@ function SubscriptionSection() {
 
         {/* Active subscription */}
         {isActive && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-700">Family plan</span>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Active</span>
+          <div className="rounded-xl p-3.5 bg-canopy-frost border border-canopy-mist space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-canopy-deep">Family plan</span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Active</span>
+            </div>
+            {periodEnd && (
+              <p className="text-xs text-canopy-mid">
+                Renews {periodEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
+            <p className="text-xs text-gray-400">Manage your subscription in the App Store or Google Play.</p>
           </div>
-        )}
-        {isActive && periodEnd && (
-          <p className="text-xs text-gray-400">
-            Next billing: {periodEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
         )}
 
         {/* Trial — card with CTA */}

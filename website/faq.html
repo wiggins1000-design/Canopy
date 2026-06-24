@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ &ndash; Canopy Family App</title>
+  <meta name="description" content="Answers to common questions about Canopy &mdash; how your data is protected, how the app works, and how to get started.">
+  <meta property="og:title" content="FAQ &ndash; Canopy">
+  <meta property="og:description" content="Everything you need to know about Canopy &mdash; security, privacy, features, and pricing.">
+  <meta property="og:url" content="https://canopy-app.app/faq.html">
+  <meta name="theme-color" content="#1b4332">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canopy: {
+              deep:  '#1b4332',
+              mid:   '#2d6a4f',
+              green: '#52b788',
+              light: '#74c69d',
+              mist:  '#d8f3dc',
+              frost: '#f4fbf4',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .faq-answer { display: none; }
+    .faq-answer.open { display: block; }
+    .faq-icon { transition: transform 0.2s ease; }
+    .faq-icon.open { transform: rotate(45deg); }
+    .step-img {
+      background: #f4fbf4;
+      border: 2px dashed #d8f3dc;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #74c69d;
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-white text-gray-900 antialiased" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+
+  <!-- Navigation -->
+  <nav class="bg-canopy-deep sticky top-0 z-50 shadow-sm">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html">
+          <img src="images/CanopyGreenLogo.gif" alt="Canopy" style="height:36px;">
+        </a>
+        <span class="hidden sm:block text-canopy-mist text-sm">Share what matters.</span>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-5">
+        <a href="index.html#features" class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">Features</a>
+        <a href="index.html#about"    class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">About</a>
+        <a href="index.html#pricing"  class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">Pricing</a>
+        <a href="faq.html"            class="text-white text-sm font-medium transition-colors hidden md:block">FAQ</a>
+        <a href="https://my.canopy-app.app"
+           class="text-sm font-semibold bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="bg-canopy-frost py-16 px-5 text-center">
+    <div class="max-w-2xl mx-auto">
+      <p class="text-canopy-mid font-semibold text-xs uppercase tracking-widest mb-3">Frequently asked questions</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Your questions, answered</h1>
+      <p class="text-lg text-gray-500 leading-relaxed">Everything you need to know about how Canopy works, keeps your family's data safe, and fits into your life.</p>
+    </div>
+  </section>
+
+  <!-- Jump links -->
+  <div class="bg-white border-b border-gray-100 sticky top-[72px] z-40">
+    <div class="max-w-3xl mx-auto px-5 py-3 flex flex-wrap gap-3 text-sm">
+      <a href="#security"     class="text-canopy-mid hover:text-canopy-deep font-medium transition-colors">Security &amp; Privacy</a>
+      <span class="text-gray-300">|</span>
+      <a href="#documents"    class="text-canopy-mid hover:text-canopy-deep font-medium transition-colors">Your Documents</a>
+      <span class="text-gray-300">|</span>
+      <a href="#features"     class="text-canopy-mid hover:text-canopy-deep font-medium transition-colors">How it works</a>
+      <span class="text-gray-300">|</span>
+      <a href="#calendar"     class="text-canopy-mid hover:text-canopy-deep font-medium transition-colors">Calendar import</a>
+      <span class="text-gray-300">|</span>
+      <a href="#subscription" class="text-canopy-mid hover:text-canopy-deep font-medium transition-colors">Subscription</a>
+    </div>
+  </div>
+
+  <div class="max-w-3xl mx-auto px-5 py-16 space-y-16">
+
+    <!-- ── Security & Privacy ── -->
+    <section id="security">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+        <span class="w-9 h-9 bg-canopy-deep rounded-xl flex items-center justify-center text-base flex-shrink-0">&#128272;</span>
+        Security &amp; Privacy
+      </h2>
+      <div class="space-y-2">
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Is my family&rsquo;s data safe?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Yes. Canopy is built with security as a first principle, not an afterthought. Here&rsquo;s what that means in practice:</p>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> All data travels over HTTPS &mdash; it is encrypted in transit.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Everything stored in our database is encrypted at rest using AES-256.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Passwords are hashed using bcrypt and never stored in plain text.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Row-level security means only authenticated members of <em>your</em> family can ever read your family&rsquo;s data. Our staff cannot query your records.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Our infrastructure runs in the EU (Ireland) and complies with UK GDPR and the Data Protection Act 2018.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Could my account or my child&rsquo;s details be hacked?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>No system can guarantee zero risk, but Canopy uses the same infrastructure and security model trusted by thousands of enterprise applications worldwide. Specifically:</p>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Row-level security (RLS)</strong> is enforced at the database level &mdash; even if someone obtained your API keys, they could not read another family&rsquo;s data.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Two-factor authentication</strong> is available in Settings. We strongly recommend enabling it &mdash; even if your password is ever compromised, a second factor stops an attacker from signing in.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Session management</strong> &mdash; you can sign out of all devices from Settings if you ever suspect unauthorised access.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Child account credentials are stored with an additional encryption layer on top of standard password hashing.</li>
+            </ul>
+            <p class="text-sm">As with any online service, using a strong, unique password and enabling two-factor authentication are the two most effective steps you can take.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Do you sell our data or show us adverts?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Never. Canopy is funded entirely by subscriptions. There are no adverts in the app, no third-party advertising trackers, and we do not sell, rent, or share your data with anyone for commercial purposes.</p>
+            <p class="text-sm">We use a small number of carefully selected sub-processors to deliver the service &mdash; for example, our infrastructure provider (Supabase), our email delivery provider (Resend), and Anthropic for AI features. All are bound by Data Processing Agreements. A full list is in our <a href="privacy.html" class="text-canopy-mid hover:underline font-medium">Privacy Policy</a>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Is Canopy UK GDPR compliant?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Yes. Canopy is operated by Chrysalis Works Ltd, registered with the ICO (Information Commissioner&rsquo;s Office) as a data controller. We process personal data lawfully under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.</p>
+            <p class="text-sm">You have the right to access, correct, port, and erase your data &mdash; and in Canopy, you can exercise all of these rights directly in the app without contacting us. Full details are in our <a href="privacy.html" class="text-canopy-mid hover:underline font-medium">Privacy Policy</a>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">What happens to our data if we cancel?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>You can delete your account at any time from Settings &rarr; Account &rarr; Delete my account. Deletion is immediate and permanent &mdash; there are no grace periods, no &ldquo;we&rsquo;ll keep it for 30 days&rdquo; dark patterns.</p>
+            <p class="text-sm">Before deleting, you can download a complete export of everything Canopy holds about your family &mdash; all calendar events, notices, information bank entries, documents, and messages &mdash; in a portable format. Go to Settings &rarr; Account &rarr; Download my data.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Your Documents ── -->
+    <section id="documents">
+      <div class="bg-canopy-deep rounded-3xl p-1 mb-6">
+        <div class="bg-canopy-deep rounded-3xl px-6 py-5 flex items-start gap-4">
+          <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">&#128196;</div>
+          <div>
+            <h2 class="text-xl font-bold text-white mb-1">Your Documents</h2>
+            <p class="text-canopy-mist text-sm leading-relaxed">Passports, school reports, medical letters &mdash; the most sensitive files you own. Here&rsquo;s exactly how we protect them.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+
+        <div class="faq-item border-2 border-canopy-mist rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-canopy-frost transition-colors">
+            <span class="font-semibold text-gray-900">How safe are my child&rsquo;s personal documents?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-4">
+            <p class="font-medium text-gray-800">Very safe. Here is the full picture:</p>
+
+            <div class="bg-canopy-frost rounded-2xl p-5 space-y-3">
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 bg-canopy-deep rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-0.5">&#128274;</div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">Encrypted at rest</p>
+                  <p class="text-sm text-gray-600">Every file you upload is stored in Supabase Storage with AES-256 encryption at rest. The encryption is applied at the storage layer &mdash; files are never stored as raw bytes that could be read if the underlying disk were accessed.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 bg-canopy-deep rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-0.5">&#128272;</div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">Only your family can access them</p>
+                  <p class="text-sm text-gray-600">Row-level security is enforced at the database layer &mdash; not just in application code. This means even a malicious actor who bypassed the application layer would still be blocked from reading files belonging to other families. Access is limited to authenticated members of your family group.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 bg-canopy-deep rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-0.5">&#128279;</div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">Signed, expiring download links</p>
+                  <p class="text-sm text-gray-600">When you view or download a document, Canopy generates a signed URL that expires after a short period. This means there is no permanent, guessable link to your files. Bookmarking a download link will not work after it expires.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 bg-canopy-deep rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-0.5">&#128683;</div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">We cannot read your documents</p>
+                  <p class="text-sm text-gray-600">Canopy staff do not have routine access to your stored files. Our infrastructure access controls are set so that files can only be accessed by authenticated users who belong to the relevant family. We do not process document contents with AI or for any purpose other than storing and serving them back to you.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 bg-canopy-deep rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-0.5">&#127466;&#127482;</div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">Data stays in the EU</p>
+                  <p class="text-sm text-gray-600">All storage is hosted in the EU (Ireland). Your documents never leave the European Economic Area without your knowledge. This is compliant with UK GDPR data transfer requirements.</p>
+                </div>
+              </div>
+            </div>
+
+            <p class="text-sm text-gray-500">The Document Vault is designed specifically for sensitive family documents &mdash; passports, medical letters, school reports. We take its security proportionally seriously.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Who in our family can see the documents?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>By default, both parents can view and upload documents. If you add a read-only family member (for example, a grandparent or carer), access to the Info Bank &mdash; which includes documents &mdash; is <strong>off by default</strong>. Both parents must agree to grant them access.</p>
+            <p class="text-sm">Read-only members never have permission to upload, edit, or delete documents &mdash; they can only view files that both parents have explicitly granted them access to see.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">What types of documents can I store?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-2">
+            <p>Any file type is supported. Common uses include:</p>
+            <ul class="text-sm space-y-1 list-disc list-inside text-gray-600">
+              <li>Passports and ID documents</li>
+              <li>School reports and letters</li>
+              <li>Medical letters, test results, prescriptions</li>
+              <li>Court orders and parenting agreements</li>
+              <li>Insurance documents</li>
+              <li>Travel documents and consent forms</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── How it works ── -->
+    <section id="features">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+        <span class="w-9 h-9 bg-canopy-deep rounded-xl flex items-center justify-center text-base flex-shrink-0">&#9889;</span>
+        How it works
+      </h2>
+      <div class="space-y-2">
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">How does the messaging feature work?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Canopy&rsquo;s messaging is designed around topics rather than a single chat thread &mdash; so conversations about school, medical appointments, and holidays don&rsquo;t get muddled together.</p>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Messages are private between parents only &mdash; read-only members (grandparents, carers) cannot see them.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Each message thread has a clear topic so conversations stay organised and searchable.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Push notifications alert the other parent immediately when a new message arrives.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> All messages are stored securely and included in your data export &mdash; useful for record-keeping.</li>
+            </ul>
+            <p class="text-sm">Messaging is an optional feature &mdash; each parent can choose whether to enable it in Settings.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Will it integrate with my work calendar?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Yes &mdash; Canopy provides a private iCal feed that you can subscribe to from any calendar app, including work calendars.</p>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Outlook (personal &amp; work)</strong> &mdash; subscribe to a calendar from URL; updates automatically.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Google Calendar</strong> &mdash; subscribe &ldquo;from URL&rdquo; in Other Calendars.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> <strong>Apple Calendar</strong> &mdash; File &rarr; New Calendar Subscription.</li>
+              <li class="flex items-start gap-2"><span class="text-canopy-green font-bold mt-0.5 flex-shrink-0">&#10003;</span> Any app that supports iCal / ICS subscriptions.</li>
+            </ul>
+            <p class="text-sm">Your Canopy calendar link is in Settings &rarr; Calendar &rarr; Export. The iCal feed is read-only &mdash; changes made in Google or Outlook won&rsquo;t affect Canopy, which keeps your family calendar as the authoritative source.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">What is the AI email feature and is it safe?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>When you forward a school newsletter or photograph a flyer, Canopy uses AI to extract the events and add them directly to your family calendar &mdash; so you don&rsquo;t have to type them in manually.</p>
+            <p class="text-sm">The content of the email or photo is sent to Anthropic&rsquo;s Claude AI solely for this purpose. Anthropic does not retain API data for training. No other data from your Canopy account is shared &mdash; only the email or image you explicitly forward.</p>
+            <p class="text-sm">This feature requires your consent and can be turned off in Settings at any time. Nothing is sent to AI without your explicit action (forwarding an email or photographing a flyer).</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Can grandparents or carers use Canopy?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-3">
+            <p>Yes. You can invite family members as read-only members. They get their own login and can see what both parents agree to share with them.</p>
+            <p class="text-sm">By default, read-only members can see the calendar and the notice board. Access to the Info Bank, parenting schedule, and messaging requires both parents to agree in Settings. This gives you full control over what extended family can see.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Does it work on iPhone and Android?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed space-y-2">
+            <p>Yes. Canopy is available as:</p>
+            <ul class="text-sm space-y-1 list-disc list-inside text-gray-600">
+              <li><strong>iOS app</strong> &mdash; available on the App Store</li>
+              <li><strong>Android app</strong> &mdash; available on Google Play</li>
+              <li><strong>Web app</strong> &mdash; install directly from your browser on any device (Chrome, Safari, Edge)</li>
+            </ul>
+            <p class="text-sm text-gray-500">Both parents don&rsquo;t need to use the same device type.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Calendar import guide ── -->
+    <section id="calendar">
+      <h2 class="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+        <span class="w-9 h-9 bg-canopy-deep rounded-xl flex items-center justify-center text-base flex-shrink-0">&#128197;</span>
+        How to import your Canopy calendar
+      </h2>
+      <p class="text-gray-500 mb-8 text-sm">Step-by-step guides for Google Calendar and Outlook. Your iCal link is in <strong>Settings &rarr; Calendar &rarr; Export</strong> inside the Canopy app.</p>
+
+      <!-- Google Calendar -->
+      <div class="mb-10">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="#4285F4"/>
+              <path d="M17.64 12.2c0-.38-.03-.74-.09-1.1H12v2.08h3.16c-.14.73-.55 1.35-1.17 1.77v1.47h1.89c1.11-1.02 1.76-2.53 1.76-4.22z" fill="#fff"/>
+              <path d="M12 18c1.58 0 2.9-.52 3.87-1.41l-1.89-1.47c-.52.35-1.19.56-1.98.56-1.52 0-2.81-1.03-3.27-2.41H6.78v1.52C7.74 16.47 9.73 18 12 18z" fill="#fff"/>
+              <path d="M8.73 13.27A3.996 3.996 0 018.46 12c0-.44.08-.87.22-1.27V9.21H6.78A7.01 7.01 0 006 12c0 1.13.27 2.2.78 3.13l1.95-1.86z" fill="#fff"/>
+              <path d="M12 8.59c.86 0 1.63.3 2.24.88l1.68-1.68C14.9 6.79 13.58 6.2 12 6.2 9.73 6.2 7.74 7.53 6.78 9.21l1.95 1.52C9.19 9.62 10.48 8.59 12 8.59z" fill="#fff"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900">Google Calendar</h3>
+        </div>
+
+        <div class="space-y-4">
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">1</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-1">Copy your Canopy iCal link</p>
+              <p class="text-sm text-gray-600">In the Canopy app, go to <strong>Settings &rarr; Calendar &rarr; Export</strong> and tap <strong>Copy link</strong>.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">2</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-2">Open &ldquo;Other calendars&rdquo; in Google Calendar</p>
+              <p class="text-sm text-gray-600 mb-3">On the left sidebar, find <strong>Other calendars</strong> and click the <strong>+</strong> button next to it. Select <strong>From URL</strong>.</p>
+              <div class="step-img h-36">
+                <span>Screenshot: Google Calendar sidebar &rarr; Other calendars &rarr; + &rarr; From URL<br><span class="text-gray-400">[replace with screenshot]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">3</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-2">Paste your Canopy link and add the calendar</p>
+              <p class="text-sm text-gray-600 mb-3">Paste the link you copied from Canopy into the <strong>URL of calendar</strong> field, then click <strong>Add calendar</strong>.</p>
+              <div class="step-img h-28">
+                <span>Screenshot: Google Calendar &ldquo;From URL&rdquo; dialog with URL field<br><span class="text-gray-400">[replace with screenshot]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">4</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-1">Done &mdash; your Canopy calendar appears</p>
+              <p class="text-sm text-gray-600">Your family calendar events will appear in Google Calendar and update automatically. Google typically refreshes subscribed calendars every few hours.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outlook -->
+      <div class="mb-10">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="#0078D4">
+              <path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zM9 17H6v-7h3v7zm-1.5-8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM18 17h-3v-3.5c0-.83-.67-1.5-1.5-1.5S12 12.67 12 13.5V17H9v-7h3v1.13c.56-.87 1.56-1.5 2.5-1.5 1.93 0 3.5 1.57 3.5 3.5V17z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900">Microsoft Outlook</h3>
+        </div>
+        <p class="text-sm text-gray-500 mb-4">These steps work for Outlook on the web (outlook.com / Microsoft 365) and the Outlook desktop app.</p>
+
+        <div class="space-y-4">
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">1</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-1">Copy your Canopy iCal link</p>
+              <p class="text-sm text-gray-600">In the Canopy app, go to <strong>Settings &rarr; Calendar &rarr; Export</strong> and tap <strong>Copy link</strong>.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">2</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-2">Open Calendar and click &ldquo;Add calendar&rdquo;</p>
+              <p class="text-sm text-gray-600 mb-3">Switch to the Calendar view in Outlook. In the left panel, click <strong>Add calendar</strong> (or the + icon).</p>
+              <div class="step-img h-36">
+                <span>Screenshot: Outlook Calendar &rarr; Add calendar button in left panel<br><span class="text-gray-400">[replace with screenshot]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">3</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-2">Choose &ldquo;Subscribe from web&rdquo;</p>
+              <p class="text-sm text-gray-600 mb-3">In the dialog that opens, select <strong>Subscribe from web</strong>.</p>
+              <div class="step-img h-28">
+                <span>Screenshot: Outlook &ldquo;Add calendar&rdquo; dialog &rarr; Subscribe from web option<br><span class="text-gray-400">[replace with screenshot]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">4</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-2">Paste your Canopy link and import</p>
+              <p class="text-sm text-gray-600 mb-3">Paste your Canopy iCal URL into the field and click <strong>Import</strong>. You can give it a name like &ldquo;Canopy Family&rdquo;.</p>
+              <div class="step-img h-28">
+                <span>Screenshot: Outlook &ldquo;Subscribe from web&rdquo; URL field<br><span class="text-gray-400">[replace with screenshot]</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">5</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 mb-1">Done &mdash; your Canopy calendar appears</p>
+              <p class="text-sm text-gray-600">Your family events will appear alongside your work calendar in Outlook. Outlook refreshes subscribed calendars periodically &mdash; typically every few hours.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Apple Calendar -->
+      <div>
+        <div class="flex items-center gap-3 mb-5">
+          <div class="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0 text-base">&#128197;</div>
+          <h3 class="text-lg font-bold text-gray-900">Apple Calendar (Mac)</h3>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">1</div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-900 mb-1">Copy your Canopy iCal link from Settings &rarr; Calendar &rarr; Export</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">2</div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-900 mb-1">Open Calendar on your Mac, go to <strong>File &rarr; New Calendar Subscription</strong></p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-canopy-deep text-white text-sm font-bold flex items-center justify-center">3</div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-900 mb-1">Paste the link, set refresh to <strong>Every 15 minutes</strong>, click <strong>OK</strong></p>
+              <p class="text-sm text-gray-600">Enabling iCloud sync means the subscription will also appear on your iPhone and iPad.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 bg-canopy-frost rounded-2xl p-5 text-sm text-gray-600">
+        <strong class="text-gray-900">Note:</strong> The iCal feed is read-only. Events you add in Google, Outlook, or Apple Calendar will not appear in Canopy. Canopy is the source of truth for your family calendar.
+      </div>
+    </section>
+
+    <!-- ── Subscription ── -->
+    <section id="subscription">
+      <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+        <span class="w-9 h-9 bg-canopy-deep rounded-xl flex items-center justify-center text-base flex-shrink-0">&#128176;</span>
+        Subscription &amp; pricing
+      </h2>
+      <div class="space-y-2">
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Is there a free trial?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed">
+            <p>Yes &mdash; 10 days free, no credit card required. You get access to every feature during the trial. At the end of the trial you can subscribe to continue, or your account stays active with limited access.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Do both parents need to pay separately?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed">
+            <p>No. One subscription covers both parents &mdash; and any read-only members you add (grandparents, carers). There are no per-person charges. &pound;12.99/month or &pound;119.99/year for the whole family.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Can I cancel at any time?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed">
+            <p>Yes. Cancel any time from the App Store (iOS) or Google Play (Android) &mdash; wherever you subscribed. There are no cancellation fees. You keep access until the end of your current billing period.</p>
+          </div>
+        </div>
+
+        <div class="faq-item border border-gray-200 rounded-2xl overflow-hidden">
+          <button onclick="toggle(this)" class="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+            <span class="font-semibold text-gray-900">Do both parents need to have Canopy installed?</span>
+            <span class="faq-icon text-canopy-mid text-2xl font-light flex-shrink-0">+</span>
+          </button>
+          <div class="faq-answer px-6 pb-6 text-gray-600 leading-relaxed">
+            <p>Both parents need an account to get the most out of Canopy &mdash; shared calendars, notices, and messaging only work if both parents are connected. One parent sets up the family and invites the other using a simple invite code. The second parent doesn&rsquo;t need to pay anything extra.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Still have questions -->
+    <section class="bg-canopy-deep rounded-3xl p-8 text-center text-white">
+      <div class="text-3xl mb-3">&#128172;</div>
+      <h2 class="text-xl font-bold mb-2">Still have a question?</h2>
+      <p class="text-canopy-mist text-sm mb-6">We&rsquo;re a small team and we reply promptly.</p>
+      <a href="mailto:hello@canopy-app.app"
+         class="inline-block bg-white text-canopy-deep font-bold px-6 py-3 rounded-2xl text-sm transition-colors hover:bg-canopy-frost">
+        hello@canopy-app.app
+      </a>
+    </section>
+
+  </div>
+
+  <!-- CTA Banner -->
+  <section class="py-16 px-5 text-white text-center" style="background:#1b4332;">
+    <h2 class="text-3xl sm:text-4xl font-bold mb-3">Ready to get organised?</h2>
+    <p class="mb-8 text-lg max-w-md mx-auto" style="color:#d8f3dc;">10 days free. No card required. Cancel anytime.</p>
+    <a href="https://my.canopy-app.app"
+       class="inline-block bg-white font-bold px-8 py-4 rounded-2xl text-base transition-colors"
+       style="color:#1b4332;"
+       onmouseover="this.style.background='#f4fbf4'"
+       onmouseout="this.style.background='white'">
+      Start your free trial
+    </a>
+  </section>
+
+  <!-- Footer -->
+  <footer style="background:#111827;color:#9ca3af;" class="py-10 px-5">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <img src="images/CanopyBlackLogo.gif" alt="Canopy" style="height:28px;">
+        <p class="text-sm">Share what matters.</p>
+      </div>
+      <div class="flex gap-6 text-sm">
+        <a href="index.html#about" class="hover:text-white transition-colors">About</a>
+        <a href="faq.html"         class="hover:text-white transition-colors text-white">FAQ</a>
+        <a href="privacy.html"     class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="terms.html"       class="hover:text-white transition-colors">Terms of Use</a>
+        <a href="https://my.canopy-app.app" class="hover:text-white transition-colors">Sign in</a>
+      </div>
+      <p class="text-sm">&copy; 2026 Chrysalis Works Ltd. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    function toggle(btn) {
+      var item    = btn.closest('.faq-item')
+      var answer  = item.querySelector('.faq-answer')
+      var icon    = btn.querySelector('.faq-icon')
+      var isOpen  = answer.classList.contains('open')
+      answer.classList.toggle('open', !isOpen)
+      icon.classList.toggle('open', !isOpen)
+    }
+  </script>
+</body>
+</html>
