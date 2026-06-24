@@ -7,6 +7,16 @@ import { supabase } from '../../lib/supabase'
 import OnboardingPage from '../../pages/OnboardingPage'
 import PaywallOverlay from '../subscription/PaywallOverlay'
 import { useSubscription } from '../../hooks/useSubscription'
+import { isNativePlatform } from '../../lib/supabase'
+
+async function initNativeStatusBar() {
+  if (!isNativePlatform()) return
+  try {
+    const { StatusBar, Style } = await import('@capacitor/status-bar')
+    await StatusBar.setOverlaysWebView({ overlay: true })
+    await StatusBar.setStyle({ style: Style.Light })
+  } catch (_) {}
+}
 
 function SubscriptionSuccessToast({ onDone }) {
   useEffect(() => {
@@ -21,6 +31,8 @@ function SubscriptionSuccessToast({ onDone }) {
 }
 
 function AppLayoutInner({ showSuccessToast, onToastDone }) {
+  useEffect(() => { initNativeStatusBar() }, [])
+
   return (
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
