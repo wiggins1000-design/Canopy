@@ -480,14 +480,20 @@ Rules:
 }
 
 function findTermDatesLinkByPattern(links: string[]): string | null {
-  // More specific patterns first — /calendar alone is a weaker signal
-  const patterns = [
-    /term.?dates/i, /term.?times/i, /school.?calendar/i, /key.?dates/i,
-    /holiday.?dates/i, /school.?dates/i, /academic.?calendar/i, /dates.?deadlines/i,
-    /\/calendar(?:$|[/?#])/i,
+  const decode = (url: string) => { try { return decodeURIComponent(url.replace(/\+/g, ' ')).toLowerCase() } catch { return url.toLowerCase() } }
+  // Check each tier in priority order — both words must appear anywhere in the decoded URL
+  const tiers: Array<(d: string) => boolean> = [
+    d => d.includes('term') && d.includes('date'),
+    d => d.includes('term') && d.includes('time'),
+    d => d.includes('academic') && d.includes('calendar'),
+    d => d.includes('school') && d.includes('calendar'),
+    d => d.includes('key') && d.includes('date'),
+    d => d.includes('holiday') && d.includes('date'),
+    d => d.includes('school') && d.includes('date'),
+    d => /\/calendar(?:$|[/?#])/.test(d),
   ]
-  for (const p of patterns) {
-    const match = links.find(l => p.test(l))
+  for (const tier of tiers) {
+    const match = links.find(l => tier(decode(l)))
     if (match) return match
   }
   return null
@@ -542,14 +548,15 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
 async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> {
   // Ordered by specificity — more specific patterns ranked higher
   const score = (url: string): number => {
-    if (/term[_-]?dates/i.test(url))         return 10
-    if (/term[_-]?times/i.test(url))          return 9
-    if (/academic[_-]?calendar/i.test(url))   return 8
-    if (/school[_-]?calendar/i.test(url))     return 7
-    if (/key[_-]?dates/i.test(url))           return 6
-    if (/holiday[_-]?dates/i.test(url))       return 5
-    if (/school[_-]?dates/i.test(url))        return 4
-    if (/\/calendar(?:$|[/?#])/i.test(url))   return 3
+    const d = (() => { try { return decodeURIComponent(url.replace(/\+/g, ' ')) } catch { return url } })().toLowerCase()
+    if (d.includes('term') && d.includes('date'))          return 10
+    if (d.includes('term') && d.includes('time'))          return 9
+    if (d.includes('academic') && d.includes('calendar'))  return 8
+    if (d.includes('school') && d.includes('calendar'))    return 7
+    if (d.includes('key') && d.includes('date'))           return 6
+    if (d.includes('holiday') && d.includes('date'))       return 5
+    if (d.includes('school') && d.includes('date'))        return 4
+    if (/\/calendar(?:$|[/?#])/i.test(url))               return 3
     return 0
   }
 
