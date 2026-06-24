@@ -95,26 +95,8 @@ export function FamilyProvider({ children }) {
   }
 
   async function joinFamily(code) {
-    const { data: invite, error: ie } = await supabase
-      .from('family_invites')
-      .select('*')
-      .eq('code', code.toUpperCase())
-      .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
-      .single()
-
-    if (ie || !invite) return { error: new Error('Invalid or expired invite code') }
-
-    const displayName = user.user_metadata?.display_name ?? user.email
-    const { error: me } = await supabase.from('family_members').insert({
-      family_id: invite.family_id,
-      user_id: user.id,
-      role: invite.role,
-      display_name: displayName,
-    })
-    if (me) return { error: me }
-
-    await supabase.from('family_invites').update({ used: true, used_by: user.id }).eq('id', invite.id)
+    const { error } = await supabase.rpc('join_family', { p_code: code })
+    if (error) return { error: new Error('Invalid or expired invite code') }
     await loadFamily()
     return { error: null }
   }
