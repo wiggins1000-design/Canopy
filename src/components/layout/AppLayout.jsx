@@ -25,7 +25,7 @@ function AppLayoutInner({ showSuccessToast, onToastDone }) {
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
       <PaywallOverlay />
-      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0">
+      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <Outlet />
       </main>
       <BottomNav />

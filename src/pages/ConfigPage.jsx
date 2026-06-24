@@ -14,7 +14,7 @@ import { useSubscription } from '../hooks/useSubscription'
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
-  const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
+  const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, updateMemberFeatures, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
   const { user, signOut } = useAuth()
   const familyFeedAddress = 'familyfeed@canopy-app.app'
   const navigate    = useNavigate()
@@ -75,6 +75,7 @@ export default function ConfigPage() {
   const [manualTermDatesDeleting, setManualTermDatesDeleting] = useState(false)
   const [justConsentedFeed, setJustConsentedFeed]   = useState(false)
   const [consentingFeed, setConsentingFeed]         = useState(false)
+  const [proposalSaving, setProposalSaving]         = useState(false)
 
   useEffect(() => {
     if (!schedule) return
@@ -425,6 +426,50 @@ export default function ConfigPage() {
   const proposerName       = members.find((m) => m.user_id === schedule?.pending_proposed_by)?.display_name ?? 'A parent'
   const otherParentName    = userRole === 'parent_a' ? pb : pa
 
+  // Per-member feature preferences
+  const otherParent    = userRole === 'parent_a' ? parentB : parentA
+  const myFeatures     = member?.consents?.features ?? {}
+  const otherFeatures  = otherParent?.consents?.features ?? {}
+  const myNoticeboard  = myFeatures.noticeboard !== false
+  const myMessaging    = !!myFeatures.messaging
+  const myExpenses     = !!myFeatures.expenses
+  const otherNoticeboard = (otherFeatures.noticeboard ?? true) !== false
+  const otherMessaging   = !!otherFeatures.messaging
+  const otherExpenses    = !!otherFeatures.expenses
+
+  async function saveMyFeature(key, value) {
+    await updateMemberFeatures({ ...myFeatures, [key]: value })
+  }
+
+  // Viewer permissions proposal state
+  const VIEWER_DEFAULTS = { calendar: true, noticeboard: true, info_bank: false, schedule: false }
+  const pendingPerms       = family?.config?.pending_viewer_permissions ?? null
+  const permProposedBy     = family?.config?.viewer_permissions_proposed_by ?? null
+  const isMyPermProposal   = permProposedBy === user?.id
+  const hasPermProposal    = !!pendingPerms
+  const permProposerName   = members.find((m) => m.user_id === permProposedBy)?.display_name ?? 'The other parent'
+  const effectivePerms     = family?.config?.viewer_permissions ?? VIEWER_DEFAULTS
+  const displayPerms       = hasPermProposal ? pendingPerms : effectivePerms
+
+  async function toggleViewerPerm(key, defaultOn = false) {
+    const base = hasPermProposal && isMyPermProposal ? pendingPerms : effectivePerms
+    const current = key in base ? base[key] : defaultOn
+    const newPerms = { ...VIEWER_DEFAULTS, ...base, [key]: !current }
+    setProposalSaving(true)
+    await updateFamilyConfig({ pending_viewer_permissions: newPerms, viewer_permissions_proposed_by: user?.id })
+    setProposalSaving(false)
+  }
+
+  async function confirmViewerPerms() {
+    setProposalSaving(true)
+    await updateFamilyConfig({ viewer_permissions: pendingPerms, pending_viewer_permissions: null, viewer_permissions_proposed_by: null })
+    setProposalSaving(false)
+  }
+
+  async function cancelViewerProposal() {
+    await updateFamilyConfig({ pending_viewer_permissions: null, viewer_permissions_proposed_by: null })
+  }
+
   if (!isParent) {
     return (
       <div className="px-4 py-5 space-y-2">
@@ -569,8 +614,8 @@ export default function ConfigPage() {
                 type="text"
                 value={pet.type}
                 onChange={(e) => updatePet(pet.id, 'type', e.target.value)}
-                placeholder="Dog, Catâ€¦"
-                className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
+                placeholder="Dog, Cat…"
+                className="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
               />
               <button onClick={() => removePet(pet.id)} className="text-xs text-red-400 hover:text-red-600 shrink-0 px-1">Remove</button>
             </div>
@@ -879,28 +924,31 @@ export default function ConfigPage() {
       {/* â"€â"€ Subscription â"€â"€ */}
       <SubscriptionSection />
 
-      {/* â"€â"€ Features â"€â"€ */}
+      {/* ── Features ── */}
       {isParent && (
         <AccordionGroup label="Features">
+          <div className="px-4 pt-3 pb-1">
+            <p className="text-xs text-gray-400">These settings only affect your view — {otherParentName} manages their own separately.</p>
+          </div>
           <ToggleRow
             label="Notice Board"
-            description="Shared pinboard for both parents. Disable to hide it from the navigation."
-            enabled={family?.config?.noticeboard_enabled !== false}
-            onToggle={() => updateFamilyConfig({ noticeboard_enabled: family?.config?.noticeboard_enabled === false })}
+            description={myNoticeboard !== otherNoticeboard ? (myNoticeboard ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            enabled={myNoticeboard}
+            onToggle={() => saveMyFeature('noticeboard', !myNoticeboard)}
           />
           <ToggleRow
             label="Direct messaging"
-            description="Private topic threads between parents."
-            enabled={!!family?.config?.messaging_enabled}
-            onToggle={() => updateFamilyConfig({ messaging_enabled: !family?.config?.messaging_enabled })}
+            description={myMessaging !== otherMessaging ? (myMessaging ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            enabled={myMessaging}
+            onToggle={() => saveMyFeature('messaging', !myMessaging)}
           />
           <ToggleRow
             label="Expenses"
-            description="Track and split shared costs. Appears in the navigation when enabled."
-            enabled={!!family?.config?.expenses_enabled}
-            onToggle={() => updateFamilyConfig({ expenses_enabled: !family?.config?.expenses_enabled })}
+            description={myExpenses !== otherExpenses ? (myExpenses ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            enabled={myExpenses}
+            onToggle={() => saveMyFeature('expenses', !myExpenses)}
           />
-          {!!family?.config?.expenses_enabled && (
+          {myExpenses && (
             <ExpenseSplitRow
               userRole={userRole}
               splitPct={family?.config?.expense_split_pct ?? 50}
@@ -916,48 +964,86 @@ export default function ConfigPage() {
       {isParent && (
         <AccordionGroup label="Read-only member access">
           <div className="px-4 pt-3 pb-1">
-            <p className="text-xs text-gray-400">Choose what grandparents, carers, and other read-only members can see.</p>
+            <p className="text-xs text-gray-400">Choose what grandparents, carers, and other read-only members can see. Both parents must agree — changes are proposed to the other parent for confirmation.</p>
           </div>
-          <ToggleRow
-            label="Calendar"
-            description="Family calendar and shared events"
-            enabled={family?.config?.viewer_permissions?.calendar !== false}
-            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, calendar: !(family?.config?.viewer_permissions?.calendar !== false) } })}
-          />
-          <ToggleRow
-            label="Notice Board"
-            description="Family notice board posts and updates"
-            enabled={family?.config?.viewer_permissions?.noticeboard !== false}
-            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, noticeboard: !(family?.config?.viewer_permissions?.noticeboard !== false) } })}
-          />
-          <ToggleRow
-            label="Info Bank"
-            description="Children's information, school contacts, and documents"
-            enabled={family?.config?.viewer_permissions?.info_bank !== false}
-            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, info_bank: !(family?.config?.viewer_permissions?.info_bank !== false) } })}
-          />
-          <ToggleRow
-            label="Parenting schedule"
-            description="The custody schedule and upcoming changeovers"
-            enabled={family?.config?.viewer_permissions?.schedule !== false}
-            onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, schedule: !(family?.config?.viewer_permissions?.schedule !== false) } })}
-          />
-          {!!family?.config?.messaging_enabled && (
-            <ToggleRow
-              label="Messages"
-              description="Allow read-only members to view message threads"
-              enabled={family?.config?.viewer_permissions?.messaging === true}
-              onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, messaging: !(family?.config?.viewer_permissions?.messaging === true) } })}
-            />
+
+          {/* Pending proposal banner */}
+          {hasPermProposal && (
+            <div className="mx-4 mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              {isMyPermProposal ? (
+                <>
+                  <p className="text-xs font-semibold text-amber-900">Waiting for {otherParentName} to confirm</p>
+                  <p className="text-xs text-amber-800">Your proposed changes are shown below. They won't take effect until {otherParentName} confirms.</p>
+                  <button onClick={cancelViewerProposal} className="text-xs text-amber-700 underline">Cancel proposal</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-semibold text-amber-900">{permProposerName} has proposed changes</p>
+                  <p className="text-xs text-amber-800">The changes below are waiting for your confirmation before taking effect.</p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="secondary"
+                      className="flex-1 py-2 text-xs"
+                      loading={proposalSaving}
+                      onClick={async () => { await cancelViewerProposal() }}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      className="flex-1 py-2 text-xs"
+                      loading={proposalSaving}
+                      onClick={confirmViewerPerms}
+                    >
+                      Confirm
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-          {!!family?.config?.expenses_enabled && (
+
+          <div className={hasPermProposal && !isMyPermProposal ? 'pointer-events-none opacity-60' : ''}>
             <ToggleRow
-              label="Expenses"
-              description="Allow read-only members to view shared expenses"
-              enabled={family?.config?.viewer_permissions?.expenses === true}
-              onToggle={() => updateFamilyConfig({ viewer_permissions: { ...family?.config?.viewer_permissions, expenses: !(family?.config?.viewer_permissions?.expenses === true) } })}
+              label="Calendar"
+              description="Family calendar and shared events"
+              enabled={displayPerms.calendar ?? VIEWER_DEFAULTS.calendar}
+              onToggle={() => toggleViewerPerm('calendar', true)}
             />
-          )}
+            <ToggleRow
+              label="Notice Board"
+              description="Family notice board posts and updates"
+              enabled={displayPerms.noticeboard ?? VIEWER_DEFAULTS.noticeboard}
+              onToggle={() => toggleViewerPerm('noticeboard', true)}
+            />
+            <ToggleRow
+              label="Info Bank"
+              description="Children's information, school contacts, and documents"
+              enabled={displayPerms.info_bank ?? VIEWER_DEFAULTS.info_bank}
+              onToggle={() => toggleViewerPerm('info_bank', false)}
+            />
+            <ToggleRow
+              label="Parenting schedule"
+              description="The custody schedule and upcoming changeovers"
+              enabled={displayPerms.schedule ?? VIEWER_DEFAULTS.schedule}
+              onToggle={() => toggleViewerPerm('schedule', false)}
+            />
+            {(myMessaging || otherMessaging) && (
+              <ToggleRow
+                label="Messages"
+                description="Allow read-only members to view message threads"
+                enabled={displayPerms.messaging === true}
+                onToggle={() => toggleViewerPerm('messaging', false)}
+              />
+            )}
+            {(myExpenses || otherExpenses) && (
+              <ToggleRow
+                label="Expenses"
+                description="Allow read-only members to view shared expenses"
+                enabled={displayPerms.expenses === true}
+                onToggle={() => toggleViewerPerm('expenses', false)}
+              />
+            )}
+          </div>
         </AccordionGroup>
       )}
 

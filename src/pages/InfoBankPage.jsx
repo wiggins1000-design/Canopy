@@ -9,8 +9,8 @@ import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
 
 const SECTIONS = [
-  { id: 'medical',   label: 'Medical'  },
   { id: 'school',    label: 'School'   },
+  { id: 'medical',   label: 'Medical'  },
   { id: 'personal',  label: 'Personal' },
   { id: 'accounts',  label: 'Accounts' },
   { id: 'docs',      label: 'Docs'     },
@@ -35,7 +35,7 @@ export default function InfoBankPage() {
   const petNames = new Set(pets.map((p) => p.name))
   const tabs = [...children.map((c) => c.name), ...pets.map((p) => p.name), 'Family']
   const [activeTab, setActiveTab]       = useState(null)
-  const [activeSection, setActiveSection] = useState('medical')
+  const [activeSection, setActiveSection] = useState('school')
   const [allData, setAllData]           = useState({})
   const [allUpdatedAt, setAllUpdatedAt] = useState({})
   const [loading, setLoading]           = useState(true)

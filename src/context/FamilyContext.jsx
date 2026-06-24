@@ -144,6 +144,22 @@ export function FamilyProvider({ children }) {
     return { error }
   }
 
+  async function updateMemberFeatures(features) {
+    const { error } = await supabase.rpc('update_member_features', { p_features: features })
+    if (!error) {
+      setMember((prev) => ({
+        ...prev,
+        consents: { ...(prev.consents ?? {}), features },
+      }))
+      setMembers((prev) => prev.map((m) =>
+        m.user_id === member?.user_id
+          ? { ...m, consents: { ...(m.consents ?? {}), features } }
+          : m
+      ))
+    }
+    return { error }
+  }
+
   async function proposePendingSchedule({ pattern_type, pattern_data, start_date, starting_parent }) {
     const { error } = await supabase.rpc('propose_schedule_change', {
       p_pattern_type:    pattern_type,
@@ -167,7 +183,7 @@ export function FamilyProvider({ children }) {
       userRole, isParent, parentA, parentB,
       createFamily, joinFamily, generateInvite, saveSchedule,
       proposePendingSchedule, respondToScheduleProposal,
-      updateFamilyConfig, reload: loadFamily,
+      updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
     }}>
       {children}
     </FamilyContext.Provider>

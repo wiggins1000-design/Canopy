@@ -45,17 +45,33 @@ const NAV = [
 ]
 
 export default function BottomNav() {
-  const { family, isParent } = useFamily()
+  const { family, member, members, isParent } = useFamily()
   const { isTrialing, daysLeft } = useSubscription()
   const showTrialBadge = isTrialing && daysLeft <= 7
   if (!family) return null
 
   const vp = family?.config?.viewer_permissions ?? {}
-  const noticeboardEnabled = family?.config?.noticeboard_enabled !== false
-  const messagingEnabled   = !!family?.config?.messaging_enabled && (isParent || vp.messaging === true)
-  const expensesEnabled    = !!family?.config?.expenses_enabled  && (isParent || vp.expenses  === true)
+  const myFeatures = member?.consents?.features ?? {}
 
-  const canSee = (key) => isParent || vp[key] !== false
+  // Helper: does either parent have this feature enabled?
+  const eitherParentFeature = (key, defaultOn = false) => {
+    const aF = members.find(m => m.role === 'parent_a')?.consents?.features ?? {}
+    const bF = members.find(m => m.role === 'parent_b')?.consents?.features ?? {}
+    return (key in aF ? !!aF[key] : defaultOn) || (key in bF ? !!bF[key] : defaultOn)
+  }
+
+  const noticeboardEnabled = isParent
+    ? myFeatures.noticeboard !== false
+    : (eitherParentFeature('noticeboard', true) && vp.noticeboard !== false)
+  const messagingEnabled = isParent
+    ? !!myFeatures.messaging
+    : (eitherParentFeature('messaging', false) && vp.messaging === true)
+  const expensesEnabled = isParent
+    ? !!myFeatures.expenses
+    : (eitherParentFeature('expenses', false) && vp.expenses === true)
+
+  const VIEWER_DEFAULTS = { calendar: true, noticeboard: true, info_bank: false, schedule: false }
+  const canSee = (key) => isParent || ((key in vp ? vp[key] : VIEWER_DEFAULTS[key]) !== false)
 
   let visibleNav = NAV.filter((n) => {
     if (n.to === '/board')     return noticeboardEnabled && canSee('noticeboard')
