@@ -1,7 +1,7 @@
 ﻿﻿import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { supabase, registerPushSubscription, unregisterPushSubscription, sendPushNotification } from '../lib/supabase'
+import { supabase, registerPushSubscription, unregisterPushSubscription, registerNativePush, unregisterNativePush, isNativePlatform, sendPushNotification } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { buildPresetPattern, PATTERN_LABELS, parseDate, formatDate } from '../lib/scheduleEngine'
@@ -186,6 +186,12 @@ export default function ConfigPage() {
 
   // Check current push subscription state
   useEffect(() => {
+    if (isNativePlatform()) {
+      // On native iOS: push is enabled if we have a stored APNs token
+      setPushSupported(true)
+      setPushEnabled(!!member?.push_token?.startsWith('apns:'))
+      return
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       setPushSupported(false)
       return
@@ -204,6 +210,19 @@ export default function ConfigPage() {
   async function togglePush() {
     if (!member) return
     setPushLoading(true)
+
+    if (isNativePlatform()) {
+      if (pushEnabled) {
+        await unregisterNativePush(member.user_id)
+        setPushEnabled(false)
+      } else {
+        const result = await registerNativePush(member.user_id)
+        setPushEnabled(result.granted)
+      }
+      setPushLoading(false)
+      return
+    }
+
     if (pushEnabled) {
       await unregisterPushSubscription(member.user_id)
       setPushEnabled(false)
@@ -824,7 +843,7 @@ export default function ConfigPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Time</label>
-                <input type="time" value={changeoverTime} onChange={(e) => setChangeoverTime(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green" />
+                <input type="time" value={changeoverTime} onChange={(e) => setChangeoverTime(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white" />
               </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Location (optional)</label>

@@ -4,6 +4,7 @@
 // connection pool and realtime websocket. Push subscription helpers live here
 // because they write to family_members.push_token and need the client anyway.
 import { createClient } from '@supabase/supabase-js'
+import { Capacitor } from '@capacitor/core'
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -11,6 +12,38 @@ export const supabase = createClient(
 )
 
 // ── Push subscription helpers ─────────────────────────────────
+
+// True when running inside the Capacitor iOS/Android wrapper
+export const isNativePlatform = () => Capacitor.isNativePlatform()
+
+// Register for native APNs push (iOS via Capacitor).
+// Stores the device token as "apns:<hex>" in family_members.push_token.
+export async function registerNativePush(userId) {
+  const { PushNotifications } = await import('@capacitor/push-notifications')
+  const { receive } = await PushNotifications.requestPermissions()
+  if (receive !== 'granted') return { granted: false }
+
+  await PushNotifications.register()
+
+  return new Promise((resolve) => {
+    PushNotifications.addListener('registration', async (token) => {
+      await supabase
+        .from('family_members')
+        .update({ push_token: `apns:${token.value}` })
+        .eq('user_id', userId)
+      resolve({ granted: true })
+    }).catch(() => resolve({ granted: false }))
+
+    PushNotifications.addListener('registrationError', () => {
+      resolve({ granted: false })
+    }).catch(() => {})
+  })
+}
+
+export async function unregisterNativePush(userId) {
+  // APNs tokens can't be revoked from the client — just clear from DB
+  await supabase.from('family_members').update({ push_token: null }).eq('user_id', userId)
+}
 
 export async function registerPushSubscription(userId) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
