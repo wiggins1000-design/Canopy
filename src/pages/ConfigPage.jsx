@@ -840,12 +840,12 @@ export default function ConfigPage() {
           {/* Changeover — always editable, not subject to approval */}
           <div className="space-y-1.5 pt-2 border-t border-gray-100">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Default changeover</label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="flex gap-3">
+              <div className="w-28 shrink-0">
                 <label className="text-xs text-gray-400 block mb-1">Time</label>
                 <input type="time" value={changeoverTime} onChange={(e) => setChangeoverTime(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <label className="text-xs text-gray-400 block mb-1">Location (optional)</label>
                 <input type="text" value={changeoverLocation} onChange={(e) => setChangeoverLocation(e.target.value)} placeholder="e.g. School gate" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green" />
               </div>
