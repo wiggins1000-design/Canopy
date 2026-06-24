@@ -18,23 +18,57 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-)
+const supabaseUrl    = Deno.env.get('SUPABASE_URL')!
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const anonKey        = Deno.env.get('SUPABASE_ANON_KEY')!
+
+const supabase = createClient(supabaseUrl, serviceRoleKey)
+
+// ── Auth guard ────────────────────────────────────────────────
+// Accepts either:
+//   • The service role key  — server-to-server calls
+//   • A valid user JWT      — client calls; user must be a member of the
+//                             target family_id
+
+async function authorise(authHeader: string | null, family_id: string): Promise<boolean> {
+  if (!authHeader) return false
+  const token = authHeader.replace('Bearer ', '')
+
+  if (token === serviceRoleKey) return true
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  })
+  const { data: { user } } = await userClient.auth.getUser()
+  if (!user) return false
+
+  const { data } = await supabase
+    .from('family_members')
+    .select('id')
+    .eq('family_id', family_id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  return !!data
+}
+
+// ── Main handler ──────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS })
   }
 
+  const authHeader = req.headers.get('Authorization')
   const { family_id, recipient_role, author_name, app_url } = await req.json()
 
   if (!family_id || !recipient_role) {
     return new Response(JSON.stringify({ error: 'missing params' }), { status: 400, headers: CORS })
   }
 
-  // Look up the recipient's phone number
+  if (!await authorise(authHeader, family_id)) {
+    return new Response('Unauthorized', { status: 401, headers: CORS })
+  }
+
   const { data: member } = await supabase
     .from('family_members')
     .select('phone_number')
