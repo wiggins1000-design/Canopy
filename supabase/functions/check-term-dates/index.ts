@@ -374,8 +374,9 @@ function extractLinksFromContent(content: string, origin: string): string[] {
   }
 
   // HTML href attributes — catches raw HTML from reader (e.g. href="/106/term-dates")
+  // Decode &amp; entities: HTML attribute values use &amp; for & but the URL needs bare &
   for (const m of content.matchAll(/href=["']([^"'#?][^"']*?)["']/gi)) {
-    const href = m[1].trim()
+    const href = m[1].trim().replace(/&amp;/g, '&')
     if (href.startsWith('http')) add(href)
     else if (href.startsWith('/')) add(`${origin}${href}`)
   }
