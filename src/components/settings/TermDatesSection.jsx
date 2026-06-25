@@ -268,10 +268,10 @@ export default function TermDatesSection({ onNewDates }) {
     const failures = results.filter(r => r.status === 'error' || r.status === 'no_dates')
     const scraped  = results.filter(r => r.status === 'ok')
 
-    // Reload KB, run import (suppress its own message — we build per-school below)
+    // Reload KB data so the panel shows updated counts; the edge function
+    // already applied filtered events to the calendar — no KB import needed here.
     const freshData = await fetchKBData()
     setKbData(freshData)
-    await importFromKB(freshData, { suppressMessage: true })
     loadEvents()
 
     // Build school name lookup: KB data first, then info_bank as fallback
