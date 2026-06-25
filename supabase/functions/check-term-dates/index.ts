@@ -216,8 +216,15 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
 
       console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
-      // Try 2: extract links from reader content — scan for term dates URL patterns
-      const links = extractLinksFromContent(homepageContent, origin)
+      // Try 2: extract links from reader content — scan for term dates URL patterns.
+      // canopy-reader returns innerText (no href attributes). If we get 0 links, fall back
+      // to a raw HTML fetch so href attributes are available for link discovery.
+      let links = extractLinksFromContent(homepageContent, origin)
+      if (links.length === 0) {
+        console.log('No links in reader output (innerText), trying raw HTML for link discovery…')
+        const rawHtml = await fetchDirect(homepageUrl)
+        if (rawHtml) links = extractLinksFromContent(rawHtml, origin)
+      }
       console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
       found = findTermDatesLinkByPattern(links)
 
@@ -403,7 +410,7 @@ async function fetchDirect(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Direct fetch OK for ${url}: ${text.length} chars, type: ${contentType}`)
-    return text.slice(0, 30000)
+    return text.slice(0, 60000)
   } catch (e) {
     console.log(`Direct fetch threw for ${url}:`, e)
     return null
