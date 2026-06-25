@@ -200,16 +200,28 @@ export default function TermDatesSection({ onNewDates }) {
     let added = 0
     let updated = 0
 
-    // `seen` deduplicates inserts across schools (shared bank holidays etc.)
-    const seen = new Set(events.map(e => `${e.event_date}|${e.title}`))
+    // Cutoff: don't insert events more than 1 month in the past
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() - 1)
+    const cutoffStr = cutoff.toISOString().split('T')[0]
+
+    // Query DB fresh so dedup isn't based on potentially stale React state
+    const { data: currentEvents } = await supabase
+      .from('family_events')
+      .select('event_date, title')
+      .eq('family_id', family.id)
+      .eq('source', 'term_dates')
+    const seen = new Set((currentEvents ?? []).map(e => `${e.event_date}|${e.title}`))
 
     for (const cal of data) {
       const schoolLabel = cal.school_name ?? cal.homepage_url
-      const pairs = []  // all valid {date, title} pairs for this school's KB
+      const pairs = []  // all valid {date, title} pairs — used for retag, not filtered by cutoff
 
       for (const ev of cal.term_dates ?? []) {
         if (!ev.date || !ev.title) continue
         pairs.push({ date: ev.date, title: ev.title })
+
+        if (ev.date < cutoffStr) continue  // cutoff applies to calendar inserts only
 
         const key = `${ev.date}|${ev.title}`
         if (!seen.has(key)) {

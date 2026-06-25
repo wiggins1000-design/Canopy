@@ -230,7 +230,6 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
           console.log(`Raw HTML added ${htmlLinks.length} links (total ${links.length})`)
         }
       }
-      console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
       found = findTermDatesLinkByPattern(links)
 
       // Try 3: ask Claude to pick from the link list
@@ -287,9 +286,13 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
 
   // Fetch all PDFs in parallel and merge any new dates
-  if (docLinks.length > 0) {
+  const uniqueDocLinks = [...new Set(docLinks as string[])]
+  if (uniqueDocLinks.length !== docLinks.length) {
+    console.log(`Deduped docLinks: ${docLinks.length} → ${uniqueDocLinks.length}`)
+  }
+  if (uniqueDocLinks.length > 0) {
     const pdfResults = await Promise.all(
-      docLinks.map(async (docUrl: string) => {
+      uniqueDocLinks.map(async (docUrl: string) => {
         const docContent = await fetchPage(docUrl)
         if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
         const result = await extractTermDates(docContent)
@@ -297,19 +300,25 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       })
     )
 
-    const seenKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+    const seenKeys = new Set(termDates.map((e: any) => `${(e.title ?? '').toLowerCase()}||${e.date}`))
     for (const result of pdfResults) {
       if (!schoolName && result.schoolName) schoolName = result.schoolName
       let added = 0
       for (const event of result.termDates) {
-        const key = `${event.title}||${event.date}`
+        const key = `${(event.title ?? '').toLowerCase()}||${event.date}`
         if (!seenKeys.has(key)) { seenKeys.add(key); termDates.push(event); added++ }
       }
       if (added > 0) console.log(`Merged ${added} new events from ${result.url}`)
     }
   }
 
-  console.log(`Total extracted: ${termDates.length} term date events`)
+  inferMissingHolidays(termDates)
+
+  // Filter to school-closed events before saving to KB — removes term start/end
+  // dates, pupils return days etc. so the KB only contains calendar-worthy events.
+  // inferMissingHolidays must run first as it needs term-end events to find gaps.
+  termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
+  console.log(`Total events for KB: ${termDates.length}`)
 
   if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.' }
 
@@ -391,7 +400,7 @@ function extractLinksFromContent(content: string, origin: string): string[] {
   // Bare absolute URLs in text
   for (const m of content.matchAll(/https?:\/\/[^\s\])"<]+/g)) add(m[0])
 
-  return [...seen].slice(0, 60)
+  return [...seen]
 }
 
 async function fetchDirect(url: string): Promise<string | null> {
@@ -505,8 +514,8 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
     d => d.includes('school') && d.includes('date'),
     d => /\/calendar(?:$|[/?#])/.test(d),
   ]
-  for (const tier of tiers) {
-    const match = links.find(l => tier(decode(l)))
+  for (let i = 0; i < tiers.length; i++) {
+    const match = links.find(l => tiers[i](decode(l)))
     if (match) return match
   }
   return null
@@ -636,7 +645,7 @@ Return ONLY a JSON array of complete URLs. For relative URLs (starting with /), 
 Return [] if none found. No explanation.
 
 Page content:
-${content.slice(0, 8000)}`,
+${content}`,
     512
   )
   if (!res) return []
@@ -754,10 +763,61 @@ ${content.slice(0, 15000)}`,
   }
 }
 
+// Post-merge: infer Summer/Christmas/Easter holidays when they span two separate sources
+// (e.g. 2025-26 PDF ends at "Summer Term ends" and 2026-27 PDF starts with INSET days)
+function inferMissingHolidays(events: any[]): void {
+  const addDays = (d: string, n: number): string => {
+    const dt = new Date(`${d}T00:00:00Z`)
+    dt.setUTCDate(dt.getUTCDate() + n)
+    return dt.toISOString().split('T')[0]
+  }
+  const sorted = [...events].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+  const hasHolidayInGap = (afterDate: string, beforeDate: string) =>
+    events.some(f => {
+      const l = f.title.toLowerCase()
+      if (!l.includes('holiday') && !l.includes('half term') && !l.includes('half-term')) return false
+      return f.date > afterDate && (f.end_date ?? f.date) < beforeDate
+    })
+
+  const defs: Array<[(t: string) => boolean, (t: string) => boolean, string]> = [
+    [
+      t => /\bsummer\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
+      t => /\b(autumn|michaelmas)\b/i.test(t) || /\binset\b/i.test(t),
+      'Summer Holiday',
+    ],
+    [
+      t => /\b(autumn|michaelmas|christmas|winter)\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
+      t => /\b(spring|lent|january)\b/i.test(t) || /\binset\b/i.test(t),
+      'Christmas Holiday',
+    ],
+    [
+      t => /\b(spring|lent)\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
+      t => /\bsummer\b/i.test(t) || /\binset\b/i.test(t),
+      'Easter Holiday',
+    ],
+  ]
+
+  for (const [isTermEnd, isNextStart, holidayName] of defs) {
+    for (const e of sorted) {
+      if (!isTermEnd(e.title)) continue
+      const termEnd = e.end_date ?? e.date
+      const next = sorted.find(f => f.date > termEnd && isNextStart(f.title))
+      if (!next) continue
+      if (hasHolidayInGap(termEnd, next.date)) continue
+      const hStart = addDays(termEnd, 1)
+      const hEnd   = addDays(next.date, -1)
+      if (hStart <= hEnd) {
+        console.log(`Inferred ${holidayName}: ${hStart} – ${hEnd}`)
+        events.push({ title: holidayName, date: hStart, end_date: hEnd })
+      }
+    }
+  }
+}
+
 // Returns false for events where school is open (term start/end, parents evenings, sports days etc.)
 function isSchoolClosedEvent(title: string): boolean {
   const lc = title.toLowerCase()
-  if (/\b(term (start|begin|open|return|end|close)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
+  if (/\b(term (starts?|begins?|opens?|returns?|ends?|closes?)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
   if (/\b(pupils? (return|in school|back)|students? (return|back)|all year groups? in school|year \d+ in school)\b/.test(lc)) return false
   if (/\b(parents?' evening|open evening|information evening|sports day|prize giving|graduation|speech day)\b/.test(lc)) return false
   if (/\b(exam(ination)?|assessment|ppe|gcse|a.?level)\b/.test(lc) && !/\b(holiday|break|closed)\b/.test(lc)) return false
@@ -767,51 +827,31 @@ function isSchoolClosedEvent(title: string): boolean {
 // ── Apply to family ───────────────────────────────────────────────────────────
 
 async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null): Promise<number> {
-  const { data: existing } = await supabase
-    .from('family_events')
-    .select('id, title, event_date, end_date, source_subject')
-    .eq('family_id', familyId)
-    .eq('source', 'term_dates')
+  const sourceSubject = schoolName ?? 'School term dates'
 
-  const existingKeys = new Set((existing ?? []).map((e: any) => `${e.source_subject}||${e.title}||${e.event_date}`))
-
-  // Events from this school already in the DB, for containment checks
-  const schoolExisting = (existing ?? []).filter((e: any) => e.source_subject === (schoolName ?? 'School term dates'))
+  // Clean replace: wipe all existing term dates for this school (and the generic fallback
+  // name used when school name wasn't detected) before inserting the fresh extraction.
+  // This prevents duplicates when the source_subject name changes between scrape runs.
+  for (const subject of [...new Set([sourceSubject, 'School term dates'])]) {
+    await supabase.from('family_events')
+      .delete()
+      .eq('family_id', familyId)
+      .eq('source', 'term_dates')
+      .eq('source_subject', subject)
+  }
 
   const cutoff = new Date()
   cutoff.setMonth(cutoff.getMonth() - 1)
   const cutoffStr = cutoff.toISOString().split('T')[0]
+  console.log(`Applying term dates — cutoff: ${cutoffStr}, sourceSubject: ${sourceSubject}`)
 
-  const sourceSubject = schoolName ?? 'School term dates'
+  const afterCutoff = termDates.filter((e: any) => e.date && String(e.date) >= cutoffStr)
+  console.log(`Apply: ${termDates.length} KB events → ${afterCutoff.length} after cutoff (${cutoffStr})`)
 
   let added = 0
   for (const event of termDates) {
     if (!event.date || !event.title) continue
-    if (event.date < cutoffStr) continue
-    if (!isSchoolClosedEvent(event.title)) continue
-    const key = `${sourceSubject}||${event.title}||${event.date}`
-    if (existingKeys.has(key)) continue
-
-    const evStart = event.date
-    const evEnd   = event.end_date ?? event.date
-
-    // Skip if this event is fully contained within an existing event from the same school
-    const containedByExisting = schoolExisting.some((e: any) => {
-      const eEnd = e.end_date ?? e.event_date
-      return e.event_date <= evStart && eEnd >= evEnd &&
-        (e.event_date < evStart || eEnd > evEnd)
-    })
-    if (containedByExisting) continue
-
-    // Delete any existing events from this school that the new (wider) event contains
-    const toDelete = schoolExisting.filter((e: any) => {
-      const eEnd = e.end_date ?? e.event_date
-      return e.event_date >= evStart && eEnd <= evEnd &&
-        (e.event_date > evStart || eEnd < evEnd)
-    })
-    for (const d of toDelete) {
-      await supabase.from('family_events').delete().eq('id', d.id)
-    }
+    if (String(event.date) < cutoffStr) continue
 
     const { error } = await supabase.rpc('create_family_event', {
       p_family_id:      familyId,
