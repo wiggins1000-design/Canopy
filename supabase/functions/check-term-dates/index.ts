@@ -123,7 +123,8 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     const ageMs   = cached?.last_fetched_at
       ? Date.now() - new Date(cached.last_fetched_at).getTime()
       : Infinity
-    const isStale = ageMs > 30 * 24 * 60 * 60 * 1000
+    // Also re-scrape if the cache exists but has no dates (previous scrape failed silently)
+    const isStale = ageMs > 30 * 24 * 60 * 60 * 1000 || !((cached as any)?.term_dates?.length)
 
     let termDates: any[] = (cached as any)?.term_dates ?? []
     let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
@@ -217,11 +218,16 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
       // Try 2: extract links from reader content — scan for term dates URL patterns.
-      // canopy-reader returns innerText (no href attributes). If we get 0 links, fall back
-      // to a raw HTML fetch so href attributes are available for link discovery.
+      // canopy-reader returns innerText (no href attributes) so we often get 0 links.
+      // Fall back to Jina (returns markdown with links) then raw HTML as last resort.
       let links = extractLinksFromContent(homepageContent, origin)
       if (links.length === 0) {
-        console.log('No links in reader output (innerText), trying raw HTML for link discovery…')
+        console.log('No links in reader output (innerText), trying Jina for link discovery…')
+        const jinaContent = await fetchViaJina(homepageUrl)
+        if (jinaContent) links = extractLinksFromContent(jinaContent, origin)
+      }
+      if (links.length === 0) {
+        console.log('Jina gave no links, trying raw HTML for link discovery…')
         const rawHtml = await fetchDirect(homepageUrl)
         if (rawHtml) links = extractLinksFromContent(rawHtml, origin)
       }
