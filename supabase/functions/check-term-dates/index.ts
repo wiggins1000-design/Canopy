@@ -218,13 +218,17 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
       // Try 2: extract links from reader content — scan for term dates URL patterns.
-      // canopy-reader returns innerText (no href attributes) so links.length is often 0.
-      // Jina strips navigation so is useless here. Raw HTML has the nav links we need.
+      // Reader returns innerText and Jina returns markdown — neither has href attributes.
+      // When the homepage content is plaintext, always fetch raw HTML to recover nav links.
       let links = extractLinksFromContent(homepageContent, origin)
-      if (links.length === 0) {
-        console.log('No links in reader output (innerText), fetching raw HTML for link discovery…')
+      if (!homepageContent.includes('href=')) {
+        console.log('Homepage content is plaintext (no hrefs), fetching raw HTML for nav links…')
         const rawHtml = await fetchDirect(homepageUrl)
-        if (rawHtml) links = extractLinksFromContent(rawHtml, origin)
+        if (rawHtml) {
+          const htmlLinks = extractLinksFromContent(rawHtml, origin)
+          links = [...new Set([...links, ...htmlLinks])]
+          console.log(`Raw HTML added ${htmlLinks.length} links (total ${links.length})`)
+        }
       }
       console.log(`Links extracted from homepage: ${links.length}`, links.slice(0, 30))
       found = findTermDatesLinkByPattern(links)
