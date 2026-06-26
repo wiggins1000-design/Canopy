@@ -413,6 +413,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       // dates, pupils return days etc. so the KB only contains calendar-worthy events.
       // inferMissingHolidays must run first as it needs term-end events to find gaps.
       termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
+      termDates = deduplicateOverlapping(termDates)
       console.log(`Total events for KB from ${candidateUrl}: ${termDates.length}`)
 
       if (termDates.length > 0) {
@@ -988,6 +989,39 @@ function inferMissingHolidays(events: any[]): void {
       }
     }
   }
+}
+
+// Removes duplicate/overlapping events, keeping the longest-spanning version.
+// Handles cases where two PDFs or extraction passes name the same period differently
+// (e.g. "Half Term" and "Autumn Half Term" both starting on the same date).
+function deduplicateOverlapping(events: any[]): any[] {
+  const endOf = (e: any): string => e.end_date ?? e.date
+  const sorted = [...events].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+  const kept: any[] = []
+
+  for (const candidate of sorted) {
+    const cStart = candidate.date
+    const cEnd   = endOf(candidate)
+
+    // Check if this candidate is fully contained within an already-kept event
+    const absorbed = kept.some(k => k.date <= cStart && endOf(k) >= cEnd)
+    if (absorbed) {
+      console.log(`Dedup: dropped '${candidate.title}' (${cStart}–${cEnd}) — contained in a kept event`)
+      continue
+    }
+
+    // Check if an already-kept event is fully contained within this candidate (replace it)
+    const dominated = kept.findIndex(k => cStart <= k.date && cEnd >= endOf(k))
+    if (dominated >= 0) {
+      console.log(`Dedup: replaced '${kept[dominated].title}' with longer '${candidate.title}' (${cStart}–${cEnd})`)
+      kept.splice(dominated, 1, candidate)
+      continue
+    }
+
+    kept.push(candidate)
+  }
+
+  return kept
 }
 
 // Returns false for events where school is open (term start/end, parents evenings, sports days etc.)
