@@ -22,6 +22,7 @@ import InfoBankPage from './pages/InfoBankPage'
 import ExportPage from './pages/ExportPage'
 import CourtOrderPage from './pages/CourtOrderPage'
 import AdminFamilyPage from './pages/admin/AdminFamilyPage'
+import AdminTermDatesPage from './pages/admin/AdminTermDatesPage'
 import MessagesPage from './pages/MessagesPage'
 import ThreadPage from './pages/ThreadPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -43,6 +44,7 @@ export default function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="family/:id" element={<AdminFamilyPage />} />
+            <Route path="term-dates" element={<AdminTermDatesPage />} />
           </Route>
           <Route
             element={

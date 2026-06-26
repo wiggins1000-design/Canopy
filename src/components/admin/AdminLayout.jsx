@@ -21,6 +21,14 @@ export default function AdminLayout() {
           >
             Dashboard
           </NavLink>
+          <NavLink
+            to="/admin/term-dates"
+            className={({ isActive }) =>
+              `text-xs font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-400 hover:text-white'}`
+            }
+          >
+            Term Dates
+          </NavLink>
           <button
             onClick={signOut}
             className="text-xs text-slate-400 hover:text-white transition-colors"

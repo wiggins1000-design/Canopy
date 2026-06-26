@@ -141,6 +141,9 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
       if (scraped.error) {
         console.error(`Scrape error for ${homepageUrl}:`, scraped.error)
+        if ((scraped as any).diagnostic) {
+          await storeDiagnostic(homepageUrl, scraped.error, (scraped as any).diagnostic)
+        }
         return { status: 'error', error: scraped.error }
       }
 
@@ -148,12 +151,15 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
         termDates = scraped.termDates
         if (scraped.schoolName) resolvedSchoolName = scraped.schoolName
         await supabase.from('school_calendars').upsert({
-          homepage_url:    homepageUrl,
-          term_dates_url:  scraped.termDatesUrl,
-          school_name:     scraped.schoolName,
-          term_dates:      termDates,
-          content_hash:    scraped.contentHash,
-          last_fetched_at: new Date().toISOString(),
+          homepage_url:     homepageUrl,
+          term_dates_url:   scraped.termDatesUrl,
+          school_name:      scraped.schoolName,
+          term_dates:       termDates,
+          content_hash:     scraped.contentHash,
+          last_fetched_at:  new Date().toISOString(),
+          scrape_error:     null,
+          scrape_error_at:  null,
+          scrape_diagnosis: null,
         }, { onConflict: 'homepage_url' })
       }
     }
@@ -209,11 +215,12 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   } else {
     // Try 1: sitemap.xml — single request, no homepage fetch needed if this succeeds
     let found: string | null = await fetchSitemapTermDatesUrl(origin)
+    let linksForDiagnostic: string[] = []  // hoisted so discovery-failure diagnostic can include them
 
     if (!found) {
       // Fetch homepage via reader (relaxed check — any real page, not just calendar-keyword pages)
       const homepageContent = await fetchHomepage(homepageUrl)
-      if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests' }
+      if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests', diagnostic: { error_type: 'homepage_fetch_failed' } }
 
       console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
 
@@ -230,24 +237,27 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
           console.log(`Raw HTML added ${htmlLinks.length} links (total ${links.length})`)
         }
       }
+      linksForDiagnostic = links  // snapshot for diagnostic use if discovery fails
       found = findTermDatesLinkByPattern(links)
 
-      // Try 3: ask Claude to pick from the link list
+      // Try 3: common UK school URL patterns — fast HEAD checks, no Claude needed
+      // Run before Claude because large school homepages (1MB+) often exceed the raw HTML
+      // fetch cap so nav links are missing, leaving Claude with irrelevant links to guess from.
+      if (!found) {
+        console.log('Pattern match failed, trying common URL patterns…')
+        found = await tryCommonPaths(origin)
+      }
+
+      // Try 4: ask Claude to pick from the link list
       if (!found && links.length > 0) {
-        console.log('Pattern match failed, asking Claude to pick…')
+        console.log('Common paths failed, asking Claude to pick…')
         found = await pickTermDatesLink(links, origin)
       }
 
-      // Try 4: ask Claude to find a URL from page content
+      // Try 5: ask Claude to find a URL from page content
       if (!found) {
         console.log('Trying content-based search…')
         found = await findTermDatesUrl(homepageContent, origin)
-      }
-
-      // Try 5: common UK school URL patterns
-      if (!found) {
-        console.log('Trying common URL patterns…')
-        found = await tryCommonPaths(origin)
       }
 
       // Try 6: homepage itself contains term dates
@@ -259,7 +269,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       }
     }
 
-    if (!found) return { error: 'Could not find term dates page on this school\'s website.' }
+    if (!found) return { error: 'Could not find term dates page on this school\'s website.', diagnostic: { error_type: 'discovery_failed', links_found: linksForDiagnostic.slice(0, 30) } }
     termDatesUrl = found
   }
 
@@ -271,7 +281,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   console.log(`Term dates content length: ${termDatesContent?.length ?? 0}`)
   console.log(`Term dates content preview: ${termDatesContent?.slice(0, 500) ?? 'EMPTY'}`)
 
-  if (!termDatesContent) return { error: 'Failed to fetch term dates page' }
+  if (!termDatesContent) return { error: 'Failed to fetch term dates page', diagnostic: { error_type: 'page_fetch_failed', term_dates_url: termDatesUrl } }
 
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
@@ -320,7 +330,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
   console.log(`Total events for KB: ${termDates.length}`)
 
-  if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.' }
+  if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.', diagnostic: { error_type: 'extraction_failed', term_dates_url: termDatesUrl, content_preview: termDatesContent.slice(0, 600) } }
 
   return { termDatesUrl, termDates, contentHash, schoolName }
 }
@@ -446,6 +456,8 @@ function looksLikeUsefulContent(text: string): boolean {
   if (text.length < 200) return false
   const lc = text.toLowerCase()
   if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
+  // Reject Jina-proxied 404 pages — Jina returns 200 with this warning in the body
+  if (lc.includes('target url returned error 404')) return false
   // Reject cookie consent walls — keywords appear only in meta/title, not actual content
   if ((lc.includes('we value your privacy') || lc.includes('cookie consent') ||
        (lc.includes('accept all') && lc.includes('reject all'))) &&
@@ -746,7 +758,7 @@ Rules:
 
 Content:
 ${content.slice(0, 15000)}`,
-    2048
+    4096
   )
 
   console.log('Claude raw response:', res)
@@ -892,6 +904,40 @@ async function cleanTermDateDuplicates(familyId: string): Promise<void> {
     .or(patterns.map(p => `title.ilike.${p}`).join(','))
   if (error) console.error('cleanTermDateDuplicates error:', error)
   else console.log(`Cleaned up email_ai term date duplicates for family ${familyId}`)
+}
+
+// ── Scrape failure diagnostics ────────────────────────────────────────────────
+
+async function generateDiagnosis(homepageUrl: string, errorMessage: string, diagnostic: Record<string, any>): Promise<string | null> {
+  const lines = [
+    `School homepage: ${homepageUrl}`,
+    `Error type: ${diagnostic.error_type}`,
+    `Error: ${errorMessage}`,
+  ]
+  if (diagnostic.term_dates_url) lines.push(`Term dates URL attempted: ${diagnostic.term_dates_url}`)
+  if (diagnostic.links_found?.length) lines.push(`Links found on homepage (${diagnostic.links_found.length}): ${diagnostic.links_found.slice(0, 10).join(', ')}`)
+  if (diagnostic.content_preview) lines.push(`Page content preview:\n${diagnostic.content_preview}`)
+
+  return callClaude(
+    `You are analysing why an automated scraper failed to extract UK school term dates.
+
+${lines.join('\n')}
+
+In 2-3 sentences explain: what went wrong, the likely root cause (e.g. homepage too large to scan nav links, server blocking requests, JS-rendered content, cookie wall, PDF-only dates, wrong URL found), and what a developer could try to fix it.`,
+    256
+  )
+}
+
+async function storeDiagnostic(homepageUrl: string, errorMessage: string, diagnostic: Record<string, any>): Promise<void> {
+  const diagnosis = await generateDiagnosis(homepageUrl, errorMessage, diagnostic).catch(() => null)
+  const { error } = await supabase.from('school_calendars').upsert({
+    homepage_url:     homepageUrl,
+    scrape_error:     { ...diagnostic, error_message: errorMessage },
+    scrape_error_at:  new Date().toISOString(),
+    scrape_diagnosis: diagnosis,
+  }, { onConflict: 'homepage_url' })
+  if (error) console.error('storeDiagnostic upsert failed:', error)
+  else console.log(`Diagnostic stored for ${homepageUrl}: ${diagnostic.error_type}`)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
