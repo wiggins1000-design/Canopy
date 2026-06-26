@@ -145,6 +145,10 @@ Deno.serve(async (req) => {
     const { error: archiveErr } = await supabase.rpc('archive_old_notifications')
     if (archiveErr) console.error('archive_old_notifications error:', archiveErr)
     else console.log('archive_old_notifications: done')
+
+    const { error: trimErr } = await supabase.rpc('trim_old_term_dates')
+    if (trimErr) console.error('trim_old_term_dates error:', trimErr)
+    else console.log('trim_old_term_dates: done')
   }
 
   // ── Process all schools in parallel ──────────────────────────────────────
