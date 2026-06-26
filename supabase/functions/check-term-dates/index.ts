@@ -389,17 +389,31 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
     // Lazy Claude expansion: when initial candidates are exhausted and extraction
     // has not succeeded, ask Claude for additional fallback URLs. Only runs once.
     // Appending to candidates mid-loop is safe — JS for-of sees new items.
-    if (!claudeFallbacksAdded && triedUrls.length >= candidates.length && homepageContentForFallback) {
+    // If we never fetched the homepage (sitemap fast-path), fetch it lazily here.
+    if (!claudeFallbacksAdded && triedUrls.length >= candidates.length && !isDirectUrl) {
       claudeFallbacksAdded = true
-      console.log('Initial candidates exhausted, asking Claude for additional fallbacks…')
-      const [claudePicks, contentPick] = await Promise.all([
-        linksForFallback.length > 0 ? pickTermDatesLinks(linksForFallback, origin) : Promise.resolve([]),
-        findTermDatesUrl(homepageContentForFallback, origin),
-      ])
-      const newCandidates = [...claudePicks, contentPick].filter((p): p is string => !!p && !candidates.includes(p))
-      if (newCandidates.length > 0) {
-        console.log(`Claude fallbacks added: ${newCandidates.join(' | ')}`)
-        candidates.push(...newCandidates)
+      if (!homepageContentForFallback) {
+        console.log('Fetching homepage for lazy Claude fallback (came from sitemap fast-path)…')
+        homepageContentForFallback = await fetchHomepage(homepageUrl)
+        if (homepageContentForFallback) {
+          linksForFallback = extractLinksFromContent(homepageContentForFallback, origin)
+          if (!homepageContentForFallback.includes('href=')) {
+            const rawHtml = await fetchDirect(homepageUrl)
+            if (rawHtml) linksForFallback = [...new Set([...linksForFallback, ...extractLinksFromContent(rawHtml, origin)])]
+          }
+        }
+      }
+      if (homepageContentForFallback) {
+        console.log('Initial candidates exhausted, asking Claude for additional fallbacks…')
+        const [claudePicks, contentPick] = await Promise.all([
+          linksForFallback.length > 0 ? pickTermDatesLinks(linksForFallback, origin) : Promise.resolve([]),
+          findTermDatesUrl(homepageContentForFallback, origin),
+        ])
+        const newCandidates = [...claudePicks, contentPick].filter((p): p is string => !!p && !candidates.includes(p))
+        if (newCandidates.length > 0) {
+          console.log(`Claude fallbacks added: ${newCandidates.join(' | ')}`)
+          candidates.push(...newCandidates)
+        }
       }
     }
   }
