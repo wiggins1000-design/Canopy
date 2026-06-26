@@ -6,6 +6,7 @@ export default function AdminTermDatesPage() {
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
+  const [failedOpen, setFailedOpen] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -42,15 +43,36 @@ export default function AdminTermDatesPage() {
         <p className="text-slate-500 text-sm">No schools in the knowledge base yet.</p>
       ) : (
         <div className="space-y-3">
-          {/* Failed schools first */}
-          {failed.map(school => (
-            <FailedRow
-              key={school.id}
-              school={school}
-              isExpanded={expanded === school.id}
-              onToggle={() => setExpanded(expanded === school.id ? null : school.id)}
-            />
-          ))}
+          {/* Failed schools — collapsed by default */}
+          {failed.length > 0 && (
+            <div className="rounded-2xl border border-red-900/60 overflow-hidden">
+              <button
+                onClick={() => setFailedOpen(o => !o)}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-slate-800 hover:bg-slate-700/60 transition-colors text-left"
+              >
+                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                <span className="text-white font-medium text-sm flex-1">
+                  Failed
+                  <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">
+                    {failed.length}
+                  </span>
+                </span>
+                <span className="text-slate-500 text-xs">{failedOpen ? '▲' : '▼'}</span>
+              </button>
+              {failedOpen && (
+                <div className="border-t border-red-900/40 space-y-px bg-slate-900/30">
+                  {failed.map(school => (
+                    <FailedRow
+                      key={school.id}
+                      school={school}
+                      isExpanded={expanded === school.id}
+                      onToggle={() => setExpanded(expanded === school.id ? null : school.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* OK schools */}
           {ok.length > 0 && (
@@ -122,7 +144,7 @@ function FailedRow({ school, isExpanded, onToggle }) {
   }[errorType] ?? errorType
 
   return (
-    <div className="bg-slate-800 border border-red-900/60 rounded-2xl overflow-hidden">
+    <div className="bg-slate-800 border-b border-red-900/20 overflow-hidden">
       {/* Header row */}
       <div
         className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-slate-700/30 transition-colors"
