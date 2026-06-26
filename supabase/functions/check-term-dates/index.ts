@@ -59,6 +59,29 @@ Deno.serve(async (req) => {
     return new Response('Unauthorized', { status: 401, headers: CORS })
   }
 
+  // ── Test mode: process arbitrary URLs without family data ─────────────────
+  // Only available when authenticated via webhook token (admin only).
+  // Body: { test_urls: ["https://...", ...] }
+  const isCronOrWebhook = incomingToken && webhookToken && incomingToken === webhookToken
+  let body: any = {}
+  try { body = await req.json() } catch { /* no body */ }
+
+  if (body?.test_urls?.length && isCronOrWebhook) {
+    const testUrls: string[] = (body.test_urls as string[]).map(normalizeUrl)
+    console.log(`Test mode: processing ${testUrls.length} URLs`)
+    const results = await Promise.allSettled(
+      testUrls.map(async (url) => {
+        console.log(`Test-processing: ${url}`)
+        const result = await processSchool(url, [], true)
+          .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
+        return { url, ...result }
+      })
+    )
+    return new Response(JSON.stringify({ ok: true, results: results.map(r => r.status === 'fulfilled' ? r.value : { error: (r as any).reason?.message }) }), {
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   // ── Build school URL → families map ──────────────────────────────────────
   let query = supabase
     .from('info_bank')
