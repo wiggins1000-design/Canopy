@@ -946,20 +946,29 @@ function inferMissingHolidays(events: any[]): void {
       return f.date > afterDate && (f.end_date ?? f.date) < beforeDate
     })
 
+  // isTermEnd: matches explicit "ends/closes/last day" phrasing AND plain term period titles
+  // like "Summer Term 2" — for period events, end_date is already used as termEnd.
+  // isNextStart: broadened to include "school opens", "pupils/children return" which are
+  // common autumn-term-start phrasings that don't mention "autumn" or "inset" explicitly.
+  const returnsOrOpens = (t: string) =>
+    /\b(school (re)?opens?|pupils? (return|back)|children (return|back)|back to school)\b/i.test(t)
+  const endsOrCloses = (t: string) => /\b(end|ends|close|closes|last day)\b/i.test(t)
+  const isPeriodTitle = (t: string) => !endsOrCloses(t) && !/\b(start|begin|open|half.?term|holiday|break|return|back)\b/i.test(t)
+
   const defs: Array<[(t: string) => boolean, (t: string) => boolean, string]> = [
     [
-      t => /\bsummer\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
-      t => /\b(autumn|michaelmas)\b/i.test(t) || /\binset\b/i.test(t),
+      t => /\bsummer\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
+      t => /\b(autumn|michaelmas)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
       'Summer Holiday',
     ],
     [
-      t => /\b(autumn|michaelmas|christmas|winter)\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
-      t => /\b(spring|lent|january)\b/i.test(t) || /\binset\b/i.test(t),
+      t => /\b(autumn|michaelmas|christmas|winter)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
+      t => /\b(spring|lent|january)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
       'Christmas Holiday',
     ],
     [
-      t => /\b(spring|lent)\b/i.test(t) && /\b(end|ends|close|closes|last day)\b/i.test(t),
-      t => /\bsummer\b/i.test(t) || /\binset\b/i.test(t),
+      t => /\b(spring|lent)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
+      t => /\bsummer\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
       'Easter Holiday',
     ],
   ]
