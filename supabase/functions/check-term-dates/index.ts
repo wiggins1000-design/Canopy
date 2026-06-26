@@ -82,6 +82,38 @@ Deno.serve(async (req) => {
     })
   }
 
+  // ── Manual scrape: override term dates URL for a specific school ────────────
+  // Scrapes term_dates_url directly but stores the result under homepage_url,
+  // so families already linked to that school get the corrected dates.
+  // Body: { manual_scrape: { homepage_url: "https://...", term_dates_url: "https://..." } }
+  if (body?.manual_scrape && isCronOrWebhook) {
+    const { homepage_url, term_dates_url } = body.manual_scrape as { homepage_url: string; term_dates_url: string }
+    console.log(`Manual scrape: ${homepage_url} → ${term_dates_url}`)
+    const scraped = await scrapeTermDates(term_dates_url, null)
+    if (scraped.error) {
+      if ((scraped as any).diagnostic) {
+        await storeDiagnostic(homepage_url, scraped.error, (scraped as any).diagnostic)
+      }
+      return new Response(JSON.stringify({ ok: false, error: scraped.error, diagnostic: (scraped as any).diagnostic }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+    await supabase.from('school_calendars').upsert({
+      homepage_url,
+      term_dates_url:   scraped.termDatesUrl ?? term_dates_url,
+      school_name:      scraped.schoolName,
+      term_dates:       scraped.termDates,
+      content_hash:     scraped.contentHash,
+      last_fetched_at:  new Date().toISOString(),
+      scrape_error:     null,
+      scrape_error_at:  null,
+      scrape_diagnosis: null,
+    }, { onConflict: 'homepage_url' })
+    return new Response(JSON.stringify({ ok: true, termDatesCount: scraped.termDates?.length, schoolName: scraped.schoolName }), {
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   // ── Build school URL → families map ──────────────────────────────────────
   let query = supabase
     .from('info_bank')
