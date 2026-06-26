@@ -636,6 +636,8 @@ Rules:
 
 function findTermDatesLinkByPattern(links: string[]): string | null {
   const decode = (url: string) => { try { return decodeURIComponent(url.replace(/\+/g, ' ')).toLowerCase() } catch { return url.toLowerCase() } }
+  // Reject event pages with date slugs (e.g. /calendar/2026-07-22/event-name/ or /YYYY/MM/DD/)
+  const isEventSlug = (d: string) => /\/\d{4}-\d{2}-\d{2}\//.test(d) || /\/\d{4}\/\d{2}\/\d{2}\//.test(d)
   // Check each tier in priority order — both words must appear anywhere in the decoded URL
   const tiers: Array<(d: string) => boolean> = [
     d => d.includes('term') && d.includes('date'),
@@ -648,7 +650,7 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
     d => /\/calendar(?:$|[/?#])/.test(d),
   ]
   for (let i = 0; i < tiers.length; i++) {
-    const match = links.find(l => tiers[i](decode(l)))
+    const match = links.find(l => { const d = decode(l); return !isEventSlug(d) && tiers[i](d) })
     if (match) return match
   }
   return null
@@ -717,6 +719,9 @@ async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> 
   // Ordered by specificity — more specific patterns ranked higher
   const score = (url: string): number => {
     const d = (() => { try { return decodeURIComponent(url.replace(/\+/g, ' ')) } catch { return url } })().toLowerCase()
+    // Reject event pages with date slugs (e.g. /calendar/2026-07-22/event-name/)
+    if (/\/\d{4}-\d{2}-\d{2}\//.test(d))                 return 0
+    if (/\/\d{4}\/\d{2}\/\d{2}\//.test(d))               return 0
     if (d.includes('term') && d.includes('date'))          return 10
     if (d.includes('term') && d.includes('time'))          return 9
     if (d.includes('academic') && d.includes('calendar'))  return 8
