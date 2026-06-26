@@ -230,26 +230,32 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const origin  = urlObj.origin
   const isDirectUrl = urlObj.pathname.length > 1 || urlObj.search.length > 0
 
-  let termDatesUrl: string
+  // ── Discovery: build initial ordered candidate list ───────────────────────
+  // High-confidence methods (sitemap, pattern match, common paths) each produce one URL.
+  // homepageContent and links are hoisted so the extraction loop can lazily expand
+  // with Claude fallbacks if all initial candidates fail extraction.
+  let candidates: string[] = []
+  let linksForDiagnostic: string[] = []
+  let homepageContentForFallback: string | null = null
+  let linksForFallback: string[] = []
 
   if (isDirectUrl) {
     console.log(`Using direct term dates URL: ${homepageUrl}`)
-    termDatesUrl = homepageUrl
+    candidates = [homepageUrl]
   } else {
-    // Try 1: sitemap.xml — single request, no homepage fetch needed if this succeeds
-    let found: string | null = await fetchSitemapTermDatesUrl(origin)
-    let linksForDiagnostic: string[] = []  // hoisted so discovery-failure diagnostic can include them
-
-    if (!found) {
-      // Fetch homepage via reader (relaxed check — any real page, not just calendar-keyword pages)
+    // Try 1: sitemap.xml — single request, no homepage fetch needed
+    const sitemapUrl = await fetchSitemapTermDatesUrl(origin)
+    if (sitemapUrl) {
+      candidates.push(sitemapUrl)
+    } else {
+      // Fetch homepage via reader (relaxed check — any real page, not just calendar pages)
       const homepageContent = await fetchHomepage(homepageUrl)
       if (!homepageContent) return { error: 'Failed to fetch school homepage — the site may be blocking requests', diagnostic: { error_type: 'homepage_fetch_failed' } }
 
       console.log(`Homepage fetched (${homepageContent.length} chars), searching for term dates link…`)
+      homepageContentForFallback = homepageContent
 
-      // Try 2: extract links from reader content — scan for term dates URL patterns.
-      // Reader returns innerText and Jina returns markdown — neither has href attributes.
-      // When the homepage content is plaintext, always fetch raw HTML to recover nav links.
+      // Try 2: extract links — recover nav links from raw HTML when content is plaintext
       let links = extractLinksFromContent(homepageContent, origin)
       if (!homepageContent.includes('href=')) {
         console.log('Homepage content is plaintext (no hrefs), fetching raw HTML for nav links…')
@@ -260,111 +266,148 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
           console.log(`Raw HTML added ${htmlLinks.length} links (total ${links.length})`)
         }
       }
-      linksForDiagnostic = links  // snapshot for diagnostic use if discovery fails
-      found = findTermDatesLinkByPattern(links)
+      linksForDiagnostic = links
+      linksForFallback = links
 
-      // Try 3: common UK school URL patterns — fast HEAD checks, no Claude needed
-      // Run before Claude because large school homepages (1MB+) often exceed the raw HTML
-      // fetch cap so nav links are missing, leaving Claude with irrelevant links to guess from.
-      if (!found) {
+      // Try 3: pattern match (high confidence — URL literally contains term-dates etc.)
+      const patternMatch = findTermDatesLinkByPattern(links)
+      if (patternMatch) {
+        candidates.push(patternMatch)
+      } else {
+        // Try 4: common UK school URL patterns — fast HEAD checks, no Claude needed.
+        // Run before Claude because large homepages (1MB+) often exceed the raw HTML
+        // fetch cap, leaving nav links missing and Claude with irrelevant links to guess from.
         console.log('Pattern match failed, trying common URL patterns…')
-        found = await tryCommonPaths(origin)
+        const commonPath = await tryCommonPaths(origin)
+        if (commonPath) candidates.push(commonPath)
       }
 
-      // Try 4: ask Claude to pick from the link list
-      if (!found && links.length > 0) {
-        console.log('Common paths failed, asking Claude to pick…')
-        found = await pickTermDatesLink(links, origin)
+      // When high-confidence methods failed upfront, ask Claude immediately so
+      // candidates has multiple options from the start.
+      if (candidates.length === 0) {
+        console.log('No high-confidence URL found, asking Claude for ranked candidates…')
+        const [claudePicks, contentPick] = await Promise.all([
+          links.length > 0 ? pickTermDatesLinks(links, origin) : Promise.resolve([]),
+          findTermDatesUrl(homepageContent, origin),
+        ])
+        for (const p of claudePicks) if (!candidates.includes(p)) candidates.push(p)
+        if (contentPick && !candidates.includes(contentPick)) candidates.push(contentPick)
       }
 
-      // Try 5: ask Claude to find a URL from page content
-      if (!found) {
-        console.log('Trying content-based search…')
-        found = await findTermDatesUrl(homepageContent, origin)
+      // Homepage as absolute last resort (inline dates)
+      const lc = homepageContent.toLowerCase()
+      if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
+        if (!candidates.includes(homepageUrl)) candidates.push(homepageUrl)
       }
+    }
 
-      // Try 6: homepage itself contains term dates
-      if (!found) {
-        const lc = homepageContent.toLowerCase()
-        if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
-          found = homepageUrl
+    if (candidates.length === 0) {
+      return { error: 'Could not find term dates page on this school\'s website.', diagnostic: { error_type: 'discovery_failed', links_found: linksForDiagnostic.slice(0, 30) } }
+    }
+  }
+
+  console.log(`Initial candidates (${candidates.length}): ${candidates.join(' | ')}`)
+
+  // ── Extraction: try each candidate; lazily expand with Claude if all fail ──
+  // Candidates is mutated during iteration — JS for-of sees newly pushed items,
+  // so the lazy expansion below simply appends to the same array.
+  const triedUrls: string[] = []
+  let claudeFallbacksAdded = false
+  let lastContentPreview = ''
+
+  for (const candidateUrl of candidates) {
+    console.log(`Trying candidate: ${candidateUrl}`)
+    triedUrls.push(candidateUrl)
+
+    const termDatesContent = await fetchPage(candidateUrl)
+    console.log(`Content length: ${termDatesContent?.length ?? 0}`)
+
+    if (!termDatesContent) {
+      console.log(`No content from ${candidateUrl} — skipping`)
+    } else {
+      lastContentPreview = termDatesContent.slice(0, 600)
+      console.log(`Content preview: ${termDatesContent.slice(0, 300)}`)
+
+      const contentHash = await hashContent(termDatesContent)
+      if (contentHash === existingHash) return { unchanged: true }
+
+      // Fetch raw HTML separately to extract PDF/document attachment links via regex.
+      // Jina strips <a href> attachment elements from its markdown, and fetchDirect caps at 30k
+      // which may not reach the attachment section on large pages (e.g. Cherry Orchard: 57k HTML,
+      // attachments at ~45k). A direct uncapped fetch + regex is fast and doesn't need Claude.
+      const rawHtmlForDocs = await fetch(candidateUrl, { signal: AbortSignal.timeout(10000) })
+        .then(r => r.text()).catch(() => null)
+      const rawHtmlDocLinks = rawHtmlForDocs ? extractDocLinksFromHtml(rawHtmlForDocs, candidateUrl) : []
+      if (rawHtmlDocLinks.length > 0) console.log(`Raw HTML doc links: ${JSON.stringify(rawHtmlDocLinks)}`)
+
+      const [htmlResult, docLinks] = await Promise.all([
+        extractTermDates(termDatesContent),
+        findDocumentLinksViaClaude(termDatesContent, candidateUrl),
+      ])
+      let { termDates, schoolName } = htmlResult
+      console.log(`Extracted ${termDates.length} events from HTML at ${candidateUrl}`)
+      console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
+
+      // Fetch all PDFs in parallel and merge any new dates
+      const uniqueDocLinks = [...new Set([...rawHtmlDocLinks, ...(docLinks as string[])])]
+      if (uniqueDocLinks.length > 0) {
+        const pdfResults = await Promise.all(
+          uniqueDocLinks.map(async (docUrl: string) => {
+            const docContent = await fetchPage(docUrl)
+            if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
+            const result = await extractTermDates(docContent)
+            return { ...result, url: docUrl }
+          })
+        )
+        const seenKeys = new Set(termDates.map((e: any) => `${(e.title ?? '').toLowerCase()}||${e.date}`))
+        for (const result of pdfResults) {
+          if (!schoolName && result.schoolName) schoolName = result.schoolName
+          let added = 0
+          for (const event of result.termDates) {
+            const key = `${(event.title ?? '').toLowerCase()}||${event.date}`
+            if (!seenKeys.has(key)) { seenKeys.add(key); termDates.push(event); added++ }
+          }
+          if (added > 0) console.log(`Merged ${added} new events from ${result.url}`)
         }
       }
-    }
 
-    if (!found) return { error: 'Could not find term dates page on this school\'s website.', diagnostic: { error_type: 'discovery_failed', links_found: linksForDiagnostic.slice(0, 30) } }
-    termDatesUrl = found
-  }
+      inferMissingHolidays(termDates)
 
-  console.log(`Term dates URL found: ${termDatesUrl}`)
+      // Filter to school-closed events before saving to KB — removes term start/end
+      // dates, pupils return days etc. so the KB only contains calendar-worthy events.
+      // inferMissingHolidays must run first as it needs term-end events to find gaps.
+      termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
+      console.log(`Total events for KB from ${candidateUrl}: ${termDates.length}`)
 
-  // Try direct fetch first; fall back to Jina only when the response looks like JS-rendered HTML
-  const termDatesContent = await fetchPage(termDatesUrl)
-
-  console.log(`Term dates content length: ${termDatesContent?.length ?? 0}`)
-  console.log(`Term dates content preview: ${termDatesContent?.slice(0, 500) ?? 'EMPTY'}`)
-
-  if (!termDatesContent) return { error: 'Failed to fetch term dates page', diagnostic: { error_type: 'page_fetch_failed', term_dates_url: termDatesUrl } }
-
-  const contentHash = await hashContent(termDatesContent)
-  if (contentHash === existingHash) return { unchanged: true }
-
-  // Fetch raw HTML separately to extract PDF/document attachment links via regex.
-  // Jina strips <a href> attachment elements from its markdown, and fetchDirect caps at 30k
-  // which may not reach the attachment section on large pages (e.g. Cherry Orchard: 57k HTML,
-  // attachments at ~45k). A direct uncapped fetch + regex is fast and doesn't need Claude.
-  const rawHtmlForDocs = await fetch(termDatesUrl, { signal: AbortSignal.timeout(10000) })
-    .then(r => r.text()).catch(() => null)
-  const rawHtmlDocLinks = rawHtmlForDocs ? extractDocLinksFromHtml(rawHtmlForDocs, termDatesUrl) : []
-  if (rawHtmlDocLinks.length > 0) console.log(`Raw HTML doc links: ${JSON.stringify(rawHtmlDocLinks)}`)
-
-  console.log('Starting parallel Claude extraction...')
-  const [htmlResult, docLinks] = await Promise.all([
-    extractTermDates(termDatesContent),
-    findDocumentLinksViaClaude(termDatesContent, termDatesUrl),
-  ])
-  let { termDates, schoolName } = htmlResult
-  console.log(`Extracted ${termDates.length} events from HTML`)
-  console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
-
-  // Fetch all PDFs in parallel and merge any new dates
-  const uniqueDocLinks = [...new Set([...rawHtmlDocLinks, ...(docLinks as string[])])]
-  if (uniqueDocLinks.length !== docLinks.length) {
-    console.log(`Deduped docLinks: ${docLinks.length} → ${uniqueDocLinks.length}`)
-  }
-  if (uniqueDocLinks.length > 0) {
-    const pdfResults = await Promise.all(
-      uniqueDocLinks.map(async (docUrl: string) => {
-        const docContent = await fetchPage(docUrl)
-        if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
-        const result = await extractTermDates(docContent)
-        return { ...result, url: docUrl }
-      })
-    )
-
-    const seenKeys = new Set(termDates.map((e: any) => `${(e.title ?? '').toLowerCase()}||${e.date}`))
-    for (const result of pdfResults) {
-      if (!schoolName && result.schoolName) schoolName = result.schoolName
-      let added = 0
-      for (const event of result.termDates) {
-        const key = `${(event.title ?? '').toLowerCase()}||${event.date}`
-        if (!seenKeys.has(key)) { seenKeys.add(key); termDates.push(event); added++ }
+      if (termDates.length > 0) {
+        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName }
       }
-      if (added > 0) console.log(`Merged ${added} new events from ${result.url}`)
+
+      console.log(`No dates from ${candidateUrl} — trying next candidate…`)
+    }
+
+    // Lazy Claude expansion: when initial candidates are exhausted and extraction
+    // has not succeeded, ask Claude for additional fallback URLs. Only runs once.
+    // Appending to candidates mid-loop is safe — JS for-of sees new items.
+    if (!claudeFallbacksAdded && triedUrls.length >= candidates.length && homepageContentForFallback) {
+      claudeFallbacksAdded = true
+      console.log('Initial candidates exhausted, asking Claude for additional fallbacks…')
+      const [claudePicks, contentPick] = await Promise.all([
+        linksForFallback.length > 0 ? pickTermDatesLinks(linksForFallback, origin) : Promise.resolve([]),
+        findTermDatesUrl(homepageContentForFallback, origin),
+      ])
+      const newCandidates = [...claudePicks, contentPick].filter((p): p is string => !!p && !candidates.includes(p))
+      if (newCandidates.length > 0) {
+        console.log(`Claude fallbacks added: ${newCandidates.join(' | ')}`)
+        candidates.push(...newCandidates)
+      }
     }
   }
 
-  inferMissingHolidays(termDates)
-
-  // Filter to school-closed events before saving to KB — removes term start/end
-  // dates, pupils return days etc. so the KB only contains calendar-worthy events.
-  // inferMissingHolidays must run first as it needs term-end events to find gaps.
-  termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
-  console.log(`Total events for KB: ${termDates.length}`)
-
-  if (!termDates.length) return { error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.', diagnostic: { error_type: 'extraction_failed', term_dates_url: termDatesUrl, content_preview: termDatesContent.slice(0, 600) } }
-
-  return { termDatesUrl, termDates, contentHash, schoolName }
+  return {
+    error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.',
+    diagnostic: { error_type: 'extraction_failed', candidates_tried: triedUrls, content_preview: lastContentPreview },
+  }
 }
 
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -565,22 +608,35 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
   return null
 }
 
-async function pickTermDatesLink(links: string[], origin: string): Promise<string | null> {
+// Returns up to 3 candidate URLs ranked by likelihood, so the extraction loop
+// can fall back to the second or third pick if the first yields no dates.
+async function pickTermDatesLinks(links: string[], origin: string): Promise<string[]> {
   const res = await callClaude(
-    `From this list of URLs from a UK school website (${origin}), return the single URL most likely to be the term dates, school calendar, or calendar page.
-Look for URLs containing: term-dates, term-times, school-calendar, academic-calendar, key-dates, holiday-dates, school-dates, calendar.
-Return ONLY the URL — nothing else. If none are relevant, return: null
+    `From this list of URLs from a UK school website (${origin}), return the URLs most likely to be the term dates, school calendar, or holiday dates page.
+
+Include URLs containing: term-dates, term-times, school-calendar, academic-calendar, key-dates, holiday-dates, school-dates, calendar, term-times.
+Exclude URLs that are clearly news articles, blog posts (paths like /news/, /blog/, /YYYY/MM/), policy pages, newsletters, or announcements about individual events.
+
+Return ONLY a JSON array of up to 3 URLs in order of likelihood. Return [] if none are relevant. No explanation.
 
 URLs:
 ${links.slice(0, 40).join('\n')}`,
-    128
+    256
   )
-  if (!res) return null
-  const url = res.trim().replace(/^["']|["']$/g, '')
-  if (!url || url === 'null' || url.includes(' ') || url.length > 300) return null
-  if (url.startsWith('http')) return url
-  if (url.startsWith('/')) return `${origin}${url}`
-  try { return new URL(url, origin).href } catch { return null }
+  if (!res) return []
+  try {
+    const parsed = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((u: any) => typeof u === 'string' && !u.includes(' ') && u.length < 300)
+      .map((u: string) => {
+        if (u.startsWith('http')) return u
+        if (u.startsWith('/')) return `${origin}${u}`
+        try { return new URL(u, origin).href } catch { return null }
+      })
+      .filter(Boolean)
+      .slice(0, 3) as string[]
+  } catch { return [] }
 }
 
 async function tryCommonPaths(origin: string): Promise<string | null> {
