@@ -286,6 +286,15 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   const contentHash = await hashContent(termDatesContent)
   if (contentHash === existingHash) return { unchanged: true }
 
+  // Fetch raw HTML separately to extract PDF/document attachment links via regex.
+  // Jina strips <a href> attachment elements from its markdown, and fetchDirect caps at 30k
+  // which may not reach the attachment section on large pages (e.g. Cherry Orchard: 57k HTML,
+  // attachments at ~45k). A direct uncapped fetch + regex is fast and doesn't need Claude.
+  const rawHtmlForDocs = await fetch(termDatesUrl, { signal: AbortSignal.timeout(10000) })
+    .then(r => r.text()).catch(() => null)
+  const rawHtmlDocLinks = rawHtmlForDocs ? extractDocLinksFromHtml(rawHtmlForDocs, termDatesUrl) : []
+  if (rawHtmlDocLinks.length > 0) console.log(`Raw HTML doc links: ${JSON.stringify(rawHtmlDocLinks)}`)
+
   console.log('Starting parallel Claude extraction...')
   const [htmlResult, docLinks] = await Promise.all([
     extractTermDates(termDatesContent),
@@ -296,7 +305,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
   console.log(`Document links found by Claude: ${JSON.stringify(docLinks)}`)
 
   // Fetch all PDFs in parallel and merge any new dates
-  const uniqueDocLinks = [...new Set(docLinks as string[])]
+  const uniqueDocLinks = [...new Set([...rawHtmlDocLinks, ...(docLinks as string[])])]
   if (uniqueDocLinks.length !== docLinks.length) {
     console.log(`Deduped docLinks: ${docLinks.length} → ${uniqueDocLinks.length}`)
   }
@@ -641,6 +650,18 @@ async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> 
     }
   }
   return null
+}
+
+// Extract PDF/document download links directly from raw HTML via regex.
+// Handles .pdf extensions and query-param patterns like ?file=N&type=pdf (Juniper CMS etc).
+// Decodes &amp; HTML entities in href attributes.
+function extractDocLinksFromHtml(html: string, pageUrl: string): string[] {
+  const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
+  const matches = [...html.matchAll(/href="([^"]*(?:\.pdf|type=pdf|amp;type=pdf|\.docx?)[^"]*)"/gi)]
+  return [...new Set(matches.map(m => {
+    const href = m[1].replace(/&amp;/g, '&')
+    return href.startsWith('http') ? href : `${origin}${href.startsWith('/') ? '' : '/'}${href}`
+  }))].slice(0, 10)
 }
 
 async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
