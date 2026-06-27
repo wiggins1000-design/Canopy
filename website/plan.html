@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free Parenting Plan Builder — Canopy</title>
+  <meta name="description" content="Create a free, detailed parenting plan in minutes. Covers schedule, holidays, communication, health, education and more. Printable as PDF.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canopy: { deep:'#1b4332', mid:'#2d6a4f', green:'#52b788', light:'#74c69d', mist:'#d8f3dc', frost:'#f4fbf4' }
+          },
+          fontFamily: { sans:['-apple-system','BlinkMacSystemFont','"Segoe UI"','Helvetica','Arial','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print { .no-print{display:none!important} body{background:white!important} }
+    textarea { resize: vertical; }
+  </style>
+</head>
+<body class="bg-canopy-frost min-h-screen" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+
+<header class="bg-canopy-deep px-6 py-4 no-print">
+  <div class="max-w-xl mx-auto flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2.5">
+      <img src="images/CanopyGreenLogo.gif" alt="Canopy" style="height:28px;">
+      <span class="text-white/60 text-xs hidden sm:block">parentingplan.help</span>
+    </a>
+    <span id="hdr-step" class="text-canopy-light text-xs"></span>
+  </div>
+</header>
+<div class="h-1 bg-canopy-deep/20 no-print">
+  <div id="progress" class="h-full bg-canopy-green transition-all duration-500" style="width:0%"></div>
+</div>
+
+<main class="max-w-xl mx-auto px-4 py-8">
+  <div id="step-hdr" class="mb-6 no-print"></div>
+  <div id="content"></div>
+  <div id="nav" class="flex gap-3 mt-8 no-print"></div>
+  <p id="saved-note" class="text-xs text-canopy-light text-center mt-3 no-print">Your progress is saved automatically</p>
+</main>
+
+<script>
+const STEPS = 9
+const KEY = 'pp2'
+const TITLES = ['About your family','The schedule','Handovers & school holidays','Special occasions & travel','Digital life & communication','Childcare & family','Education & health','Decisions & money','Your parenting plan']
+
+function defaults() {
+  return {
+    step:1, parent1:'', parent2:'',
+    children:[{name:'',dob:''}],
+    patternType:'alternating_weeks', startingParent:'a', customCycle:[],
+    handoverLocation:'school', handoverOther:'', handoverLate:'',
+    holidaySplit:'equal', maxDays:'7', noticeWeeks:'4',
+    christmas:'split_a_morning', christmasTime:'14:00',
+    birthdays:'separate', fixedOccasions:'',
+    abroad:'required', abroadWeeks:'6',
+    abroadInfo:['destination','accommodation','emergency_contact','return_details'],
+    passports:'both',
+    screenTime:'', socialMedia:'', restrictedApps:'', devicesPolicy:'',
+    childContact:'', contactRestrictions:'',
+    parentChannel:'app', urgentProcess:'', documentSharing:'',
+    firstRefusal:'other_parent', carers:[{name:'',relationship:''}],
+    extendedFamily:'', siblings:'',
+    educationDisputes:'', schoolInfo:'',
+    routineHealth:'', nonEmergency:'', medicalEmergency:'',
+    newPartners:'', dayCosts:'', bigCosts:'', financialChange:'',
+    jointDecisions:['school','relocation','medical','travel','medication'],
+    dailyRules:'', disputeProcess:'mediation', reviewFrequency:'annually',
+  }
+}
+
+let S
+try { S = JSON.parse(localStorage.getItem(KEY)) || defaults() } catch { S = defaults() }
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)) } catch {} }
+function set(f, v) { S[f]=v; save() }
+function setR(f, v) { S[f]=v; save(); render() }
+
+// Schedule helpers
+function buildCycle(type, start) {
+  const a=start, b=a==='a'?'b':'a', fill=(o,n)=>Array(n).fill(o)
+  switch(type) {
+    case 'alternating_weeks': return [...fill(a,7),...fill(b,7)]
+    case '2_2_5_5': return [...fill(a,2),...fill(b,2),...fill(a,5),...fill(b,5)]
+    case '2_2_3': return [a,a,b,b,a,a,a,b,b,a,a,b,b,b]
+    case '3_4_4_3': return [...fill(a,3),...fill(b,4),...fill(a,4),...fill(b,3)]
+    default: return []
+  }
+}
+function activeCycle() { return S.patternType==='custom' ? S.customCycle : buildCycle(S.patternType, S.startingParent) }
+function addDay(o) { S.customCycle=[...S.customCycle,o]; save(); render() }
+function removeDay(i) { S.customCycle=S.customCycle.filter((_,x)=>x!==i); save(); render() }
+function clearDays() { S.customCycle=[]; save(); render() }
+
+// Child/carer helpers
+function addChild() { S.children=[...S.children,{name:'',dob:''}]; save(); render() }
+function removeChild(i) { S.children=S.children.filter((_,x)=>x!==i); save(); render() }
+function setChild(i,f,v) { S.children=S.children.map((c,x)=>x===i?{...c,[f]:v}:c); save() }
+function addCarer() { S.carers=[...S.carers,{name:'',relationship:''}]; save(); render() }
+function removeCarer(i) { S.carers=S.carers.filter((_,x)=>x!==i); save(); render() }
+function setCarer(i,f,v) { S.carers=S.carers.map((c,x)=>x===i?{...c,[f]:v}:c); save() }
+function toggleCheck(field, val) {
+  S[field]=S[field].includes(val)?S[field].filter(v=>v!==val):[...S[field],val]
+  save()
+}
+
+// HTML helpers
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function card(title,body){return`<div class="bg-white rounded-2xl border border-canopy-mist overflow-hidden mb-4">${title?`<div class="px-4 py-3 border-b border-canopy-mist bg-canopy-frost"><h2 class="text-sm font-semibold text-canopy-deep">${title}</h2></div>`:''}<div class="px-4 py-4 space-y-4">${body}</div></div>`}
+function inp(label,id,val,ph=''){return`<div><label class="block text-xs font-medium text-gray-500 mb-1">${label}</label><input type="text" value="${esc(val)}" placeholder="${esc(ph)}" class="w-full border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="set('${id}',this.value)"></div>`}
+function ta(label,id,val,ph='',rows=3){return`<div><label class="block text-xs font-medium text-gray-500 mb-1">${label}</label><textarea rows="${rows}" placeholder="${esc(ph)}" class="w-full border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="set('${id}',this.value)">${esc(val)}</textarea></div>`}
+function radios(label,name,val,opts,rerender=false){
+  const fn=rerender?`setR('${name}',this.value)`:`set('${name}',this.value)`
+  return`<div class="space-y-1.5">${label?`<label class="block text-xs font-medium text-gray-500">${label}</label>`:''}`
+    +opts.map(o=>`<label class="flex items-start gap-2.5 rounded-xl border-2 px-3 py-2.5 cursor-pointer ${val===o.value?'border-canopy-mid bg-canopy-frost':'border-gray-200 hover:border-canopy-mist'}"><input type="radio" name="${name}" value="${esc(o.value)}" ${val===o.value?'checked':''} class="mt-0.5 accent-canopy-deep shrink-0" onchange="${fn}"><span class="text-sm text-gray-700">${o.label}</span></label>`).join('')+'</div>'
+}
+
+// Preview grid (14 days)
+function previewGrid(cycle, p1, p2) {
+  if (!cycle.length) return ''
+  const today=new Date(), DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const days=Array.from({length:14},(_,i)=>{const d=new Date(today.getFullYear(),today.getMonth(),today.getDate()+i);return{day:DN[d.getDay()],date:d.getDate(),owner:cycle[i%cycle.length]}})
+  return`<div class="space-y-2"><label class="block text-xs font-semibold text-canopy-mid uppercase tracking-wide">Preview — first 14 days</label><div class="grid grid-cols-7 gap-1">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="text-center text-[10px] text-gray-400 pb-1">${d}</div>`).join('')}${days.map(({day,date,owner})=>`<div class="rounded-xl aspect-square flex flex-col items-center justify-center text-xs font-semibold ${owner==='a'?'bg-canopy-mist text-canopy-deep':'bg-gray-100 text-gray-700'}"><span class="text-[9px] opacity-60">${day}</span><span>${date}</span></div>`).join('')}</div><div class="flex gap-4 pt-1"><div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded bg-canopy-mist"></div><span class="text-xs text-gray-500">${esc(p1)}</span></div><div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded bg-gray-100"></div><span class="text-xs text-gray-500">${esc(p2)}</span></div></div></div>`
+}
+
+// ── Step renderers ────────────────────────────────────────────────────────
+
+function step1() {
+  return `<div class="space-y-3"><div class="grid grid-cols-2 gap-3">${inp('Your name','parent1',S.parent1,'e.g. Chris')}${inp("Other parent's name",'parent2',S.parent2,'e.g. Kate')}</div></div>
+  <div class="space-y-3 mt-4">
+    <label class="block text-xs font-semibold text-canopy-mid uppercase tracking-wide">Children</label>
+    ${S.children.map((c,i)=>`<div class="bg-white rounded-2xl border border-canopy-mist p-4 space-y-3"><div class="flex items-center justify-between"><span class="text-sm font-medium text-canopy-deep">Child ${i+1}</span>${S.children.length>1?`<button onclick="removeChild(${i})" class="text-xs text-red-400 hover:text-red-600">Remove</button>`:''}</div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-medium text-gray-500 mb-1">Full name</label><input type="text" value="${esc(c.name)}" placeholder="e.g. Isabelle" class="w-full border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="setChild(${i},'name',this.value)"></div><div><label class="block text-xs font-medium text-gray-500 mb-1">Date of birth</label><input type="date" value="${esc(c.dob)}" class="w-full border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="setChild(${i},'dob',this.value)"></div></div></div>`).join('')}
+    <button onclick="addChild()" class="w-full py-2.5 rounded-xl text-sm font-medium text-canopy-mid border border-dashed border-canopy-light hover:bg-canopy-mist/40 transition-colors">+ Add another child</button>
+  </div>`
+}
+
+function step2() {
+  const p1=S.parent1||'Parent 1', p2=S.parent2||'Parent 2'
+  const LABELS={alternating_weeks:'Alternating weeks (7–7)','2_2_5_5':'2‑2‑5‑5','2_2_3':'2‑2‑3','3_4_4_3':'3‑4‑4‑3',custom:'Custom'}
+  const DESCS={alternating_weeks:'One full week with each parent, alternating every 7 days.','2_2_5_5':'2 days, 2 days, then 5 days each — 14-day repeating cycle.','2_2_3':'2 days, 2 days, 3 days — more frequent contact for younger children.','3_4_4_3':'3 days, 4 days, 4 days, 3 days — regular time with both parents.',custom:'Build your own cycle day by day.'}
+  const patternPicker=['alternating_weeks','2_2_5_5','2_2_3','3_4_4_3','custom'].map(p=>`<label class="flex items-start gap-3 rounded-xl border-2 px-4 py-3 cursor-pointer transition-all ${S.patternType===p?'border-canopy-mid bg-canopy-mist/40':'border-gray-200 bg-white hover:border-canopy-light'}"><input type="radio" name="patternType" value="${p}" ${S.patternType===p?'checked':''} class="mt-0.5 accent-canopy-deep" onchange="setR('patternType',this.value)"><div><p class="text-sm font-semibold text-canopy-deep">${LABELS[p]}</p><p class="text-xs text-gray-500 mt-0.5">${DESCS[p]}</p></div></label>`).join('')
+
+  const startPicker=S.patternType!=='custom'?`<div class="space-y-2"><label class="block text-xs font-semibold text-canopy-mid uppercase tracking-wide">First period starts with</label><div class="flex gap-2"><button onclick="setR('startingParent','a')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${S.startingParent==='a'?'border-canopy-deep bg-canopy-deep text-white':'border-canopy-mist bg-white text-gray-600 hover:border-canopy-light'}">${esc(p1)}</button><button onclick="setR('startingParent','b')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${S.startingParent==='b'?'border-canopy-deep bg-canopy-deep text-white':'border-canopy-mist bg-white text-gray-600 hover:border-canopy-light'}">${esc(p2)}</button></div></div>`:''
+
+  const customBuilder=S.patternType==='custom'?`<div class="space-y-3"><label class="block text-xs font-semibold text-canopy-mid uppercase tracking-wide">Build your cycle (${S.customCycle.length} day${S.customCycle.length!==1?'s':''})</label><div class="min-h-14 bg-white rounded-xl border-2 border-dashed border-canopy-mist p-3 flex flex-wrap gap-1.5">${S.customCycle.length===0?'<span class="text-xs text-gray-400 italic self-center">Tap the buttons below — tap a chip to remove it</span>':S.customCycle.map((o,i)=>`<button onclick="removeDay(${i})" title="Tap to remove" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${o==='a'?'bg-canopy-mist text-canopy-deep':'bg-gray-100 text-gray-700'}">${o==='a'?esc(p1.charAt(0)):esc(p2.charAt(0))}</button>`).join('')}</div><div class="flex gap-2"><button onclick="addDay('a')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-canopy-mist text-canopy-deep hover:bg-canopy-light/40 transition-colors">+ ${esc(p1)}</button><button onclick="addDay('b')" class="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">+ ${esc(p2)}</button>${S.customCycle.length>0?`<button onclick="clearDays()" class="px-3 py-2.5 rounded-xl text-xs text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors">Clear</button>`:''}</div></div>`:''
+
+  return`<p class="text-sm text-gray-600 mb-4">Choose the pattern that best reflects how you'll share time with your children.</p><div class="space-y-2 mb-5">${patternPicker}</div>${startPicker}${customBuilder}${previewGrid(activeCycle(),p1,p2)}`
+}
+
+function step3() {
+  return card('Handovers',
+    radios('Where do handovers normally take place?','handoverLocation',S.handoverLocation,[
+      {value:'school',label:'At school — one parent drops off, the other collects'},
+      {value:'parent_a_home',label:"At one parent's home"},
+      {value:'neutral',label:'A neutral location'},
+      {value:'other',label:'Other'},
+    ],true)
+    +(S.handoverLocation==='other'?inp('Where?','handoverOther',S.handoverOther):'')
+    +ta('If a handover is delayed or needs to change at short notice, what is the agreed approach?','handoverLate',S.handoverLate,'e.g. Contact the other parent as soon as possible by phone, agree a new time within 2 hours')
+  )+card('School holidays',
+    radios('How will school holidays be divided?','holidaySplit',S.holidaySplit,[
+      {value:'equal',label:'Split equally between both parents'},
+      {value:'term_pattern',label:'Follow the same pattern as term time'},
+      {value:'agreed_annually',label:'Agreed separately each school year'},
+    ])
+    +radios('Maximum consecutive days with one parent during holidays','maxDays',S.maxDays,[
+      {value:'7',label:'7 days'},{value:'14',label:'14 days'},{value:'no_limit',label:'No set limit — agreed case by case'},
+    ])
+    +radios('How far in advance do holiday plans need to be agreed?','noticeWeeks',S.noticeWeeks,[
+      {value:'2',label:'2 weeks'},{value:'4',label:'4 weeks'},{value:'6',label:'6 weeks'},{value:'8',label:'8 weeks or more'},
+    ])
+  )
+}
+
+function step4() {
+  const p1=S.parent1||'Parent 1', p2=S.parent2||'Parent 2'
+  const timeField=(S.christmas==='split_a_morning'||S.christmas==='split_b_morning')?`<div><label class="block text-xs font-medium text-gray-500 mb-1">Handover time on Christmas Day</label><input type="time" value="${esc(S.christmasTime)}" class="border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="set('christmasTime',this.value)"></div>`:''
+  const infoOpts=[{value:'destination',label:'Destination country'},{value:'itinerary',label:'Full itinerary'},{value:'accommodation',label:'Accommodation address'},{value:'emergency_contact',label:'Emergency contact number'},{value:'return_details',label:'Return travel details'}]
+  return card('Special occasions',
+    radios('How will Christmas Day be handled?','christmas',S.christmas,[
+      {value:'split_a_morning',label:`Split on the day — ${esc(p1)} in the morning, ${esc(p2)} in the afternoon/evening`},
+      {value:'split_b_morning',label:`Split on the day — ${esc(p2)} in the morning, ${esc(p1)} in the afternoon/evening`},
+      {value:'alternates',label:'Alternates each year between parents'},
+      {value:'agreed_annually',label:'Agreed each year'},
+    ],true)
+    +timeField
+    +radios("How are the children's birthdays handled?",'birthdays',S.birthdays,[
+      {value:'separate',label:'Each parent celebrates separately on or around the day'},
+      {value:'joint',label:'One joint celebration with both parents'},
+      {value:'resident',label:'Whoever has the children that day celebrates; the other parent has a separate celebration'},
+    ])
+    +ta('Are there any other occasions — religious, cultural, or family — that should always be spent with a specific parent?','fixedOccasions',S.fixedOccasions,"e.g. Mother's Day with Kate, Father's Day with Chris",3)
+  )+card('Travel abroad',
+    radios("Can either parent take the children abroad without the other parent's prior written agreement?",'abroad',S.abroad,[
+      {value:'required',label:'No — written agreement is always required'},
+      {value:'notice_only',label:'Yes — with reasonable notice and trip details shared'},
+    ])
+    +radios('How much notice is required before a holiday abroad?','abroadWeeks',S.abroadWeeks,[
+      {value:'4',label:'4 weeks'},{value:'6',label:'6 weeks'},{value:'8',label:'8 weeks'},
+    ])
+    +`<div class="space-y-2"><label class="block text-xs font-medium text-gray-500">Information that must be shared before an international trip</label>${infoOpts.map(o=>`<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ${S.abroadInfo.includes(o.value)?'checked':''} class="accent-canopy-deep rounded" onchange="toggleCheck('abroadInfo','${o.value}')"><span class="text-sm text-gray-700">${o.label}</span></label>`).join('')}</div>`
+    +radios("Who holds the children's passports?",'passports',S.passports,[
+      {value:'parent1',label:esc(p1)},{value:'parent2',label:esc(p2)},{value:'both',label:'We each hold a copy / stored separately'},
+    ])
+  )
+}
+
+function step5() {
+  return card('Digital life and social media',
+    ta('What boundaries have you agreed around screen time in each home?','screenTime',S.screenTime,'e.g. No screens within 30 minutes of bedtime. Devices off by 8pm on school nights.')
+    +ta('What is your agreed approach to sharing photos of the children on social media?','socialMedia',S.socialMedia,'e.g. Both parents to agree before posting any photos of the children publicly...')
+    +ta('Are there any apps or platforms the children are not permitted to use?','restrictedApps',S.restrictedApps,'e.g. TikTok, Snapchat until age 13...',2)
+    +ta("How will you handle the children's own devices as they get older?",'devicesPolicy',S.devicesPolicy,'e.g. First phone at secondary school. Both parents to have access to accounts until age 16...')
+  )+card('Staying in touch',
+    ta('If a child wants to speak to the other parent, how should this be handled?','childContact',S.childContact,'e.g. The resident parent should facilitate a call if the child asks.')
+    +ta('Are there any times when contact with the other parent should not take place?','contactRestrictions',S.contactRestrictions,'e.g. During bedtime routine (after 7:30pm), during school hours',2)
+  )+card('Talking to each other',
+    radios('What is your primary channel for day-to-day communication?','parentChannel',S.parentChannel,[
+      {value:'app',label:'A co-parenting app (e.g. Canopy)'},{value:'whatsapp',label:'WhatsApp or text'},
+      {value:'email',label:'Email'},{value:'phone',label:'Phone call'},
+    ])
+    +ta('For urgent matters, how should the other parent be contacted and how quickly?','urgentProcess',S.urgentProcess,'e.g. Phone call immediately. If no answer, text and expect a response within 30 minutes.')
+    +ta('How will you share school letters, medical updates and other important information?','documentSharing',S.documentSharing,'e.g. Via the co-parenting app on the day they are received.',2)
+  )
+}
+
+function step6() {
+  const carerRows=S.carers.map((c,i)=>`<div class="flex gap-2 items-center"><div class="flex-1 grid grid-cols-2 gap-2"><input type="text" value="${esc(c.name)}" placeholder="Name" class="border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="setCarer(${i},'name',this.value)"><input type="text" value="${esc(c.relationship)}" placeholder="Relationship" class="border border-canopy-mist rounded-xl px-3 py-2 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-canopy-green" onchange="setCarer(${i},'relationship',this.value)"></div>${S.carers.length>1?`<button onclick="removeCarer(${i})" class="text-red-400 text-xs hover:text-red-600">✕</button>`:''}</div>`).join('')
+  return card('Childcare',
+    radios('If the parent who has the children cannot look after them, who should be asked first?','firstRefusal',S.firstRefusal,[
+      {value:'other_parent',label:'The other parent (right of first refusal)'},
+      {value:'agreed_list',label:'An agreed list of family members or carers'},
+      {value:'resident_decides',label:"Either option — at the resident parent's discretion"},
+    ])
+    +`<div class="space-y-2"><label class="block text-xs font-medium text-gray-500">Agreed carers when neither parent is available</label>${carerRows}<button onclick="addCarer()" class="text-xs text-canopy-mid hover:underline">+ Add another carer</button></div>`
+  )+card('Extended family & siblings',
+    ta('How will the children maintain relationships with grandparents and other important family members?','extendedFamily',S.extendedFamily,'e.g. Regular contact via video call. Extended family can collect from school with prior agreement.')
+    +ta('Should the children always be kept together when moving between homes?','siblings',S.siblings,'e.g. The children should remain together unless either parent requests individual time with advance notice and agreement.')
+  )
+}
+
+function step7() {
+  return card('Education',
+    ta('If parents disagree about an education decision, how will this be resolved?','educationDisputes',S.educationDisputes,"e.g. Direct conversation first, with a two-week deadline. If unresolved, attend mediation.")
+    +ta("How will both parents stay informed about school events, reports and parents' evenings?",'schoolInfo',S.schoolInfo,'e.g. Both parents listed as contacts with the school. Information shared via the co-parenting app.',2)
+  )+card('Health and medical',
+    ta('Who arranges routine health appointments — GP, dentist, optician?','routineHealth',S.routineHealth,'e.g. Kate takes the lead on arranging appointments but Chris is happy to attend or cover.',2)
+    +ta("If a child needs non-emergency medical treatment during one parent's time, what must happen before proceeding?",'nonEmergency',S.nonEmergency,'e.g. Inform the other parent and discuss before agreeing to treatment. If unreachable within 4 hours, resident parent may proceed.')
+    +ta('In a medical emergency, what is the process for informing the other parent?','medicalEmergency',S.medicalEmergency,'e.g. Call as soon as the child is in safe hands. Share hospital name, condition, and next steps.',2)
+  )
+}
+
+function step8() {
+  const jointOpts=[{value:'school',label:'Choice of school or nursery'},{value:'relocation',label:'Moving to a different area or country'},{value:'medical',label:'Non-emergency medical treatment or surgery'},{value:'medication',label:'Starting or stopping prescribed medication'},{value:'surname',label:'Change of surname'},{value:'travel',label:'International travel'},{value:'activities',label:'Significant new extracurricular commitments'}]
+  return card('Making decisions together',
+    `<div class="space-y-2"><label class="block text-xs font-medium text-gray-500">Which of the following require both parents to agree?</label>${jointOpts.map(o=>`<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ${S.jointDecisions.includes(o.value)?'checked':''} class="accent-canopy-deep rounded" onchange="toggleCheck('jointDecisions','${o.value}')"><span class="text-sm text-gray-700">${o.label}</span></label>`).join('')}</div>`
+    +ta('For day-to-day decisions, does each parent set their own rules or is there a joint approach?','dailyRules',S.dailyRules,"e.g. Each parent sets their own house rules. We aim to be broadly consistent on bedtime and diet.")
+  )+card('New partners',
+    ta('What is your agreed approach to introducing new partners to the children?','newPartners',S.newPartners,'e.g. Both parents to be informed before a new partner meets the children. Introduction should be gradual...',4)
+  )+card('Money',
+    ta('How are day-to-day costs handled when the children are with each parent?','dayCosts',S.dayCosts,'e.g. Each parent covers food, activities and incidentals during their own time.')
+    +ta('How are larger shared costs handled — school trips, sports equipment, medical costs?','bigCosts',S.bigCosts,'e.g. Agreed case by case, split proportionally based on income.')
+    +ta("What happens if one parent's financial situation changes significantly?",'financialChange',S.financialChange,'e.g. The contribution split should be reviewed and agreed between both parents.',2)
+  )+card('When you disagree',
+    radios('If you cannot agree on something, what is the first step?','disputeProcess',S.disputeProcess,[
+      {value:'conversation',label:'A direct conversation with a set deadline'},
+      {value:'mediation',label:'Mediation'},
+      {value:'legal',label:'Legal advice'},
+    ])
+    +radios('How often will you review this plan together?','reviewFrequency',S.reviewFrequency,[
+      {value:'every_6_months',label:'Every 6 months'},
+      {value:'annually',label:'Every year'},
+      {value:'on_change',label:"When the children's circumstances change significantly"},
+    ])
+  )
+}
+
+function step9() {
+  const p1=S.parent1||'Parent 1', p2=S.parent2||'Parent 2'
+  const kids=S.children.filter(c=>c.name)
+  const today=new Date()
+  const dateStr=today.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})
+  const cycle=activeCycle()
+  const PLABELS={alternating_weeks:'Alternating weeks (7–7)','2_2_5_5':'2‑2‑5‑5','2_2_3':'2‑2‑3','3_4_4_3':'3‑4‑4‑3'}
+  const schedDesc=S.patternType==='custom'?`Custom ${cycle.length}-day cycle`:`${PLABELS[S.patternType]}, starting with ${S.startingParent==='a'?p1:p2}`
+  const JL={school:'Choice of school or nursery',relocation:'Moving to a different area or country',medical:'Non-emergency medical treatment',medication:'Starting or stopping prescribed medication',surname:'Change of surname',travel:'International travel',activities:'Significant new extracurricular commitments'}
+  const XL={split_a_morning:`${p1} in the morning, handover to ${p2} at ${S.christmasTime}`,split_b_morning:`${p2} in the morning, handover to ${p1} at ${S.christmasTime}`,alternates:'Alternates each year',agreed_annually:'Agreed each year'}
+  const HL={school:'At school',parent_a_home:"At one parent's home",neutral:'Neutral location',other:S.handoverOther}
+  const BL={separate:'Each parent celebrates separately',joint:'One joint celebration',resident:'Resident parent celebrates; other parent has a separate celebration'}
+  const CHL={app:'Co-parenting app',whatsapp:'WhatsApp or text',email:'Email',phone:'Phone'}
+  const FL={other_parent:'Other parent has right of first refusal',agreed_list:'Agreed list of carers',resident_decides:"Resident parent's discretion"}
+  const DL={conversation:'Direct conversation with a set deadline',mediation:'Mediation',legal:'Legal advice'}
+  const RL={every_6_months:'Every 6 months',annually:'Every year',on_change:"When the children's circumstances change"}
+  const SL={equal:'Split equally between both parents',term_pattern:'Follow term-time pattern',agreed_annually:'Agreed each school year'}
+
+  function row(label,value){if(!value)return'';return`<div class="grid grid-cols-5 gap-2 text-sm py-1.5 border-b border-gray-50">${label?`<span class="col-span-2 text-gray-400 text-xs pt-0.5">${label}</span>`:'<span class="col-span-2"></span>'}<span class="col-span-3 text-gray-800">${esc(value)}</span></div>`}
+  function sec(title,rows){const body=rows.filter(Boolean).join('');if(!body.replace(/<[^>]*>/g,'').trim())return'';return`<div class="mb-5"><h2 class="text-sm font-bold text-canopy-deep border-b-2 border-canopy-mist pb-1 mb-2">${title}</h2>${body}</div>`}
+
+  // mini preview for printed plan
+  const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const miniDays=cycle.length?Array.from({length:14},(_,i)=>{const d=new Date(today.getFullYear(),today.getMonth(),today.getDate()+i);return{day:DN[d.getDay()],date:d.getDate(),owner:cycle[i%cycle.length]}}).map(({day,date,owner})=>`<div class="rounded-lg aspect-square flex flex-col items-center justify-center text-xs font-semibold ${owner==='a'?'bg-canopy-mist text-canopy-deep':'bg-gray-100 text-gray-700'}"><span class="text-[8px] opacity-60">${day}</span><span>${date}</span></div>`).join(''):''
+  const miniGrid=miniDays?`<div class="py-2"><div class="grid grid-cols-7 gap-1 mb-1">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="text-center text-[9px] text-gray-400">${d}</div>`).join('')}${miniDays}</div><div class="flex gap-3"><div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-canopy-mist"></div><span class="text-xs text-gray-500">${esc(p1)}</span></div><div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded bg-gray-100"></div><span class="text-xs text-gray-500">${esc(p2)}</span></div></div></div>`:''
+
+  return`<div class="text-center mb-6 pb-5 border-b border-canopy-mist">
+    <h1 class="text-2xl font-bold text-canopy-deep">Your Parenting Plan</h1>
+    <p class="text-sm text-gray-500 mt-1">${esc(p1)} &amp; ${esc(p2)}${kids.length?' · '+kids.map(c=>esc(c.name)).join(', '):''}</p>
+    <p class="text-xs text-gray-400 mt-0.5">Created ${dateStr}</p>
+    <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700 text-left mt-3"><strong>Advisory only.</strong> This plan is not legally binding. For matters involving formal court orders, always seek independent legal advice.</div>
+  </div>
+  ${sec('1. About this plan',[row('Parents',`${p1} and ${p2}`),...kids.map((c,i)=>row(`Child ${i+1}`,`${c.name}${c.dob?' (born '+c.dob+')':''}`))])}
+  ${sec('2. The schedule',[row('Pattern',schedDesc),miniGrid])}
+  ${sec('3. Handovers and school holidays',[row('Handover location',HL[S.handoverLocation]),row('If a handover is delayed',S.handoverLate),row('School holiday split',SL[S.holidaySplit]),row('Maximum consecutive days',S.maxDays==='no_limit'?'No set limit':S.maxDays+' days'),row('Holiday notice required',S.noticeWeeks+' weeks')])}
+  ${sec('4. Special occasions and travel',[row('Christmas Day',XL[S.christmas]),row("Children's birthdays",BL[S.birthdays]),row('Other fixed occasions',S.fixedOccasions),row('International travel',S.abroad==='required'?'Written agreement from both parents required':'Permitted with notice and trip details'),row('Notice for trips abroad',S.abroadWeeks+' weeks'),S.abroadInfo.length?row('Information to share',S.abroadInfo.map(v=>({destination:'Destination',itinerary:'Itinerary',accommodation:'Accommodation',emergency_contact:'Emergency contact',return_details:'Return details'}[v])).join(', ')):'',row('Passports held by',S.passports)])}
+  ${(S.screenTime||S.socialMedia||S.restrictedApps||S.devicesPolicy||S.childContact||S.contactRestrictions||S.parentChannel)?sec('5. Digital life and communication',[row('Screen time',S.screenTime),row('Social media',S.socialMedia),row('Restricted apps or platforms',S.restrictedApps),row("Children's own devices",S.devicesPolicy),row('Children contacting other parent',S.childContact),row('Contact restrictions',S.contactRestrictions),row('Parent communication channel',CHL[S.parentChannel]),row('Urgent contact',S.urgentProcess),row('Sharing information',S.documentSharing)]):''}
+  ${(S.firstRefusal||S.carers.some(c=>c.name)||S.extendedFamily||S.siblings)?sec('6. Childcare and family',[row('If resident parent unavailable',FL[S.firstRefusal]),...S.carers.filter(c=>c.name).map((c,i)=>row(i===0?'Agreed carers':'',`${c.name}${c.relationship?' ('+c.relationship+')':''}`)),row('Extended family',S.extendedFamily),row('Siblings',S.siblings)]):''}
+  ${(S.educationDisputes||S.schoolInfo||S.routineHealth||S.nonEmergency||S.medicalEmergency)?sec('7. Education and health',[row('Education disagreements',S.educationDisputes),row('School communication',S.schoolInfo),row('Routine health appointments',S.routineHealth),row('Non-emergency treatment',S.nonEmergency),row('Medical emergencies',S.medicalEmergency)]):''}
+  ${(S.jointDecisions.length||S.dailyRules||S.newPartners||S.dayCosts||S.bigCosts||S.financialChange||S.disputeProcess||S.reviewFrequency)?sec('8. Decisions, money and disagreements',[S.jointDecisions.length?row('Decisions requiring joint agreement',S.jointDecisions.map(v=>JL[v]).join(', ')):'',row('Day-to-day decisions',S.dailyRules),row('New partners',S.newPartners),row('Day-to-day costs',S.dayCosts),row('Larger shared costs',S.bigCosts),row('Change in finances',S.financialChange),row('First step if we disagree',DL[S.disputeProcess]),row('Plan review',RL[S.reviewFrequency])]):''}
+  <div class="space-y-3 pt-4 no-print">
+    <button onclick="window.print()" class="w-full py-3 rounded-xl text-sm font-semibold bg-canopy-deep text-white hover:bg-canopy-mid transition-colors">Print / save as PDF</button>
+    <div class="bg-canopy-mist rounded-2xl p-5 space-y-3">
+      <p class="text-sm font-semibold text-canopy-deep">Use this schedule in Canopy</p>
+      <p class="text-sm text-canopy-mid">Canopy is the private family app that keeps both parents in sync — shared calendar, schedule, notice board, and more.</p>
+      <a href="https://my.canopy-app.app" class="block w-full py-3 rounded-xl text-sm font-semibold bg-canopy-deep text-white text-center hover:bg-canopy-mid transition-colors">Get started free →</a>
+    </div>
+    <button onclick="restart()" class="w-full py-2.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">Start a new plan</button>
+  </div>`
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function render() {
+  const s=S.step, last=s===STEPS
+  document.getElementById('hdr-step').textContent=last?'':`Step ${s} of ${STEPS-1}`
+  document.getElementById('progress').style.width=`${Math.min((s/(STEPS-1))*100,100)}%`
+  document.getElementById('step-hdr').innerHTML=last?'':`<p class="text-xs text-canopy-green font-semibold uppercase tracking-wide">Step ${s} of ${STEPS-1}</p><h1 class="text-2xl font-bold text-canopy-deep mt-1">${TITLES[s-1]}</h1>`
+  const renderers=[null,step1,step2,step3,step4,step5,step6,step7,step8,step9]
+  document.getElementById('content').innerHTML=renderers[s]()
+  document.getElementById('nav').innerHTML=last?'':`${s>1?`<button onclick="go(${s-1})" class="px-5 py-3 rounded-xl text-sm font-medium text-canopy-deep border border-canopy-mist hover:bg-canopy-mist transition-colors">Back</button>`:''}<button onclick="go(${s+1})" class="flex-1 py-3 rounded-xl text-sm font-semibold bg-canopy-deep text-white hover:bg-canopy-mid transition-colors">${s===STEPS-1?'Generate my plan →':'Continue →'}</button>`
+  document.getElementById('saved-note').style.display=last?'none':''
+  window.scrollTo({top:0,behavior:'smooth'})
+}
+
+function go(n) { S.step=n; save(); render() }
+function restart() { if(!confirm('Start a new plan? Your current answers will be cleared.')) return; localStorage.removeItem(KEY); S=defaults(); render() }
+
+render()
+</script>
+</body>
+</html>
