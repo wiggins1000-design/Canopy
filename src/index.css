@@ -37,3 +37,9 @@ html, body, #root {
   transform: translateY(100%);
   transition: transform 0.22s ease-in;
 }
+
+@media print {
+  header, .no-print { display: none !important; }
+  .min-h-screen { min-height: unset; }
+  body { background: white !important; }
+}

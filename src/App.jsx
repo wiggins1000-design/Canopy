@@ -27,6 +27,7 @@ import AdminBroadcastPage from './pages/admin/AdminBroadcastPage'
 import MessagesPage from './pages/MessagesPage'
 import ThreadPage from './pages/ThreadPage'
 import ExpensesPage from './pages/ExpensesPage'
+import PlanPage from './pages/PlanPage'
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/2fa" element={<TwoFAPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/join/:code" element={<JoinPage />} />
+          <Route path="/plan" element={<PlanPage />} />
 
           {/* Admin — completely separate from the customer app */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
