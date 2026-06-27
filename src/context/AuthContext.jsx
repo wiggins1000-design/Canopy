@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase, registerPushSubscription } from '../lib/supabase'
-import { callFlush } from '../lib/sessionFlushRegistry'
 
 const AuthContext = createContext(null)
 
@@ -108,7 +107,6 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
-    await callFlush()
     await supabase.auth.signOut()
   }
 
