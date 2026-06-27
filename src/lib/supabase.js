@@ -20,18 +20,13 @@ export const isNativePlatform = () => Capacitor.isNativePlatform()
 // Stores the device token as "apns:<hex>" in family_members.push_token.
 export async function registerNativePush(userId) {
   const { PushNotifications } = await import('@capacitor/push-notifications')
-  alert('requestPermissions: calling...')
-  const perms = await PushNotifications.requestPermissions()
-  alert('requestPermissions: receive=' + perms?.receive)
-  const { receive } = perms
+  const { receive } = await PushNotifications.requestPermissions()
   if (receive !== 'granted') return { granted: false, denied: true }
 
-  alert('addListener: registration...')
   let resolve
   const promise = new Promise((r) => { resolve = r })
 
   const regHandle = await PushNotifications.addListener('registration', async (token) => {
-    alert('registration event: ' + token?.value?.slice(0, 20))
     await supabase
       .from('family_members')
       .update({ push_token: `apns:${token.value}` })
@@ -39,13 +34,10 @@ export async function registerNativePush(userId) {
     resolve({ granted: true })
   })
 
-  alert('addListener: registrationError...')
   const errHandle = await PushNotifications.addListener('registrationError', (err) => {
-    alert('registrationError event: ' + JSON.stringify(err))
     resolve({ granted: false, error: err?.error ?? 'registration_error' })
   })
 
-  alert('calling register()...')
   PushNotifications.register().catch(() => resolve({ granted: false, error: 'register_failed' }))
 
   const timeout = setTimeout(() => resolve({ granted: false, error: 'timeout' }), 15000)
