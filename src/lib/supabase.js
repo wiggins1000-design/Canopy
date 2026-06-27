@@ -21,7 +21,7 @@ export const isNativePlatform = () => Capacitor.isNativePlatform()
 export async function registerNativePush(userId) {
   const { PushNotifications } = await import('@capacitor/push-notifications')
   const { receive } = await PushNotifications.requestPermissions()
-  if (receive !== 'granted') return { granted: false }
+  if (receive !== 'granted') return { granted: false, denied: true }
 
   // Listeners must be registered before calling register() — on iOS, if the
   // device already has an APNs token the 'registration' event fires immediately

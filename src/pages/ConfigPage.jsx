@@ -210,34 +210,35 @@ export default function ConfigPage() {
   async function togglePush() {
     if (!member) return
     setPushLoading(true)
-
-    if (isNativePlatform()) {
-      if (pushEnabled) {
-        await unregisterNativePush(member.user_id)
-        setPushEnabled(false)
-      } else {
-        const result = await registerNativePush(member.user_id)
-        setPushEnabled(result.granted)
-      }
-      setPushLoading(false)
-      return
-    }
-
-    if (pushEnabled) {
-      await unregisterPushSubscription(member.user_id)
-      setPushEnabled(false)
-    } else {
-      if (Notification.permission === 'denied') {
-        setPushBlocked(true)
-        setPushLoading(false)
+    try {
+      if (isNativePlatform()) {
+        if (pushEnabled) {
+          await unregisterNativePush(member.user_id)
+          setPushEnabled(false)
+        } else {
+          const result = await registerNativePush(member.user_id)
+          if (result.denied) setPushBlocked(true)
+          else setPushEnabled(result.granted)
+        }
         return
       }
-      await registerPushSubscription(member.user_id)
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.getSubscription()
-      setPushEnabled(!!sub)
+
+      if (pushEnabled) {
+        await unregisterPushSubscription(member.user_id)
+        setPushEnabled(false)
+      } else {
+        if (Notification.permission === 'denied') {
+          setPushBlocked(true)
+          return
+        }
+        await registerPushSubscription(member.user_id)
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        setPushEnabled(!!sub)
+      }
+    } finally {
+      setPushLoading(false)
     }
-    setPushLoading(false)
   }
 
   async function savePhone() {
@@ -501,6 +502,7 @@ export default function ConfigPage() {
             pushEnabled={pushEnabled}
             pushLoading={pushLoading}
             onToggle={togglePush}
+            isNative={isNativePlatform()}
           />
         </AccordionGroup>
 
@@ -907,6 +909,7 @@ export default function ConfigPage() {
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           onToggle={togglePush}
+          isNative={isNativePlatform()}
         />
         <div className="border-t border-gray-100 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-gray-500">SMS — urgent notices</p>
@@ -1193,12 +1196,15 @@ function NavRow({ label, description, onPress }) {
   )
 }
 
-function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, onToggle }) {
+function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, onToggle, isNative }) {
   if (!pushSupported) {
     return <p className="px-4 py-3 text-sm text-gray-400">Push notifications are not supported on this device or browser.</p>
   }
   if (pushBlocked) {
-    return <p className="px-4 py-3 text-sm text-red-500">Notifications are blocked in your browser settings. Enable them and reload.</p>
+    const msg = isNative
+      ? 'Notifications are blocked. Go to iPhone Settings > Canopy to enable them.'
+      : 'Notifications are blocked in your browser settings. Enable them and reload.'
+    return <p className="px-4 py-3 text-sm text-red-500">{msg}</p>
   }
   return (
     <button
