@@ -23,6 +23,7 @@ import ExportPage from './pages/ExportPage'
 import CourtOrderPage from './pages/CourtOrderPage'
 import AdminFamilyPage from './pages/admin/AdminFamilyPage'
 import AdminTermDatesPage from './pages/admin/AdminTermDatesPage'
+import AdminBroadcastPage from './pages/admin/AdminBroadcastPage'
 import MessagesPage from './pages/MessagesPage'
 import ThreadPage from './pages/ThreadPage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="family/:id" element={<AdminFamilyPage />} />
             <Route path="term-dates" element={<AdminTermDatesPage />} />
+            <Route path="broadcast" element={<AdminBroadcastPage />} />
           </Route>
           <Route
             element={

@@ -67,7 +67,7 @@ export default function AdminDashboardPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name…"
+            placeholder="Search by name or email…"
             className="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green w-56"
           />
         </div>

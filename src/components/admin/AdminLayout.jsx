@@ -1,8 +1,15 @@
+import { useEffect } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
 export default function AdminLayout() {
   const { signOut } = useAuth()
+
+  useEffect(() => {
+    const prev = document.title
+    document.title = 'Canopy Admin Dashboard'
+    return () => { document.title = prev }
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
@@ -28,6 +35,14 @@ export default function AdminLayout() {
             }
           >
             Term Dates
+          </NavLink>
+          <NavLink
+            to="/admin/broadcast"
+            className={({ isActive }) =>
+              `text-xs font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-400 hover:text-white'}`
+            }
+          >
+            Broadcast
           </NavLink>
           <button
             onClick={signOut}

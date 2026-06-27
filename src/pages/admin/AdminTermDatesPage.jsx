@@ -7,6 +7,7 @@ export default function AdminTermDatesPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
   const [failedOpen, setFailedOpen] = useState(false)
+  const [filter, setFilter] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -17,20 +18,37 @@ export default function AdminTermDatesPage() {
     setLoading(false)
   }
 
-  const failed  = schools.filter(s => s.scrape_error)
-  const ok      = schools.filter(s => !s.scrape_error && s.last_fetched_at)
-  const pending = schools.filter(s => !s.scrape_error && !s.last_fetched_at)
+  const q = filter.trim().toLowerCase()
+  const visible = q
+    ? schools.filter(s =>
+        (s.school_name ?? '').toLowerCase().includes(q) ||
+        (s.homepage_url ?? '').toLowerCase().includes(q),
+      )
+    : schools
+
+  const failed  = visible.filter(s => s.scrape_error)
+  const ok      = visible.filter(s => !s.scrape_error && s.last_fetched_at)
+  const pending = visible.filter(s => !s.scrape_error && !s.last_fetched_at)
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Term Dates — School KB</h1>
-        <p className="text-slate-400 text-sm mt-1">Scrape status for every school in the knowledge base</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Term Dates — School KB</h1>
+          <p className="text-slate-400 text-sm mt-1">Scrape status for every school in the knowledge base</p>
+        </div>
+        <input
+          type="text"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter by name or URL…"
+          className="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green w-64 mt-1"
+        />
       </div>
 
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Total schools" value={loading ? null : schools.length} />
+        <StatCard label={q ? 'Matching' : 'Total schools'} value={loading ? null : visible.length} />
         <StatCard label="Synced OK"     value={loading ? null : ok.length}      colour="green" />
         <StatCard label="Failed"        value={loading ? null : failed.length}   colour="red" />
       </div>
