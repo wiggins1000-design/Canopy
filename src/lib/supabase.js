@@ -37,8 +37,8 @@ export async function registerNativePush(userId) {
     resolve({ granted: true })
   })
 
-  const errHandle = await PushNotifications.addListener('registrationError', () => {
-    resolve({ granted: false })
+  const errHandle = await PushNotifications.addListener('registrationError', (err) => {
+    resolve({ granted: false, error: err?.error ?? 'registration_error' })
   })
 
   PushNotifications.register().catch(() => resolve({ granted: false, error: 'register_failed' }))
