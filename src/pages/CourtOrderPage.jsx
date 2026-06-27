@@ -262,23 +262,35 @@ function OrderCard({ order, paName, pbName, currentUserId, onAnalyse, onApprove,
             </Button>
           )}
 
-          {/* Needs approval */}
+          {/* Needs approval — error in extracted rules */}
+          {order.status === 'needs_approval' && (!rules || rules.error) && (
+            <div className="space-y-3">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-700">
+                {rules?.error ?? 'The document could not be read correctly.'}
+              </div>
+              <Button className="w-full" onClick={onAnalyse}>
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {/* Needs approval — normal flow */}
           {order.status === 'needs_approval' && rules && !rules.error && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Awaiting approval from both parents ({order.approved_by?.length ?? 0}/2)
-              </p>
               <div className="bg-white rounded-xl border border-amber-200 p-3 text-sm text-gray-700">
                 <p className="font-semibold text-gray-800 mb-1">Summary</p>
                 <p className="text-sm text-gray-600">{rules.summary}</p>
               </div>
-              {!alreadyApproved && (
+              <p className="text-xs text-gray-500">
+                Both parents need to confirm these extracted rules before they go live.
+                ({order.approved_by?.length ?? 0}/2 approved)
+              </p>
+              {!alreadyApproved ? (
                 <Button className="w-full" loading={approving} onClick={onApprove}>
-                  Approve these rules
+                  Confirm these rules
                 </Button>
-              )}
-              {alreadyApproved && (
-                <p className="text-sm text-green-600 text-center">✓ You've approved — waiting for the other parent</p>
+              ) : (
+                <p className="text-sm text-green-600 text-center">✓ You've confirmed — waiting for the other parent</p>
               )}
             </div>
           )}

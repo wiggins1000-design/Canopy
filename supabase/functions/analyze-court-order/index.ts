@@ -73,11 +73,21 @@ Deno.serve(async (req) => {
   await supabase.from('court_orders').update({ status: 'analyzing', updated_at: new Date().toISOString() }).eq('id', order_id)
 
   try {
-    // Fetch the PDF content via Jina (converts PDF to readable text)
-    const fileUrl  = order.file_url
-    const fullUrl  = fileUrl.startsWith('http') ? fileUrl : `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/vault/${fileUrl}`
+    // Generate a short-lived signed URL so Jina can access the private vault bucket
+    const { data: signedData, error: signedErr } = await supabase.storage
+      .from('vault')
+      .createSignedUrl(order.file_url, 120)
 
-    const pdfText  = await fetchViaJina(fullUrl)
+    if (signedErr || !signedData?.signedUrl) {
+      await supabase.from('court_orders').update({
+        status: 'failed', error_msg: 'Could not generate a download link for the document.', updated_at: new Date().toISOString(),
+      }).eq('id', order_id)
+      return new Response(JSON.stringify({ ok: false, error: 'Signed URL failed' }), {
+        status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const pdfText = await fetchViaJina(signedData.signedUrl)
     if (!pdfText) {
       await supabase.from('court_orders').update({
         status: 'failed', error_msg: 'Could not read the PDF. Ensure it is a text-based (not scanned) PDF.', updated_at: new Date().toISOString(),
@@ -98,11 +108,20 @@ Deno.serve(async (req) => {
       })
     }
 
+    if (rules.error) {
+      await supabase.from('court_orders').update({
+        status: 'failed', error_msg: rules.error, updated_at: new Date().toISOString(),
+      }).eq('id', order_id)
+      return new Response(JSON.stringify({ ok: false, error: rules.error }), {
+        status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
     await supabase.from('court_orders').update({
-      raw_rules:  rules,
-      status:     'needs_approval',
+      raw_rules:   rules,
+      status:      'needs_approval',
       approved_by: [],
-      updated_at: new Date().toISOString(),
+      updated_at:  new Date().toISOString(),
     }).eq('id', order_id)
 
     return new Response(JSON.stringify({ ok: true, rules }), {
