@@ -23,21 +23,31 @@ export async function registerNativePush(userId) {
   const { receive } = await PushNotifications.requestPermissions()
   if (receive !== 'granted') return { granted: false }
 
-  await PushNotifications.register()
+  // Listeners must be registered before calling register() — on iOS, if the
+  // device already has an APNs token the 'registration' event fires immediately
+  // and would be missed if the listener was added afterward.
+  let resolve
+  const promise = new Promise((r) => { resolve = r })
 
-  return new Promise((resolve) => {
-    PushNotifications.addListener('registration', async (token) => {
-      await supabase
-        .from('family_members')
-        .update({ push_token: `apns:${token.value}` })
-        .eq('user_id', userId)
-      resolve({ granted: true })
-    }).catch(() => resolve({ granted: false }))
-
-    PushNotifications.addListener('registrationError', () => {
-      resolve({ granted: false })
-    }).catch(() => {})
+  const regHandle = await PushNotifications.addListener('registration', async (token) => {
+    await supabase
+      .from('family_members')
+      .update({ push_token: `apns:${token.value}` })
+      .eq('user_id', userId)
+    resolve({ granted: true })
   })
+
+  const errHandle = await PushNotifications.addListener('registrationError', () => {
+    resolve({ granted: false })
+  })
+
+  PushNotifications.register().catch(() => resolve({ granted: false }))
+
+  const result = await promise
+  regHandle.remove()
+  errHandle.remove()
+
+  return result
 }
 
 export async function unregisterNativePush(userId) {
