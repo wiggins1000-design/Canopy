@@ -48,6 +48,7 @@ export default function ConfigPage() {
   const [pushLoading, setPushLoading]   = useState(false)
   const [pushSupported, setPushSupported] = useState(true)
   const [pushBlocked, setPushBlocked]   = useState(false)
+  const [pushError, setPushError]       = useState(null)
 
   const [additionalEmails, setAdditionalEmails] = useState([])
   const [newEmail, setNewEmail]               = useState('')
@@ -208,7 +209,11 @@ export default function ConfigPage() {
   }, [member?.push_token])
 
   async function togglePush() {
-    if (!member) return
+    if (!member) {
+      setPushError('no-member')
+      return
+    }
+    setPushError(null)
     setPushLoading(true)
     try {
       if (isNativePlatform()) {
@@ -218,6 +223,7 @@ export default function ConfigPage() {
         } else {
           const result = await registerNativePush(member.user_id)
           if (result.denied) setPushBlocked(true)
+          else if (result.error) setPushError(result.error)
           else setPushEnabled(result.granted)
         }
         return
@@ -236,6 +242,8 @@ export default function ConfigPage() {
         const sub = await reg.pushManager.getSubscription()
         setPushEnabled(!!sub)
       }
+    } catch (e) {
+      setPushError(e?.message ?? 'unknown')
     } finally {
       setPushLoading(false)
     }
@@ -503,6 +511,7 @@ export default function ConfigPage() {
             pushLoading={pushLoading}
             onToggle={togglePush}
             isNative={isNativePlatform()}
+            pushError={pushError}
           />
         </AccordionGroup>
 
@@ -1196,7 +1205,7 @@ function NavRow({ label, description, onPress }) {
   )
 }
 
-function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, onToggle, isNative }) {
+function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, onToggle, isNative, pushError }) {
   if (!pushSupported) {
     return <p className="px-4 py-3 text-sm text-gray-400">Push notifications are not supported on this device or browser.</p>
   }
@@ -1205,6 +1214,9 @@ function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, o
       ? 'Notifications are blocked. Go to iPhone Settings > Canopy to enable them.'
       : 'Notifications are blocked in your browser settings. Enable them and reload.'
     return <p className="px-4 py-3 text-sm text-red-500">{msg}</p>
+  }
+  if (pushError) {
+    return <p className="px-4 py-3 text-sm text-red-500">Could not enable notifications: {pushError}</p>
   }
   return (
     <button

@@ -41,9 +41,11 @@ export async function registerNativePush(userId) {
     resolve({ granted: false })
   })
 
-  PushNotifications.register().catch(() => resolve({ granted: false }))
+  PushNotifications.register().catch(() => resolve({ granted: false, error: 'register_failed' }))
 
+  const timeout = setTimeout(() => resolve({ granted: false, error: 'timeout' }), 15000)
   const result = await promise
+  clearTimeout(timeout)
   regHandle.remove()
   errHandle.remove()
 
