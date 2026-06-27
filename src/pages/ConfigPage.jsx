@@ -209,6 +209,7 @@ export default function ConfigPage() {
   }, [member?.push_token])
 
   async function togglePush() {
+    alert('togglePush: member=' + (member ? member.user_id : 'null') + ' native=' + isNativePlatform())
     if (!member) {
       setPushError('no-member')
       return
