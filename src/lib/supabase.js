@@ -26,13 +26,12 @@ export async function registerNativePush(userId) {
   const { receive } = perms
   if (receive !== 'granted') return { granted: false, denied: true }
 
-  // Listeners must be registered before calling register() — on iOS, if the
-  // device already has an APNs token the 'registration' event fires immediately
-  // and would be missed if the listener was added afterward.
+  alert('addListener: registration...')
   let resolve
   const promise = new Promise((r) => { resolve = r })
 
   const regHandle = await PushNotifications.addListener('registration', async (token) => {
+    alert('registration event: ' + token?.value?.slice(0, 20))
     await supabase
       .from('family_members')
       .update({ push_token: `apns:${token.value}` })
@@ -40,10 +39,13 @@ export async function registerNativePush(userId) {
     resolve({ granted: true })
   })
 
+  alert('addListener: registrationError...')
   const errHandle = await PushNotifications.addListener('registrationError', (err) => {
+    alert('registrationError event: ' + JSON.stringify(err))
     resolve({ granted: false, error: err?.error ?? 'registration_error' })
   })
 
+  alert('calling register()...')
   PushNotifications.register().catch(() => resolve({ granted: false, error: 'register_failed' }))
 
   const timeout = setTimeout(() => resolve({ granted: false, error: 'timeout' }), 15000)

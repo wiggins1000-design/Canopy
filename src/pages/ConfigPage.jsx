@@ -222,7 +222,10 @@ export default function ConfigPage() {
           await unregisterNativePush(member.user_id)
           setPushEnabled(false)
         } else {
-          const result = await registerNativePush(member.user_id)
+          const result = await Promise.race([
+            registerNativePush(member.user_id),
+            new Promise(r => setTimeout(() => r({ granted: false, error: 'outer-timeout' }), 20000)),
+          ])
           if (result.denied) setPushBlocked(true)
           else if (result.error) setPushError(result.error)
           else setPushEnabled(result.granted)
