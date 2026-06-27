@@ -172,7 +172,7 @@ export default function InfoBankPage() {
           value={activeTab ?? ''}
           onChange={(e) => {
             const tab = e.target.value
-            const defaultSection = petNames.has(tab) ? 'vet' : tab === 'Family' ? 'contacts' : 'medical'
+            const defaultSection = petNames.has(tab) ? 'vet' : tab === 'Family' ? 'contacts' : 'school'
             setActiveTab(tab)
             setActiveSection(defaultSection)
           }}
