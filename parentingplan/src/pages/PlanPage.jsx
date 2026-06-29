@@ -741,6 +741,7 @@ function Step4({ data, set, p1, p2, t }) {
             { value: p1.toLowerCase().replace(' ', '_'), label: p1 },
             { value: p2.toLowerCase().replace(' ', '_'), label: p2 },
             { value: 'both', label: 'We each hold a passport / stored separately' },
+            { value: 'last_used', label: 'Whoever last used them' },
           ]}
         />
       </Card>
@@ -1171,7 +1172,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
           destination: 'Destination', itinerary: 'Itinerary', accommodation: 'Accommodation details', emergency_contact: 'Emergency contact', return_details: 'Return details',
         }[v])).join(', ')} />}
         {data.abroadRequirements && <PlanRow label="Other travel requirements" value={data.abroadRequirements} />}
-        {data.passports && <PlanRow label="Passports held by" value={data.passports} />}
+        {data.passports && <PlanRow label="Passports held by" value={{ both: 'Each parent holds their own / stored separately', last_used: 'Whoever last used them' }[data.passports] ?? data.passports} />}
       </PlanSection>
 
       {(data.screenTime || data.socialMedia || data.restrictedApps || data.devicesPolicy || data.childContact || data.contactRestrictions || data.parentChannel) && (
