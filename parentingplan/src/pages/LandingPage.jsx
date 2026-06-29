@@ -9,7 +9,7 @@ const SECTIONS = [
   { icon: '👨‍👩‍👧', title: 'Childcare & family',             desc: 'Right of first refusal, agreed carers, grandparents, and siblings.' },
   { icon: '🏫', title: 'Education & health',             desc: 'Disagreements, school communication, medical appointments, and emergencies.' },
   { icon: '💰', title: 'Decisions & money',              desc: 'Joint decisions, day-to-day costs, larger shared expenses, and new partners.' },
-  { icon: '🤝', title: 'Disputes & review',              desc: 'What happens when you disagree, and how often you review the plan together.' },
+  { icon: '🤝', title: 'Disputes & review',              desc: 'What happens when positions differ, and the process for reviewing the plan over time.' },
 ]
 
 const DRAFTS = [
@@ -57,11 +57,10 @@ export default function LandingPage() {
             No account needed to start
           </span>
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight mb-5">
-            The parenting plan<br className="hidden sm:block" /> both parents agree on.
+            Jointly author<br className="hidden sm:block" /> your parenting plan.
           </h1>
           <p className="text-lg text-gray-600 leading-relaxed mb-8 max-w-2xl mx-auto">
-            Start by writing your proposals across each section. The other parent opens the plan, adds their own input, and together you refine it, until you both agree.
-            AI guidance is there whenever you need it.
+            Each parent sets out their proposals across 8 sections. The other parent opens the plan and submits their own version. Revisions are saved as numbered drafts until an agreed version is reached. AI guidance is available throughout.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
@@ -83,7 +82,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-0 sm:divide-x sm:divide-white/10">
           {[
             { icon: '⚡', title: 'No account to start', body: 'Begin drafting immediately. Create an account only when you want to save, share, or revisit your plan.' },
-            { icon: '↔️', title: 'Built for two parents', body: 'Each parent writes their own version. The tool saves every draft and notifies both parents when the other submits a revision.' },
+            { icon: '↔️', title: 'Built for two parties', body: 'Each party sets out their proposals independently. Every version is saved as a numbered draft. Each party is notified when the other submits.' },
             { icon: '🤖', title: 'Instant AI guidance', body: 'Ask for feedback at any point. Our AI flags gaps, flags contradictions, and explains why sections matter — in plain English.' },
           ].map(({ icon, title, body }) => (
             <div key={title} className="px-6 py-5 sm:py-2 text-center sm:text-left first:pl-0 last:pr-0">
@@ -101,15 +100,15 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">How it works</h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto">
-              From blank page to agreed plan — together.
+              From first draft to agreed plan.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             {[
-              { n: '1', icon: '📝', title: 'One parent drafts', desc: 'No account needed. Work through 8 sections and write your proposals — schedule, holidays, communication, and more.' },
-              { n: '2', icon: '🔗', title: 'Share with a link', desc: 'Send the other parent a secure link. They read your proposals and write their own version, saved as a new draft.' },
-              { n: '3', icon: '🔄', title: 'Go back and forth', desc: 'Each revision creates a new numbered draft. Both parents are notified when the other submits. Every draft is kept.' },
-              { n: '4', icon: '✅', title: 'Agree and download', desc: 'When you\'re both happy with the same version, download it as a PDF. Optional AI review before you finalise.' },
+              { n: '1', icon: '📝', title: 'Set out your proposals', desc: 'No account needed. Work through 8 sections and record your position — schedule, holidays, communication, and more.' },
+              { n: '2', icon: '🔗', title: 'Share with the other party', desc: 'Send a secure link. They open the plan, review your proposals, and submit their own version — saved as Draft 2.' },
+              { n: '3', icon: '🔄', title: 'Each party revises in turn', desc: 'Each submission is saved as a new numbered draft. Each party is notified when the other submits. Every version is preserved.' },
+              { n: '4', icon: '✅', title: 'Reach an agreed version', desc: 'When both parties are satisfied with the same draft, download it as a PDF. Optional AI review available before finalising.' },
             ].map(({ n, icon, title, desc }) => (
               <div key={n} className="relative">
                 <div className="w-12 h-12 bg-[#1b4332] rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">
@@ -131,20 +130,20 @@ export default function LandingPage() {
 
             <div>
               <span className="inline-block bg-[#d8f3dc] text-[#1b4332] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-5">
-                Collaboration built in
+                Joint authoring
               </span>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Both parents write their own version
+                Each party authors their own version
               </h2>
               <p className="text-gray-600 leading-relaxed mb-5">
-                A plan only works if both parents genuinely agree. So instead of one parent editing the other's work, each parent writes their own version — saved as a numbered draft. Nothing gets overwritten.
+                A parenting plan only holds if both parties genuinely accept its terms. This tool structures that process — each party sets out their position independently, and versions are exchanged until an agreed draft is reached.
               </p>
               <ul className="space-y-3">
                 {[
-                  'Parent A drafts their proposals across all 8 sections',
-                  'Parent B receives a link, reads the proposals, and submits their own version as Draft 2',
-                  'Parent A is notified and can revise again — Draft 3',
-                  'Back and forth until both parents are happy with the same version',
+                  'One party sets out their proposals across all 8 sections',
+                  'The other party opens the plan and submits their own version — saved as Draft 2',
+                  'The first party is notified and can revise — Draft 3',
+                  'The process continues until both parties accept the same version',
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-gray-700">
                     <span className="text-[#52b788] mt-0.5 flex-shrink-0">✓</span>
@@ -256,7 +255,7 @@ export default function LandingPage() {
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">What's covered</h2>
             <p className="text-gray-500 text-lg max-w-xl mx-auto">
-              8 sections covering every topic a solicitor or mediator would expect to see — structured so both parents can work through them together.
+              8 sections covering every topic a solicitor or mediator would expect to see — structured so each party can set out their position on every point.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

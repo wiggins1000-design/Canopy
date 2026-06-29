@@ -296,7 +296,7 @@ export default function PlanPage({ planId, planSaving }) {
         {step < TOTAL_STEPS && isCollaborator && (
           <div className="bg-[#d8f3dc] rounded-xl px-4 py-3">
             <p className="text-xs text-[#1b4332]">
-              You're reviewing {p1OriginalName || p1}'s proposals — go through each step and update anything you'd like to change.
+              You're reviewing {p1OriginalName || p1}'s proposals — work through each section and record your own position on anything you'd like to change.
             </p>
           </div>
         )}
@@ -976,8 +976,8 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
     return (
       <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-4">
         <div>
-          <p className="text-sm font-semibold text-[#1b4332]">Invite {p2} to review this plan</p>
-          <p className="text-xs text-[#2d6a4f] mt-1">They'll be able to suggest changes to each section. Amendments are free for both of you.</p>
+          <p className="text-sm font-semibold text-[#1b4332]">Share this plan with {p2}</p>
+          <p className="text-xs text-[#2d6a4f] mt-1">They'll receive a secure link to open the plan, review your proposals, and submit their own version.</p>
         </div>
         {inviteSent ? (
           <div className="bg-white rounded-xl px-4 py-3 space-y-0.5">
@@ -1284,8 +1284,8 @@ function SubmitDraft({ planId, planData, p1Name, p2Name }) {
       <div>
         <p className="text-sm font-semibold text-[#1b4332]">Submit your amended version</p>
         <p className="text-xs text-[#2d6a4f] mt-1">
-          This saves your proposals as Draft {draftNum ?? '…'} and notifies {p1Name} that your version is ready to review.
-          They can then revise and send back a new draft.
+          This records your proposals as Draft {draftNum ?? '…'} and notifies {p1Name} that your version is available to review.
+          They can then set out their revised position and submit the next draft.
         </p>
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
