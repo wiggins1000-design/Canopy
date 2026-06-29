@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 const SECTIONS = [
   { icon: '📅', title: 'The schedule',                   desc: 'Alternating weeks, 2-2-5-5, 2-2-3, or fully custom — with a visual 14-day preview.' },
@@ -312,8 +312,8 @@ export default function LandingPage() {
             {' '}/ Chrysalis Works Ltd
           </div>
           <div className="flex gap-5">
-            <a href="https://canopy-app.app/privacy.html" className="hover:text-white transition-colors">Privacy</a>
-            <a href="https://canopy-app.app/terms.html" className="hover:text-white transition-colors">Terms</a>
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
             <a href="https://canopy-app.app" className="hover:text-white transition-colors">canopy-app.app</a>
           </div>
         </div>

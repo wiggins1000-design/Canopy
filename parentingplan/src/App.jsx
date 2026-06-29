@@ -5,6 +5,8 @@ import { usePlanSave } from './hooks/usePlanSave'
 const PlanPage    = lazy(() => import('./pages/PlanPage'))
 const JoinPage    = lazy(() => import('./pages/JoinPage'))
 const LandingPage = lazy(() => import('./pages/LandingPage'))
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
+const TermsPage   = lazy(() => import('./pages/TermsPage'))
 
 function Spinner() {
   return (
@@ -19,10 +21,12 @@ function AppRoutes() {
   return (
     <Suspense fallback={<Spinner />}>
       <Routes>
-        <Route path="/"     element={<LandingPage />} />
-        <Route path="/plan" element={<PlanPage planId={planId} planSaving={saving} />} />
-        <Route path="/join" element={<JoinPage />} />
-        <Route path="/*"    element={<Navigate to="/" replace />} />
+        <Route path="/"        element={<LandingPage />} />
+        <Route path="/plan"    element={<PlanPage planId={planId} planSaving={saving} />} />
+        <Route path="/join"    element={<JoinPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms"   element={<TermsPage />} />
+        <Route path="/*"       element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   )
