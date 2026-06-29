@@ -24,7 +24,7 @@ function buildSummary(data: Record<string, unknown>, p1: string, p2: string, loc
   const children = ((data.children as any[]) ?? [])
     .filter(c => c.name).map(c => c.name).join(', ') || '[not completed]'
 
-  const abroadInfo = ((data.abroadInfo as string[]) ?? []).join(', ') || '[not completed]'
+  const abroadInfo     = ((data.abroadInfo     as string[]) ?? []).join(', ') || '[not completed]'
   const jointDecisions = ((data.jointDecisions as string[]) ?? []).join(', ') || '[not completed]'
   const carers = ((data.carers as any[]) ?? [])
     .filter(c => c.name).map(c => `${c.name} (${c.relationship})`).join(', ') || '[not completed]'
@@ -104,18 +104,44 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { planData, locale, p1, p2 } = await req.json()
+    const { plan_data, prev_plan_data } = await req.json()
 
-    const anthropic = new Anthropic()
-    const summary = buildSummary(planData, p1 || 'Parent 1', p2 || 'Parent 2', locale || 'en-gb')
+    const p1           = (plan_data?.parent1 as string) || 'Parent 1'
+    const p2           = (plan_data?.parent2 as string) || 'Parent 2'
+    const locale       = (plan_data?.locale  as string) || 'en-gb'
     const jurisdiction = LOCALE_NAMES[locale] ?? 'England & Wales'
+    const hasPrev      = !!prev_plan_data
 
-    const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
-      messages: [{
-        role: 'user',
-        content: `You are reviewing a parenting plan for ${jurisdiction}. Return ONLY valid JSON, no other text or markdown.
+    const anthropic      = new Anthropic()
+    const currentSummary = buildSummary(plan_data, p1, p2, locale)
+    const prevSummary    = hasPrev ? buildSummary(prev_plan_data, p1, p2, locale) : null
+
+    const prompt = hasPrev
+      ? `You are comparing two consecutive drafts of a parenting plan for ${jurisdiction}. Return ONLY valid JSON, no other text or markdown.
+
+EARLIER DRAFT:
+${prevSummary}
+
+CURRENT DRAFT:
+${currentSummary}
+
+Exact JSON format required:
+{
+  "completeness": <integer 0-100>,
+  "gaps": [{ "section": "<section name>", "suggestion": "<specific 1-sentence action>" }],
+  "strengths": ["<strength in 1 sentence>"],
+  "priorities": ["<priority action in 1 sentence>"],
+  "differences": [{ "section": "<section name>", "position_a": "<earlier draft position in 1 sentence>", "position_b": "<current draft position in 1 sentence>", "suggested": "<neutral compromise wording, or state clearly if professional advice is needed>" }]
+}
+
+Rules:
+- completeness: based on the current draft
+- gaps: up to 3 sections most likely to cause conflict if left vague
+- strengths: up to 3 things the current draft does well
+- priorities: up to 3 things to resolve next, most important first
+- differences: only sections where the two drafts materially disagree — up to 5. One sentence per position. For suggested: offer neutral compromise wording in 1-2 sentences. If positions are fundamentally incompatible (e.g. each party wants primary residence), state this plainly and recommend professional advice rather than inventing a compromise.
+- Use ${jurisdiction} terminology`
+      : `You are reviewing a parenting plan for ${jurisdiction}. Return ONLY valid JSON, no other text or markdown.
 
 Exact JSON format required:
 {
@@ -134,11 +160,15 @@ Rules:
 - Use ${jurisdiction} terminology
 
 Plan:
-${summary}`,
-      }],
+${currentSummary}`
+
+    const msg = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: hasPrev ? 1200 : 800,
+      messages:   [{ role: 'user', content: prompt }],
     })
 
-    const raw = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '{}'
+    const raw     = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '{}'
     const cleaned = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '')
     const analysis = JSON.parse(cleaned)
 

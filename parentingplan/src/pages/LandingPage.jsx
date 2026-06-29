@@ -83,7 +83,7 @@ export default function LandingPage() {
           {[
             { icon: '⚡', title: 'No account to start', body: 'Begin drafting immediately. Create an account only when you want to save, share, or revisit your plan.' },
             { icon: '↔️', title: 'Built for two parties', body: 'Each party sets out their proposals independently. Every version is saved as a numbered draft. Each party is notified when the other submits.' },
-            { icon: '🤖', title: 'Instant AI guidance', body: 'Ask for feedback at any point. Our AI flags gaps, flags contradictions, and explains why sections matter — in plain English.' },
+            { icon: '🤖', title: 'AI draft comparison', body: 'Once both parties have submitted a version, unlock the AI review — it compares the two drafts, identifies every point of difference, and suggests compromise wording for each.' },
           ].map(({ icon, title, body }) => (
             <div key={title} className="px-6 py-5 sm:py-2 text-center sm:text-left first:pl-0 last:pr-0">
               <div className="text-2xl mb-2">{icon}</div>
@@ -108,7 +108,7 @@ export default function LandingPage() {
               { n: '1', icon: '📝', title: 'Set out your proposals', desc: 'No account needed. Work through 8 sections and record your position — schedule, holidays, communication, and more.' },
               { n: '2', icon: '🔗', title: 'Share with the other party', desc: 'Send a secure link. They open the plan, review your proposals, and submit their own version — saved as Draft 2.' },
               { n: '3', icon: '🔄', title: 'Each party revises in turn', desc: 'Each submission is saved as a new numbered draft. Each party is notified when the other submits. Every version is preserved.' },
-              { n: '4', icon: '✅', title: 'Reach an agreed version', desc: 'When both parties are satisfied with the same draft, download it as a PDF. Optional AI review available before finalising.' },
+              { n: '4', icon: '✅', title: 'Reach an agreed version', desc: 'Unlock the AI review to compare both drafts and get suggested compromise wording. When both parties are satisfied, download as PDF.' },
             ].map(({ n, icon, title, desc }) => (
               <div key={n} className="relative">
                 <div className="w-12 h-12 bg-[#1b4332] rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">
@@ -222,20 +222,20 @@ export default function LandingPage() {
 
             <div className="order-1 lg:order-2">
               <span className="inline-block bg-[#d8f3dc] text-[#1b4332] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-5">
-                Guidance when you need it
+                AI review · £1.99
               </span>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                AI that explains, not just edits
+                AI that compares both versions
               </h2>
               <p className="text-gray-600 leading-relaxed mb-5">
-                Most parents don't know what a good parenting plan looks like — they've never written one before. Our AI checks your plan against the same criteria a family solicitor would apply and tells you, in plain English, what to fix and why.
+                Once both parties have submitted a draft, unlock the AI review. It reads both versions side by side, identifies every section where the two positions differ, and suggests neutral compromise wording for each — giving both parties a concrete starting point for the next revision.
               </p>
               <ul className="space-y-3">
                 {[
-                  'Spots sections that are vague or incomplete',
-                  'Flags contradictions between different parts of the plan',
-                  'Highlights what\'s working well, and why',
-                  'Available any time — not just at the end',
+                  'Points of difference between the two drafts, section by section',
+                  'AI-suggested compromise wording for each contested point',
+                  'Gaps in the current draft most likely to cause future conflict',
+                  'One-time payment — use across all revisions of your plan',
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-gray-700">
                     <span className="text-[#52b788] mt-0.5 flex-shrink-0">✓</span>
