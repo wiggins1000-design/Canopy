@@ -157,6 +157,7 @@ function blank() {
     birthdaysOther: '',
     fixedOccasions: '',
     abroad: 'required',
+    abroadOther: '',
     abroadWeeks: '6',
     abroadInfo: ['destination', 'accommodation', 'emergency_contact', 'return_details'],
     passports: 'both',
@@ -687,8 +688,12 @@ function Step4({ data, set, p1, p2, t }) {
           options={[
             { value: 'required', label: 'No — written agreement is always required' },
             { value: 'notice_only', label: 'Yes — with reasonable notice and trip details shared' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.abroad === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.abroadOther} onChange={v => set('abroadOther', v)} rows={2} />
+        )}
         <RadioGroup
           label={`How much notice is required before a trip ${t.abroad}?`}
           name="abroadWeeks"
@@ -1152,7 +1157,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
           separate: 'Each parent celebrates separately', joint: 'One joint celebration with both parents', resident: 'Resident parent celebrates; other parent has a separate celebration', other: data.birthdaysOther,
         }[data.birthdays]} />}
         {data.fixedOccasions && <PlanRow label="Other fixed occasions" value={data.fixedOccasions} />}
-        {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : 'Permitted with notice and trip details shared'} />}
+        {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : data.abroad === 'other' ? data.abroadOther : 'Permitted with notice and trip details shared'} />}
         {data.abroadWeeks && <PlanRow label="Notice for international trips" value={`${data.abroadWeeks} weeks`} />}
         {data.abroadInfo.length > 0 && <PlanRow label="Information to share" value={data.abroadInfo.map(v => ({
           destination: 'Destination country', itinerary: 'Full itinerary', accommodation: 'Accommodation address', emergency_contact: 'Emergency contact', return_details: 'Return travel details',
