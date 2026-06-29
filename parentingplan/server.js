@@ -24,8 +24,8 @@ const MIME = {
 }
 
 createServer((req, res) => {
-  const url  = req.url.split('?')[0]
-  let   file = join(DIST, url)
+  const url  = req.url.split('?')[0].replace(/^\/+/, '')
+  let   file = join(DIST, url || 'index.html')
 
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html')
   if (!existsSync(file)) file = INDEX  // SPA fallback
