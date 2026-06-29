@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "serve dist -s -l ${PORT:-3000}"
+    "start": "node server.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
