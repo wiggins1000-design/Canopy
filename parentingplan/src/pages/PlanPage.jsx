@@ -1278,7 +1278,7 @@ function SubmitDraft({ planId, planData, p1Name, p2Name }) {
   return (
     <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
       <div>
-        <p className="text-sm font-semibold text-[#1b4332]">Submit your version</p>
+        <p className="text-sm font-semibold text-[#1b4332]">Submit your amended version</p>
         <p className="text-xs text-[#2d6a4f] mt-1">
           This saves your proposals as Draft {draftNum ?? '…'} and notifies {p1Name} that your version is ready to review.
           They can then revise and send back a new draft.
@@ -1290,7 +1290,7 @@ function SubmitDraft({ planId, planData, p1Name, p2Name }) {
         disabled={submitting}
         className="w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors"
       >
-        {submitting ? 'Submitting…' : `Submit my version →`}
+        {submitting ? 'Submitting…' : 'Submit amended version →'}
       </button>
     </div>
   )
