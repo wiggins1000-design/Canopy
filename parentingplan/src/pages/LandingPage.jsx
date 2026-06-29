@@ -12,10 +12,10 @@ const SECTIONS = [
   { icon: '🤝', title: 'Disputes & review',              desc: 'What happens when you disagree, and how often you review the plan together.' },
 ]
 
-const AMENDMENTS = [
-  { author: 'Alex', avatar: 'A', color: '#1b4332', bg: '#d8f3dc', section: 'The schedule', text: 'I\'d prefer alternating weeks rather than the 2-2-5-5 pattern — it\'s simpler for the kids to remember.' },
-  { author: 'Jordan', avatar: 'J', color: '#4a5568', bg: '#f3f4f6', section: 'School holidays', text: 'Agreed on alternating weeks. Could we say school pick-up on Fridays rather than Sunday evenings?', accepted: true },
-  { author: 'Alex', avatar: 'A', color: '#1b4332', bg: '#d8f3dc', section: 'Christmas', text: 'Happy with that. For Christmas — could we alternate years rather than splitting the day?', pending: true },
+const DRAFTS = [
+  { author: 'Alex',   avatar: 'A', draft: 1, date: '14 Jun', text: 'I'd like alternating weeks, starting after the summer break.' },
+  { author: 'Jordan', avatar: 'J', draft: 2, date: '16 Jun', text: 'I'd prefer 2-2-5-5 — it keeps the children in regular contact with both of us.' },
+  { author: 'Alex',   avatar: 'A', draft: 3, date: 'Today',  text: '2-2-5-5 works for me. Can we do school-gate handovers rather than at the house?', current: true },
 ]
 
 export default function LandingPage() {
@@ -36,8 +36,8 @@ export default function LandingPage() {
       <nav className="bg-[#1b4332] sticky top-0 z-50 shadow-sm">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/CanopyGreenLogo.gif" alt="Canopy" style={{ height: 32 }} />
-            <span className="text-white font-semibold text-sm hidden sm:block">parentingplan.help</span>
+            <img src="/CanopyGreenLogo.gif" alt="Canopy" style={{ height: 28 }} />
+            <span className="text-white font-bold text-xl tracking-tight">parentingplan.help</span>
           </div>
           <div className="flex items-center gap-4">
             <a href="https://canopy-app.app" className="text-[#d8f3dc] hover:text-white text-sm transition-colors hidden sm:block">
@@ -60,9 +60,9 @@ export default function LandingPage() {
             The parenting plan<br className="hidden sm:block" /> both parents agree on.
           </h1>
           <p className="text-lg text-gray-600 leading-relaxed mb-8 max-w-2xl mx-auto">
-            One parent starts the plan for free — no account, no signup. Share it with the other parent.
-            Both suggest changes, discuss sections, and work toward a plan you're both happy with.
-            AI guidance is there the whole time.
+            One parent drafts their proposals — no account needed. Share it with the other parent.
+            They write their own version. You each revise in turn until you reach a version you're both happy with.
+            AI guidance is there whenever you need it.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
@@ -84,7 +84,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-0 sm:divide-x sm:divide-white/10">
           {[
             { icon: '⚡', title: 'No account to start', body: 'Begin drafting immediately. Create an account only when you want to save, share, or revisit your plan.' },
-            { icon: '↔️', title: 'Built for two parents', body: 'Invite the other parent with a link. Both of you can suggest changes to any section and accept or reject each other\'s edits.' },
+            { icon: '↔️', title: 'Built for two parents', body: 'Each parent writes their own version. The tool saves every draft and notifies both parents when the other submits a revision.' },
             { icon: '🤖', title: 'Instant AI guidance', body: 'Ask for feedback at any point. Our AI flags gaps, flags contradictions, and explains why sections matter — in plain English.' },
           ].map(({ icon, title, body }) => (
             <div key={title} className="px-6 py-5 sm:py-2 text-center sm:text-left first:pl-0 last:pr-0">
@@ -107,10 +107,10 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             {[
-              { n: '1', icon: '📝', title: 'One parent starts', desc: 'No account needed. Work through 8 sections covering schedule, holidays, communication, and more. Save as you go.' },
-              { n: '2', icon: '📤', title: 'Share with a link', desc: "Create an account to send the other parent a secure link. They open the plan on any device — no account required to view or comment." },
-              { n: '3', icon: '💬', title: 'Suggest changes', desc: "Either parent can suggest edits to any section. The other parent sees the suggestion and can accept, reject, or reply. All tracked." },
-              { n: '4', icon: '✅', title: 'Agree and print', desc: 'When both parents are happy, print as PDF or save a signed version. Optional AI review before you finalise.' },
+              { n: '1', icon: '📝', title: 'One parent drafts', desc: 'No account needed. Work through 8 sections and write your proposals — schedule, holidays, communication, and more.' },
+              { n: '2', icon: '🔗', title: 'Share with a link', desc: 'Send the other parent a secure link. They read your proposals and write their own version, saved as a new draft.' },
+              { n: '3', icon: '🔄', title: 'Go back and forth', desc: 'Each revision creates a new numbered draft. Both parents are notified when the other submits. Every draft is kept.' },
+              { n: '4', icon: '✅', title: 'Agree and download', desc: 'When you\'re both happy with the same version, download it as a PDF. Optional AI review before you finalise.' },
             ].map(({ n, icon, title, desc }) => (
               <div key={n} className="relative">
                 <div className="w-12 h-12 bg-[#1b4332] rounded-2xl flex items-center justify-center text-xl mb-4 shadow-sm">
@@ -132,20 +132,20 @@ export default function LandingPage() {
 
             <div>
               <span className="inline-block bg-[#d8f3dc] text-[#1b4332] text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-5">
-                The back-and-forth
+                Collaboration built in
               </span>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Both parents shape the plan
+                Both parents write their own version
               </h2>
               <p className="text-gray-600 leading-relaxed mb-5">
-                A parenting plan only works if both parents actually agree with it. That's why we built suggestion and review into every section — not as an afterthought, but as the core of the tool.
+                A plan only works if both parents genuinely agree. So instead of one parent editing the other's work, each parent writes their own version — saved as a numbered draft. Nothing gets overwritten.
               </p>
               <ul className="space-y-3">
                 {[
-                  'Either parent can suggest a change to any section at any time',
-                  'The other parent gets notified and can accept, reject, or counter-suggest',
-                  'All suggestions are tracked — nothing gets lost',
-                  'The plan only updates when both parents agree',
+                  'Parent A drafts their proposals across all 8 sections',
+                  'Parent B receives a link, reads the proposals, and submits their own version as Draft 2',
+                  'Parent A is notified and can revise again — Draft 3',
+                  'Back and forth until both parents are happy with the same version',
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-gray-700">
                     <span className="text-[#52b788] mt-0.5 flex-shrink-0">✓</span>
@@ -155,37 +155,38 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Amendments mock-up */}
+            {/* Versioned drafts mock-up */}
             <div className="space-y-3">
-              {AMENDMENTS.map((a, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-[#d8f3dc] p-4 shadow-sm">
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ background: a.bg, color: a.color }}
-                    >
-                      {a.avatar}
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-gray-900">{a.author}</span>
-                      <span className="text-xs text-gray-400 ml-1.5">· {a.section}</span>
-                    </div>
-                    {a.accepted && (
-                      <span className="ml-auto text-xs font-semibold text-[#1b4332] bg-[#d8f3dc] px-2 py-0.5 rounded-full">Accepted ✓</span>
-                    )}
-                    {a.pending && (
-                      <span className="ml-auto text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Awaiting reply</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">"{a.text}"</p>
-                  {a.pending && (
-                    <div className="flex gap-2 mt-3">
-                      <button className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-[#1b4332] text-white">Accept</button>
-                      <button className="flex-1 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600">Suggest change</button>
-                    </div>
-                  )}
+              <div className="bg-white rounded-2xl border border-[#d8f3dc] p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-900">The schedule</span>
+                  <span className="text-xs font-semibold text-[#52b788]">3 drafts</span>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  {DRAFTS.map(({ author, avatar, draft, date, text, current }) => (
+                    <div key={draft} className={`rounded-xl p-3 ${current ? 'bg-[#d8f3dc] border border-[#74c69d]' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${author === 'Alex' ? 'bg-[#1b4332] text-white' : 'bg-gray-300 text-gray-700'}`}>
+                          {avatar}
+                        </div>
+                        <span className="text-xs font-semibold text-gray-900">{author}</span>
+                        <span className="text-xs text-gray-400">· Draft {draft} · {date}</span>
+                        {current && <span className="ml-auto text-xs font-semibold text-[#1b4332]">Awaiting Jordan</span>}
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed pl-8">"{text}"</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-[#d8f3dc] p-3 shadow-sm flex items-center gap-3">
+                <div className="w-8 h-8 bg-[#1b4332] rounded-full flex items-center justify-center text-sm flex-shrink-0">🔔</div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-900">Jordan submitted Draft 2</p>
+                  <p className="text-xs text-gray-500">3 sections updated · 2 days ago</p>
+                </div>
+                <button className="ml-auto text-xs font-semibold text-[#1b4332] bg-[#d8f3dc] px-3 py-1.5 rounded-lg flex-shrink-0">Review</button>
+              </div>
             </div>
 
           </div>
@@ -287,7 +288,7 @@ export default function LandingPage() {
       <section className="py-20 px-5 bg-[#1b4332]">
         <div className="max-w-3xl mx-auto text-center">
           <img src="/CanopyGreenLogo.gif" alt="Canopy" style={{ height: 40 }} className="mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-white mb-4">Want to live the plan, not just write it?</h2>
+          <h2 className="text-3xl font-bold text-white mb-4">Want to implement the plan, not just write it?</h2>
           <p className="text-[#d8f3dc] leading-relaxed mb-8 max-w-xl mx-auto">
             Canopy is the private family app that puts your agreed plan into practice — shared calendar, parenting schedule, notice board, children's information, and more. Both parents. One place.
           </p>
