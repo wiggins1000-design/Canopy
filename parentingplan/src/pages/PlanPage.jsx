@@ -874,9 +874,6 @@ function Step7({ data, set, t }) {
     <div className="space-y-6">
       <Card title="Education">
         <Prose label="If parents disagree about an education decision, how will this be resolved?" value={data.educationDisputes} onChange={v => set('educationDisputes', v)} rows={3} placeholder="e.g. Direct conversation first, with a two-week deadline to reach agreement. If unresolved, attend mediation." />
-        {!data.educationDisputes && (
-          <p className="text-xs text-[#52b788]">★ The AI review will flag if this section is left vague — it's one of the most common sources of future disagreement.</p>
-        )}
         <Prose
           label="Have you agreed an approach to religious or cultural upbringing?"
           value={data.religiousUpbringing}
