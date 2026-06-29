@@ -56,6 +56,17 @@ function formatHours(h) {
   return `${whole}h ${mins}m`
 }
 
+function ccDateRange(period, from, to) {
+  const now = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  const mon = (d) => { const day = d.getDay(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + (day === 0 ? -6 : 1 - day)) }
+  if (period === 'this_week') { const s = mon(now); return { from: fmt(s), to: fmt(new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6)) } }
+  if (period === 'this_month') return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), to: fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0)) }
+  if (period === 'custom') return { from, to }
+  return { from: '', to: '' }
+}
+
 export default function ExpensesPage() {
   const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
   const { family, member, members, isParent, parentA, parentB } = useFamily()
@@ -65,6 +76,9 @@ export default function ExpensesPage() {
   const [showNew, setShowNew] = useState(false)
   const [settling, setSettling] = useState(false)
   const [childcareLogs, setChildcareLogs] = useState([])
+  const [ccPeriod, setCcPeriod] = useState('this_month')
+  const [ccFrom,   setCcFrom]   = useState('')
+  const [ccTo,     setCcTo]     = useState('')
 
   const childcareMembers = family?.config?.childcare_members ?? []
   const isChildcare = childcareMembers.includes(member?.user_id)
@@ -76,10 +90,8 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (!showChildcare || !family?.id) return
-    const now  = new Date()
-    const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    const to   = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`
+    const { from, to } = ccDateRange(ccPeriod, ccFrom, ccTo)
+    if (!from || !to) { setChildcareLogs([]); return }
     supabase
       .from('childcare_logs')
       .select('*')
@@ -88,7 +100,7 @@ export default function ExpensesPage() {
       .lte('log_date', to)
       .order('log_date', { ascending: false })
       .then(({ data }) => setChildcareLogs(data ?? []))
-  }, [showChildcare, family?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showChildcare, family?.id, ccPeriod, ccFrom, ccTo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSettle() {
     setSettling(true)
@@ -120,11 +132,36 @@ export default function ExpensesPage() {
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-amber-900">Childcare hours — this month</p>
+              <p className="text-sm font-semibold text-amber-900">Childcare hours</p>
               <button onClick={() => navigate('/childcare')} className="text-xs text-amber-700 hover:underline">
                 {isChildcare ? 'Log hours →' : 'View all →'}
               </button>
             </div>
+
+            {/* Period selector */}
+            <div className="flex gap-1.5">
+              {[{ id: 'this_week', label: 'This week' }, { id: 'this_month', label: 'This month' }, { id: 'custom', label: 'Custom' }].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setCcPeriod(p.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${ccPeriod === p.id ? 'bg-amber-700 text-white' : 'bg-amber-100 text-amber-800'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {ccPeriod === 'custom' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide block mb-1">From</label>
+                  <input type="date" value={ccFrom} onChange={(e) => setCcFrom(e.target.value)} className="w-full border border-amber-200 rounded-xl px-2.5 py-1.5 text-xs bg-white/60 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide block mb-1">To</label>
+                  <input type="date" value={ccTo} onChange={(e) => setCcTo(e.target.value)} className="w-full border border-amber-200 rounded-xl px-2.5 py-1.5 text-xs bg-white/60 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                </div>
+              </div>
+            )}
 
             {childcareLogs.length === 0 ? (
               <p className="text-xs text-amber-700">No hours logged this month.</p>
