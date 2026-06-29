@@ -1,9 +1,10 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { usePlanSave } from './hooks/usePlanSave'
 
-const PlanPage = lazy(() => import('./pages/PlanPage'))
-const JoinPage = lazy(() => import('./pages/JoinPage'))
+const PlanPage    = lazy(() => import('./pages/PlanPage'))
+const JoinPage    = lazy(() => import('./pages/JoinPage'))
+const LandingPage = lazy(() => import('./pages/LandingPage'))
 
 function Spinner() {
   return (
@@ -18,8 +19,10 @@ function AppRoutes() {
   return (
     <Suspense fallback={<Spinner />}>
       <Routes>
+        <Route path="/"     element={<LandingPage />} />
+        <Route path="/plan" element={<PlanPage planId={planId} planSaving={saving} />} />
         <Route path="/join" element={<JoinPage />} />
-        <Route path="/*"    element={<PlanPage planId={planId} planSaving={saving} />} />
+        <Route path="/*"    element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   )

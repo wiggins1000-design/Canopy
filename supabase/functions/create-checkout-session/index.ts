@@ -52,8 +52,8 @@ Deno.serve(async (req: Request) => {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: { plan_id, user_id: user.id },
-      success_url: `https://parentingplan.help/?payment=success`,
-      cancel_url:  `https://parentingplan.help/`,
+      success_url: `https://parentingplan.help/plan?payment=success`,
+      cancel_url:  `https://parentingplan.help/plan`,
     })
 
     return new Response(
