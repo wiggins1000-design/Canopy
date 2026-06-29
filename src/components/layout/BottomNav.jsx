@@ -105,6 +105,24 @@ export default function BottomNav() {
     }]
   }
 
+  const childcareMembers = family?.config?.childcare_members ?? []
+  const isChildcare = childcareMembers.includes(member?.user_id)
+  const showChildcare = isChildcare || (isParent && childcareMembers.length > 0)
+
+  // Show childcare as a nav item only when expenses is off (otherwise it lives under Expenses)
+  if (showChildcare && !expensesEnabled) {
+    visibleNav = [...visibleNav, {
+      to: '/childcare',
+      label: 'Childcare',
+      icon: (active) => (
+        <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path strokeLinecap="round" d="M12 7v5l3 3" />
+        </svg>
+      ),
+    }]
+  }
+
   visibleNav = [...visibleNav, SETTINGS_NAV]
 
   return (
