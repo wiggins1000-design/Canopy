@@ -82,7 +82,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-0 sm:divide-x sm:divide-white/10">
           {[
             { icon: '⚡', title: 'No account to start', body: 'Begin drafting immediately. Create an account only when you want to save, share, or revisit your plan.' },
-            { icon: '↔️', title: 'Built for two parties', body: 'Each party sets out their proposals independently. Every version is saved as a numbered draft. Each party is notified when the other submits.' },
+            { icon: '🔄', title: 'Built for two parties', body: 'Each party sets out their proposals independently. Every version is saved as a numbered draft. Each party is notified when the other submits.' },
             { icon: '🤖', title: 'AI draft comparison', body: 'Once both parties have submitted a version, unlock the AI review — it compares the two drafts, identifies every point of difference, and suggests compromise wording for each.' },
           ].map(({ icon, title, body }) => (
             <div key={title} className="px-6 py-5 sm:py-2 text-center sm:text-left first:pl-0 last:pr-0">
