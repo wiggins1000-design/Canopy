@@ -7,7 +7,7 @@ import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 
 export default function InvitePage() {
-  const { family, members, userRole, isParent, parentA, parentB, generateInvite } = useFamily()
+  const { family, members, userRole, isParent, parentA, parentB, generateInvite, updateFamilyConfig } = useFamily()
   const { signOut, user } = useAuth()
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteRole, setInviteRole] = useState(null)
@@ -19,6 +19,15 @@ export default function InvitePage() {
 
   const navigate = useNavigate()
   const hasParentB = !!parentB
+  const [togglingChildcare, setTogglingChildcare] = useState(null)
+
+  async function toggleChildcare(userId) {
+    setTogglingChildcare(userId)
+    const current = family?.config?.childcare_members ?? []
+    const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
+    await updateFamilyConfig({ childcare_members: next })
+    setTogglingChildcare(null)
+  }
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
   const senderName = user?.user_metadata?.display_name ?? 'Someone'
 
@@ -89,22 +98,46 @@ export default function InvitePage() {
           const order = { parent_a: 0, parent_b: 1, third_party: 2 }
           return (order[a.role] ?? 2) - (order[b.role] ?? 2)
         }).map((m) => (
-          <div key={m.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-4 py-3">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${
-              m.role === 'parent_a' ? 'bg-pa-400 text-white' :
-              m.role === 'parent_b' ? 'bg-pb-400 text-white' :
-              'bg-yellow-200 text-yellow-800'
-            }`}>
-              {m.display_name.charAt(0).toUpperCase()}
+          <div key={m.id} className="bg-white rounded-xl border border-gray-100 px-4 py-3 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                m.role === 'parent_a' ? 'bg-pa-400 text-white' :
+                m.role === 'parent_b' ? 'bg-pb-400 text-white' :
+                'bg-yellow-200 text-yellow-800'
+              }`}>
+                {m.display_name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{m.display_name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <Badge
+                    label={m.role === 'parent_a' ? 'Parent A' : m.role === 'parent_b' ? 'Parent B' : 'Read-only'}
+                    type={m.role === 'parent_a' ? 'parent_a' : m.role === 'parent_b' ? 'parent_b' : 'read_only'}
+                  />
+                  {m.role === 'third_party' && (family?.config?.childcare_members ?? []).includes(m.user_id) && (
+                    <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">Childcare</span>
+                  )}
+                </div>
+              </div>
+              {m.role === userRole && <span className="text-xs text-gray-400 shrink-0">You</span>}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900">{m.display_name}</p>
-              <Badge
-                label={m.role === 'parent_a' ? 'Parent A' : m.role === 'parent_b' ? 'Parent B' : 'Read-only'}
-                type={m.role === 'parent_a' ? 'parent_a' : m.role === 'parent_b' ? 'parent_b' : 'read_only'}
-              />
-            </div>
-            {m.role === userRole && <span className="text-xs text-gray-400">You</span>}
+
+            {/* Childcare toggle — parents only, third_party members only */}
+            {isParent && m.role === 'third_party' && (
+              <button
+                onClick={() => toggleChildcare(m.user_id)}
+                disabled={togglingChildcare === m.user_id}
+                className={`w-full flex items-center justify-between py-2 px-1 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 ${togglingChildcare === m.user_id ? 'opacity-50' : ''}`}
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-800 text-left">Childcare provider</p>
+                  <p className="text-xs text-gray-400 text-left">Lets them log childcare hours</p>
+                </div>
+                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${(family?.config?.childcare_members ?? []).includes(m.user_id) ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${(family?.config?.childcare_members ?? []).includes(m.user_id) ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
+              </button>
+            )}
           </div>
         ))}
       </section>

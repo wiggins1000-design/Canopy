@@ -28,6 +28,7 @@ import MessagesPage from './pages/MessagesPage'
 import ThreadPage from './pages/ThreadPage'
 import ExpensesPage from './pages/ExpensesPage'
 import PlanPage from './pages/PlanPage'
+import ChildcarePage from './pages/ChildcarePage'
 
 export default function App() {
   return (
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/messages/:threadId" element={<ThreadPage />} />
             <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/childcare" element={<ChildcarePage />} />
           </Route>
         </Routes>
         </SessionActivityProvider>
