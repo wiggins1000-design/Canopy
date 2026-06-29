@@ -105,9 +105,12 @@ export default function BottomNav() {
     }]
   }
 
-  const childcareMembers = family?.config?.childcare_members ?? []
-  const isChildcare = childcareMembers.includes(member?.user_id)
-  const showChildcare = isChildcare || (isParent && childcareMembers.length > 0)
+  const childcareMembers  = family?.config?.childcare_members ?? []
+  const isChildcare       = childcareMembers.includes(member?.user_id)
+  const childcareEnabled  = isParent
+    ? !!myFeatures.childcare
+    : eitherParentFeature('childcare', false)
+  const showChildcare = childcareEnabled && (isChildcare || (isParent && childcareMembers.length > 0))
 
   // Show childcare as a nav item only when expenses is off (otherwise it lives under Expenses)
   if (showChildcare && !expensesEnabled) {

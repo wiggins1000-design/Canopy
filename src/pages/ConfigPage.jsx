@@ -464,9 +464,11 @@ export default function ConfigPage() {
   const myNoticeboard  = myFeatures.noticeboard !== false
   const myMessaging    = !!myFeatures.messaging
   const myExpenses     = !!myFeatures.expenses
+  const myChildcare    = !!myFeatures.childcare
   const otherNoticeboard = (otherFeatures.noticeboard ?? true) !== false
   const otherMessaging   = !!otherFeatures.messaging
   const otherExpenses    = !!otherFeatures.expenses
+  const otherChildcare   = !!otherFeatures.childcare
 
   async function saveMyFeature(key, value) {
     await updateMemberFeatures({ ...myFeatures, [key]: value })
@@ -981,6 +983,12 @@ export default function ConfigPage() {
             description={myExpenses !== otherExpenses ? (myExpenses ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
             enabled={myExpenses}
             onToggle={() => saveMyFeature('expenses', !myExpenses)}
+          />
+          <ToggleRow
+            label="Childcare hours"
+            description={myChildcare !== otherChildcare ? (myChildcare ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Let childcare members log hours and track who pays per day'}
+            enabled={myChildcare}
+            onToggle={() => saveMyFeature('childcare', !myChildcare)}
           />
           {myExpenses && (
             <ExpenseSplitRow

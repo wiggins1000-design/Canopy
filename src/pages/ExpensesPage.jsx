@@ -57,7 +57,11 @@ export default function ExpensesPage() {
 
   const childcareMembers = family?.config?.childcare_members ?? []
   const isChildcare = childcareMembers.includes(member?.user_id)
-  const showChildcare = isChildcare || (isParent && childcareMembers.length > 0)
+  const myFeatures = member?.consents?.features ?? {}
+  const childcareEnabled = isParent
+    ? !!myFeatures.childcare
+    : members.some((m) => (m.role === 'parent_a' || m.role === 'parent_b') && !!m.consents?.features?.childcare)
+  const showChildcare = childcareEnabled && (isChildcare || (isParent && childcareMembers.length > 0))
 
   async function handleSettle() {
     setSettling(true)
