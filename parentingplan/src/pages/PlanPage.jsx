@@ -182,7 +182,7 @@ function blank() {
   }
 }
 
-export default function PlanPage() {
+export default function PlanPage({ planId, planSaving }) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState(() => {
     try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : blank() }
@@ -292,7 +292,7 @@ export default function PlanPage() {
         {step === 6 && <Step6 data={data} set={set} />}
         {step === 7 && <Step7 data={data} set={set} t={t} />}
         {step === 8 && <Step8 data={data} set={set} t={t} />}
-        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
+        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
 
         {step < TOTAL_STEPS && (
           <div className="flex gap-3 pt-2">
@@ -901,27 +901,25 @@ function Step8({ data, set, t }) {
 
 // ── Step 9: Generated plan ─────────────────────────────────────────────────
 
-function SaveAndShare({ data, p1, p2, locale }) {
+function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
   const { user } = useAuth()
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [sending, setSending] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteSent, setInviteSent] = useState(false)
-  const [inviteSending, setInviteSending] = useState(false)
-  const [error, setError] = useState('')
+  const [email,        setEmail]        = useState('')
+  const [sent,         setSent]         = useState(false)
+  const [sending,      setSending]      = useState(false)
+  const [inviteEmail,  setInviteEmail]  = useState('')
+  const [inviteSent,   setInviteSent]   = useState(false)
+  const [inviteSending,setInviteSending]= useState(false)
+  const [error,        setError]        = useState('')
 
   async function sendMagicLink(e) {
     e.preventDefault()
     if (!email.trim()) return
+    localStorage.setItem('pp_pending_save', 'true')
     setSending(true)
     setError('')
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: {
-        emailRedirectTo: window.location.href,
-        data: { plan_draft: JSON.stringify(data), locale, p1, p2 },
-      },
+      options: { emailRedirectTo: window.location.href },
     })
     setSending(false)
     if (err) { setError('Something went wrong — please try again.'); return }
@@ -930,16 +928,34 @@ function SaveAndShare({ data, p1, p2, locale }) {
 
   async function sendInvite(e) {
     e.preventDefault()
-    if (!inviteEmail.trim()) return
+    if (!inviteEmail.trim() || !planId) return
     setInviteSending(true)
-    // Invite email via edge function — wired up in a later step
-    // For now just mark as sent
-    await new Promise(r => setTimeout(r, 800))
+    setError('')
+
+    const { error: rpcErr } = await supabase.rpc('pp_send_invite', {
+      p_plan_id:      planId,
+      p_invite_email: inviteEmail.trim(),
+    })
+    if (rpcErr) { setError('Something went wrong. Please try again.'); setInviteSending(false); return }
+
+    const { error: emailErr } = await supabase.functions.invoke('send-plan-invite', {
+      body: { plan_id: planId, invite_email: inviteEmail.trim(), p1_name: p1, p2_name: p2 },
+    })
     setInviteSending(false)
+    if (emailErr) { setError('Invite registered but email failed — please try again.'); return }
     setInviteSent(true)
   }
 
+  // Logged in — show saving state or invite form
   if (user) {
+    if (planSaving) {
+      return (
+        <div className="bg-[#d8f3dc] rounded-2xl p-5 flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-[#1b4332] border-t-transparent rounded-full animate-spin shrink-0" />
+          <p className="text-sm text-[#1b4332]">Saving your plan…</p>
+        </div>
+      )
+    }
     return (
       <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-4">
         <div>
@@ -947,47 +963,52 @@ function SaveAndShare({ data, p1, p2, locale }) {
           <p className="text-xs text-[#2d6a4f] mt-1">They'll be able to suggest changes to each section. Amendments are free for both of you.</p>
         </div>
         {inviteSent ? (
-          <div className="bg-white rounded-xl px-4 py-3">
-            <p className="text-sm text-[#1b4332] font-medium">Invitation sent to {inviteEmail}</p>
-            <p className="text-xs text-gray-500 mt-0.5">They'll receive a link to open and review this plan.</p>
+          <div className="bg-white rounded-xl px-4 py-3 space-y-0.5">
+            <p className="text-sm font-medium text-[#1b4332]">Invitation sent to {inviteEmail}</p>
+            <p className="text-xs text-gray-500">They'll receive a link to open and review this plan.</p>
           </div>
         ) : (
-          <form onSubmit={sendInvite} className="flex gap-2">
-            <input
-              type="email"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              placeholder={`${p2}'s email address`}
-              className="flex-1 border border-[#95d5b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#52b788] bg-white"
-            />
-            <button
-              type="submit"
-              disabled={inviteSending || !inviteEmail.trim()}
-              className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors whitespace-nowrap"
-            >
-              {inviteSending ? 'Sending…' : 'Send invite'}
-            </button>
-          </form>
+          <div className="space-y-2">
+            <form onSubmit={sendInvite} className="flex gap-2">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                placeholder={`${p2}'s email address`}
+                className="flex-1 border border-[#95d5b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#52b788] bg-white"
+              />
+              <button
+                type="submit"
+                disabled={inviteSending || !inviteEmail.trim()}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors whitespace-nowrap"
+              >
+                {inviteSending ? 'Sending…' : 'Send invite'}
+              </button>
+            </form>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+          </div>
         )}
       </div>
     )
   }
 
+  // Logged out — sent magic link confirmation
   if (sent) {
     return (
       <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-2">
         <p className="text-sm font-semibold text-[#1b4332]">Check your email</p>
         <p className="text-sm text-[#2d6a4f]">We've sent a link to <strong>{email}</strong>. Click it to save your plan and invite {p2}.</p>
-        <p className="text-xs text-[#52b788] mt-1">You can close this tab — your plan is saved in this browser and will be there when you return.</p>
+        <p className="text-xs text-[#52b788] mt-1">You can close this tab — your plan draft is saved in this browser.</p>
       </div>
     )
   }
 
+  // Logged out — show magic link form
   return (
     <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-4">
       <div>
         <p className="text-sm font-semibold text-[#1b4332]">Save this plan and share it with {p2}</p>
-        <p className="text-xs text-[#2d6a4f] mt-1">Enter your email to get a link. No password needed — we'll send you a magic link.</p>
+        <p className="text-xs text-[#2d6a4f] mt-1">Enter your email to get a link. No password needed.</p>
       </div>
       <form onSubmit={sendMagicLink} className="space-y-2">
         <input
@@ -1011,7 +1032,7 @@ function SaveAndShare({ data, p1, p2, locale }) {
   )
 }
 
-function Step9({ data, p1, p2, t, locale, onRestart }) {
+function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
   const children = data.children.filter(c => c.name)
 
   const JOINT_LABELS = {
@@ -1198,7 +1219,7 @@ function Step9({ data, p1, p2, t, locale, onRestart }) {
           Print / save as PDF
         </button>
 
-        <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} />
+        <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} planId={planId} planSaving={planSaving} />
 
         <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
           <p className="text-sm font-semibold text-[#1b4332]">Use this schedule in Canopy</p>
