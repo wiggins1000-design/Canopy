@@ -152,7 +152,9 @@ function blank() {
     noticeWeeksOther: '',
     christmas: 'split_a_morning',
     christmasTime: '14:00',
+    christmasOther: '',
     birthdays: 'separate',
+    birthdaysOther: '',
     fixedOccasions: '',
     abroad: 'required',
     abroadWeeks: '6',
@@ -635,6 +637,7 @@ function Step4({ data, set, p1, p2, t }) {
             { value: 'split_b_morning', label: `Split on the day — ${p2} in the morning, ${p1} in the afternoon/evening` },
             { value: 'alternates', label: 'Alternates each year between parents' },
             { value: 'agreed_annually', label: 'Agreed each year' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
         {(data.christmas === 'split_a_morning' || data.christmas === 'split_b_morning') && (
@@ -648,6 +651,9 @@ function Step4({ data, set, p1, p2, t }) {
             />
           </div>
         )}
+        {data.christmas === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.christmasOther} onChange={v => set('christmasOther', v)} rows={2} />
+        )}
         <RadioGroup
           label="How are the children's birthdays handled?"
           name="birthdays"
@@ -657,8 +663,12 @@ function Step4({ data, set, p1, p2, t }) {
             { value: 'separate', label: 'Each parent celebrates separately on or around the day' },
             { value: 'joint', label: 'One joint celebration with both parents' },
             { value: 'resident', label: "Whoever has the children that day celebrates; the other parent has a separate celebration" },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.birthdays === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.birthdaysOther} onChange={v => set('birthdaysOther', v)} rows={2} />
+        )}
         <Prose
           label="Are there any other occasions — religious, cultural, or family — that should always be spent with a specific parent?"
           value={data.fixedOccasions}
@@ -1082,6 +1092,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
     split_b_morning: `${p2} in the morning, handover to ${p1} at ${data.christmasTime}`,
     alternates:      'Alternates each year between parents',
     agreed_annually: 'Agreed each year',
+    other:           data.christmasOther,
   }
 
   const HOLIDAY_SPLIT_LABELS = {
@@ -1138,7 +1149,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       <PlanSection title="4. Special occasions and travel">
         {data.christmas && <PlanRow label="Christmas Day" value={CHRISTMAS_LABELS[data.christmas]} />}
         {data.birthdays && <PlanRow label="Children's birthdays" value={{
-          separate: 'Each parent celebrates separately', joint: 'One joint celebration with both parents', resident: 'Resident parent celebrates; other parent has a separate celebration',
+          separate: 'Each parent celebrates separately', joint: 'One joint celebration with both parents', resident: 'Resident parent celebrates; other parent has a separate celebration', other: data.birthdaysOther,
         }[data.birthdays]} />}
         {data.fixedOccasions && <PlanRow label="Other fixed occasions" value={data.fixedOccasions} />}
         {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : 'Permitted with notice and trip details shared'} />}
