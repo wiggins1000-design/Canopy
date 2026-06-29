@@ -136,14 +136,14 @@ export default function LandingPage() {
                 Each party authors their own version
               </h2>
               <p className="text-gray-600 leading-relaxed mb-5">
-                A parenting plan only holds if both parties genuinely accept its terms. This tool structures that process — each party sets out their position independently, and versions are exchanged until an agreed draft is reached.
+                One party drafts first. The other reviews those proposals, amends anything they disagree with, and submits their version. Each submission is saved as a numbered draft. The plan evolves until both parties are satisfied with the same version.
               </p>
               <ul className="space-y-3">
                 {[
-                  'One party sets out their proposals across all 8 sections',
-                  'The other party opens the plan and submits their own version — saved as Draft 2',
-                  'The first party is notified and can revise — Draft 3',
-                  'The process continues until both parties accept the same version',
+                  'One party works through all 8 sections and records their proposals',
+                  'The other party reviews those proposals and submits an amended version — Draft 2',
+                  'The first party is notified, reviews the changes, and can submit Draft 3',
+                  'The process continues until both parties are satisfied with the same version',
                 ].map(item => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-gray-700">
                     <span className="text-[#52b788] mt-0.5 flex-shrink-0">✓</span>
