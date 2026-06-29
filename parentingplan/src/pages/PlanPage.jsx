@@ -201,7 +201,6 @@ function blank() {
     dayCosts: '',
     bigCosts: '',
     financialChange: '',
-    jointDecisions: ['school', 'relocation', 'medical', 'travel', 'medication'],
     dailyRules: '',
     disputeProcess: 'mediation',
     disputeProcessOther: '',
@@ -909,51 +908,22 @@ function Step7({ data, set, t }) {
 
 function Step8({ data, set, t, p1, p2, locale }) {
   const [showLawInfo, setShowLawInfo] = useState(false)
-  const jointOptions = [
-    { value: 'school',      label: `Choice of ${t.schoolNursery}` },
-    { value: 'relocation',  label: 'Moving to a different area or country' },
-    { value: 'medical',     label: 'Non-emergency medical treatment or surgery' },
-    { value: 'medication',  label: 'Starting or stopping prescribed medication' },
-    { value: 'surname',     label: 'Change of surname' },
-    { value: 'travel',      label: 'International travel' },
-    { value: 'activities',  label: 'Significant new extracurricular commitments' },
-  ]
 
   return (
     <div className="space-y-6">
       <Card title="Making decisions together">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <label className="block text-xs font-medium text-gray-500">Which of the following require both parents to agree before a decision is made?</label>
-            <button
-              type="button"
-              onClick={() => setShowLawInfo(v => !v)}
-              className="shrink-0 w-4 h-4 rounded-full border border-[#52b788] text-[#52b788] text-[10px] font-bold leading-none flex items-center justify-center hover:bg-[#d8f3dc] transition-colors"
-              title="What does the law say about this?"
-            >i</button>
-          </div>
-          {showLawInfo && (
-            <div className="rounded-xl border border-[#d8f3dc] bg-[#f4fbf4] px-3 py-2.5 text-xs text-[#2d6a4f] leading-relaxed">
-              {JOINT_DECISION_INFO[locale] ?? JOINT_DECISION_INFO['other']}
-            </div>
-          )}
-          {jointOptions.map(o => (
-            <label key={o.value} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={data.jointDecisions.includes(o.value)}
-                onChange={e => {
-                  const next = e.target.checked
-                    ? [...data.jointDecisions, o.value]
-                    : data.jointDecisions.filter(v => v !== o.value)
-                  set('jointDecisions', next)
-                }}
-                className="accent-[#1b4332] rounded"
-              />
-              <span className="text-sm text-gray-700">{o.label}</span>
-            </label>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowLawInfo(v => !v)}
+            className="text-xs text-[#52b788] hover:text-[#2d6a4f] underline underline-offset-2 transition-colors"
+          >What does the law say about joint decisions?</button>
         </div>
+        {showLawInfo && (
+          <div className="rounded-xl border border-[#d8f3dc] bg-[#f4fbf4] px-3 py-2.5 text-xs text-[#2d6a4f] leading-relaxed">
+            {JOINT_DECISION_INFO[locale] ?? JOINT_DECISION_INFO['other']}
+          </div>
+        )}
         <Prose label="For day-to-day decisions — diet, bedtime, activities — does each parent set their own rules, or is there a joint approach?" value={data.dailyRules} onChange={v => set('dailyRules', v)} rows={3} placeholder="e.g. Each parent sets their own house rules. We aim to be broadly consistent on bedtime and diet but don't need to agree on everything." />
         <Prose
           label="If either parent wants to move home, what notice is required and does the other parent need to agree?"
@@ -1167,15 +1137,6 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
 function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1OriginalName, onRestart }) {
   const children = data.children.filter(c => c.name)
 
-  const JOINT_LABELS = {
-    school:     `Choice of ${t.schoolNursery}`,
-    relocation: 'Moving to a different area or country',
-    medical:    'Non-emergency medical treatment or surgery',
-    medication: 'Starting or stopping prescribed medication',
-    surname:    'Change of surname',
-    travel:     'International travel',
-    activities: 'Significant new extracurricular commitments',
-  }
 
   const CHRISTMAS_LABELS = {
     split_a_morning: `${p1} in the morning, handover to ${p2} at ${data.christmasTime}`,
@@ -1294,14 +1255,13 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         </PlanSection>
       )}
 
-      {(data.jointDecisions.length > 0 || data.dailyRules || data.relocation || data.legalCustody || data.newPartners || data.dayCosts || data.bigCosts || data.financialChange || data.taxDependency || data.disputeProcess || data.reviewFrequency) && (
+      {(data.dailyRules || data.relocation || data.legalCustody || data.newPartners || data.dayCosts || data.bigCosts || data.financialChange || data.taxDependency || data.disputeProcess || data.reviewFrequency) && (
         <PlanSection title="8. Decisions, money and disagreements">
           {locale === 'en-us' && data.legalCustody && <PlanRow label="Legal custody" value={{
             joint: `Joint legal custody — ${p1} and ${p2} share decision-making`,
             sole_p1: `Sole legal custody — ${p1} makes major decisions`,
             sole_p2: `Sole legal custody — ${p2} makes major decisions`,
           }[data.legalCustody]} />}
-          {data.jointDecisions.length > 0 && <PlanRow label="Decisions requiring joint agreement" value={data.jointDecisions.map(v => JOINT_LABELS[v]).join(', ')} />}
           {data.dailyRules && <PlanRow label="Day-to-day decisions" value={data.dailyRules} />}
           {data.relocation && <PlanRow label="Relocation" value={data.relocation} />}
           {data.newPartners && <PlanRow label="New partners" value={data.newPartners} />}
