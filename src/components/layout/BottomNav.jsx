@@ -73,9 +73,6 @@ export default function BottomNav() {
   const VIEWER_DEFAULTS = { calendar: true, noticeboard: true, info_bank: false, schedule: false }
   const canSee = (key) => isParent || ((key in vp ? vp[key] : VIEWER_DEFAULTS[key]) !== false)
 
-  const childcareMembers = family?.config?.childcare_members ?? []
-  const isChildcare = childcareMembers.includes(member?.user_id)
-  const showChildcare = isChildcare || (isParent && childcareMembers.length > 0)
 
   let visibleNav = NAV.filter((n) => {
     if (n.to === '/board')     return noticeboardEnabled && canSee('noticeboard')
@@ -103,19 +100,6 @@ export default function BottomNav() {
       icon: (active) => (
         <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    }]
-  }
-
-  if (showChildcare) {
-    visibleNav = [...visibleNav, {
-      to: '/childcare',
-      label: 'Childcare',
-      icon: (active) => (
-        <svg className={`w-5 h-5 ${active ? 'text-canopy-mid' : 'text-gray-400'}`} fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9" />
-          <path strokeLinecap="round" d="M12 7v5l3 3" />
         </svg>
       ),
     }]

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useExpenses } from '../hooks/useExpenses'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
@@ -47,11 +48,16 @@ function monthLabel(yyyyMM) {
 
 export default function ExpensesPage() {
   const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
-  const { members } = useFamily()
+  const { family, member, members, isParent } = useFamily()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('outstanding')
   const [showNew, setShowNew] = useState(false)
   const [settling, setSettling] = useState(false)
+
+  const childcareMembers = family?.config?.childcare_members ?? []
+  const isChildcare = childcareMembers.includes(member?.user_id)
+  const showChildcare = isChildcare || (isParent && childcareMembers.length > 0)
 
   async function handleSettle() {
     setSettling(true)
@@ -67,6 +73,30 @@ export default function ExpensesPage() {
     <div className="px-4 pt-4 pb-24">
 
       <h1 className="text-xl font-bold text-gray-900 mb-3">Expenses</h1>
+
+      {/* Childcare hours entry point */}
+      {showChildcare && (
+        <button
+          onClick={() => navigate('/childcare')}
+          className="w-full flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 text-left hover:bg-amber-100 active:scale-[0.99] transition-all"
+        >
+          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9" />
+              <path strokeLinecap="round" d="M12 7v5l3 3" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-900">Childcare hours</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {isChildcare ? 'Log your hours and view totals' : 'View hours logged by carers'}
+            </p>
+          </div>
+          <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
 
       {/* Balance banner */}
       {!loading && (
