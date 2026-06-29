@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import PlanAmendments from '../components/PlanAmendments'
 
 export default function JoinPage() {
   const { user, loading } = useAuth()
@@ -114,13 +115,7 @@ export default function JoinPage() {
                 </p>
               )}
             </div>
-            <div className="bg-white border border-[#d8f3dc] rounded-2xl p-5 space-y-2">
-              <p className="text-sm font-semibold text-[#1b4332]">Amendment review coming soon</p>
-              <p className="text-sm text-gray-500">
-                The ability to suggest and review changes to each section of the plan is on its way.
-                You'll get an email when it's ready.
-              </p>
-            </div>
+            <PlanAmendments planId={planId} planData={plan?.plan_data} />
           </div>
         )}
       </main>

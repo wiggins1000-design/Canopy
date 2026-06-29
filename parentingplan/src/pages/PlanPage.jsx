@@ -6,6 +6,7 @@ import { buildPresetPattern, PATTERN_LABELS } from '../lib/scheduleEngine'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import PlanAmendments from '../components/PlanAmendments'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -1220,6 +1221,8 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
         </button>
 
         <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} planId={planId} planSaving={planSaving} />
+
+        {planId && <PlanAmendments planId={planId} planData={data} />}
 
         <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
           <p className="text-sm font-semibold text-[#1b4332]">Use this schedule in Canopy</p>
