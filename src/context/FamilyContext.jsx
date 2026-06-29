@@ -5,7 +5,7 @@
 // direct writes here so the rest of the app never touches Supabase directly
 // for family-level data. A realtime channel keeps the schedule in sync across
 // both parents' devices without polling.
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 
@@ -84,7 +84,7 @@ export function FamilyProvider({ children }) {
   const parentA = members.find((m) => m.role === 'parent_a')
   const parentB = members.find((m) => m.role === 'parent_b')
 
-  async function createFamily() {
+  const createFamily = useCallback(async () => {
     const displayName = user.user_metadata?.display_name ?? user.email
     const { error } = await supabase.rpc('create_family', {
       member_display_name: displayName,
@@ -92,41 +92,41 @@ export function FamilyProvider({ children }) {
     if (error) return { error }
     await loadFamily()
     return { error: null }
-  }
+  }, [user, loadFamily])
 
-  async function joinFamily(code) {
+  const joinFamily = useCallback(async (code) => {
     const { error } = await supabase.rpc('join_family', { p_code: code })
     if (error) return { error: new Error('Invalid or expired invite code') }
     await loadFamily()
     return { error: null }
-  }
+  }, [loadFamily])
 
-  async function generateInvite(role) {
+  const generateInvite = useCallback(async (role) => {
     const { data, error } = await supabase
       .from('family_invites')
       .insert({ family_id: family.id, role })
       .select()
       .single()
     return { data, error }
-  }
+  }, [family?.id])
 
-  async function saveSchedule(scheduleData) {
+  const saveSchedule = useCallback(async (scheduleData) => {
     const payload = { ...scheduleData, family_id: family.id, updated_at: new Date().toISOString() }
     const { error } = schedule
       ? await supabase.from('baseline_schedules').update(payload).eq('family_id', family.id)
       : await supabase.from('baseline_schedules').insert(payload)
     if (!error) await loadFamily()
     return { error }
-  }
+  }, [schedule, family?.id, loadFamily])
 
-  async function updateFamilyConfig(partial) {
+  const updateFamilyConfig = useCallback(async (partial) => {
     const merged = { ...family.config, ...partial }
     const { error } = await supabase.from('families').update({ config: merged }).eq('id', family.id)
     if (!error) setFamily((prev) => ({ ...prev, config: merged }))
     return { error }
-  }
+  }, [family])
 
-  async function updateMemberFeatures(features) {
+  const updateMemberFeatures = useCallback(async (features) => {
     const { error } = await supabase.rpc('update_member_features', { p_features: features })
     if (!error) {
       setMember((prev) => ({
@@ -140,9 +140,9 @@ export function FamilyProvider({ children }) {
       ))
     }
     return { error }
-  }
+  }, [member])
 
-  async function proposePendingSchedule({ pattern_type, pattern_data, start_date, starting_parent }) {
+  const proposePendingSchedule = useCallback(async ({ pattern_type, pattern_data, start_date, starting_parent }) => {
     const { error } = await supabase.rpc('propose_schedule_change', {
       p_pattern_type:    pattern_type,
       p_pattern_data:    pattern_data,
@@ -151,22 +151,30 @@ export function FamilyProvider({ children }) {
     })
     if (!error) await loadFamily()
     return { error }
-  }
+  }, [loadFamily])
 
-  async function respondToScheduleProposal(accept) {
+  const respondToScheduleProposal = useCallback(async (accept) => {
     const { error } = await supabase.rpc('respond_to_schedule_proposal', { p_accept: accept })
     if (!error) await loadFamily()
     return { error }
-  }
+  }, [loadFamily])
+
+  const contextValue = useMemo(() => ({
+    family, member, members, schedule, loading,
+    userRole, isParent, parentA, parentB,
+    createFamily, joinFamily, generateInvite, saveSchedule,
+    proposePendingSchedule, respondToScheduleProposal,
+    updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
+  }), [
+    family, member, members, schedule, loading,
+    userRole, isParent, parentA, parentB,
+    createFamily, joinFamily, generateInvite, saveSchedule,
+    proposePendingSchedule, respondToScheduleProposal,
+    updateFamilyConfig, updateMemberFeatures, loadFamily,
+  ])
 
   return (
-    <FamilyContext.Provider value={{
-      family, member, members, schedule, loading,
-      userRole, isParent, parentA, parentB,
-      createFamily, joinFamily, generateInvite, saveSchedule,
-      proposePendingSchedule, respondToScheduleProposal,
-      updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
-    }}>
+    <FamilyContext.Provider value={contextValue}>
       {children}
     </FamilyContext.Provider>
   )
