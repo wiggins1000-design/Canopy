@@ -36,7 +36,7 @@ export default function LandingPage() {
       <nav className="bg-[#1b4332] sticky top-0 z-50 shadow-sm">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/CanopyWhiteLogo.gif" alt="Canopy" style={{ height: 28 }} />
+            <img src="/CanopyGreenLogo.gif" alt="Canopy" style={{ height: 28 }} />
             <span className="text-white font-bold text-xl tracking-tight">parentingplan.help</span>
           </div>
           <div className="flex items-center gap-4">

@@ -261,7 +261,7 @@ export default function PlanPage({ planId, planSaving }) {
       <header className="bg-[#1b4332] px-6 py-4 no-print">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/CanopyWhiteLogo.gif" alt="Canopy" style={{ height: 28 }} />
+            <img src="/CanopyGreenLogo.gif" alt="Canopy" style={{ height: 28 }} />
             <span className="text-white font-semibold text-sm">parentingplan.help</span>
           </div>
           <div className="flex items-center gap-6">
