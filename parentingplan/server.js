@@ -36,5 +36,5 @@ createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': type })
   res.end(readFileSync(file))
 }).listen(PORT, '0.0.0.0', () =>
-  console.log(`parentingplan on :${PORT}`)
+  console.log(`parentingplan on :${PORT} — dist: ${DIST}`)
 )
