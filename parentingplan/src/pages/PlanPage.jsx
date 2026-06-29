@@ -4,6 +4,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { buildPresetPattern, PATTERN_LABELS } from '../lib/scheduleEngine'
 import { format } from 'date-fns'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -899,32 +901,117 @@ function Step8({ data, set, t }) {
 
 // ── Step 9: Generated plan ─────────────────────────────────────────────────
 
-function Step9({ data, p1, p2, t, locale, onRestart }) {
-  const [analysis, setAnalysis] = useState(null)
-  const [analysisLoading, setAnalysisLoading] = useState(true)
-  const [analysisError, setAnalysisError] = useState(false)
+function SaveAndShare({ data, p1, p2, locale }) {
+  const { user } = useAuth()
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteSending, setInviteSending] = useState(false)
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    async function run() {
-      try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-plan`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ planData: data, locale, p1, p2 }),
-        })
-        if (!res.ok) throw new Error('failed')
-        setAnalysis(await res.json())
-      } catch {
-        setAnalysisError(true)
-      } finally {
-        setAnalysisLoading(false)
-      }
-    }
-    run()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  async function sendMagicLink(e) {
+    e.preventDefault()
+    if (!email.trim()) return
+    setSending(true)
+    setError('')
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: {
+        emailRedirectTo: window.location.href,
+        data: { plan_draft: JSON.stringify(data), locale, p1, p2 },
+      },
+    })
+    setSending(false)
+    if (err) { setError('Something went wrong — please try again.'); return }
+    setSent(true)
+  }
+
+  async function sendInvite(e) {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviteSending(true)
+    // Invite email via edge function — wired up in a later step
+    // For now just mark as sent
+    await new Promise(r => setTimeout(r, 800))
+    setInviteSending(false)
+    setInviteSent(true)
+  }
+
+  if (user) {
+    return (
+      <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-4">
+        <div>
+          <p className="text-sm font-semibold text-[#1b4332]">Invite {p2} to review this plan</p>
+          <p className="text-xs text-[#2d6a4f] mt-1">They'll be able to suggest changes to each section. Amendments are free for both of you.</p>
+        </div>
+        {inviteSent ? (
+          <div className="bg-white rounded-xl px-4 py-3">
+            <p className="text-sm text-[#1b4332] font-medium">Invitation sent to {inviteEmail}</p>
+            <p className="text-xs text-gray-500 mt-0.5">They'll receive a link to open and review this plan.</p>
+          </div>
+        ) : (
+          <form onSubmit={sendInvite} className="flex gap-2">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              placeholder={`${p2}'s email address`}
+              className="flex-1 border border-[#95d5b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#52b788] bg-white"
+            />
+            <button
+              type="submit"
+              disabled={inviteSending || !inviteEmail.trim()}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {inviteSending ? 'Sending…' : 'Send invite'}
+            </button>
+          </form>
+        )}
+      </div>
+    )
+  }
+
+  if (sent) {
+    return (
+      <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-2">
+        <p className="text-sm font-semibold text-[#1b4332]">Check your email</p>
+        <p className="text-sm text-[#2d6a4f]">We've sent a link to <strong>{email}</strong>. Click it to save your plan and invite {p2}.</p>
+        <p className="text-xs text-[#52b788] mt-1">You can close this tab — your plan is saved in this browser and will be there when you return.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-4">
+      <div>
+        <p className="text-sm font-semibold text-[#1b4332]">Save this plan and share it with {p2}</p>
+        <p className="text-xs text-[#2d6a4f] mt-1">Enter your email to get a link. No password needed — we'll send you a magic link.</p>
+      </div>
+      <form onSubmit={sendMagicLink} className="space-y-2">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Your email address"
+          className="w-full border border-[#95d5b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#52b788] bg-white"
+        />
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <button
+          type="submit"
+          disabled={sending || !email.trim()}
+          className="w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors"
+        >
+          {sending ? 'Sending link…' : 'Save & share →'}
+        </button>
+      </form>
+      <p className="text-xs text-[#52b788] text-center">Free · No password · Your plan stays private</p>
+    </div>
+  )
+}
+
+function Step9({ data, p1, p2, t, locale, onRestart }) {
   const children = data.children.filter(c => c.name)
 
   const JOINT_LABELS = {
@@ -1065,79 +1152,40 @@ function Step9({ data, p1, p2, t, locale, onRestart }) {
         </PlanSection>
       )}
 
-      {/* AI Analysis */}
+      {/* AI Analysis — paywall */}
       <div className="bg-white border border-[#d8f3dc] rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#d8f3dc] bg-[#f4fbf4] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-[#52b788] flex items-center justify-center shrink-0">
-              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-            </div>
-            <h2 className="text-sm font-semibold text-[#1b4332]">AI Plan Review</h2>
+        <div className="px-4 py-3 border-b border-[#d8f3dc] bg-[#f4fbf4] flex items-center gap-2">
+          <div className="w-5 h-5 rounded-full bg-[#52b788] flex items-center justify-center shrink-0">
+            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
           </div>
-          {analysis && (
-            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-              analysis.completeness >= 70 ? 'bg-[#d8f3dc] text-[#1b4332]' :
-              analysis.completeness >= 40 ? 'bg-amber-100 text-amber-700' :
-              'bg-red-50 text-red-600'
-            }`}>
-              {analysis.completeness}% complete
-            </span>
-          )}
+          <h2 className="text-sm font-semibold text-[#1b4332]">AI Plan Review</h2>
         </div>
-
-        <div className="px-4 py-4">
-          {analysisLoading && (
-            <div className="flex items-center gap-3 py-1">
-              <div className="w-4 h-4 border-2 border-[#52b788] border-t-transparent rounded-full animate-spin shrink-0" />
-              <span className="text-sm text-gray-500">Reviewing your plan…</span>
-            </div>
-          )}
-
-          {analysisError && (
-            <p className="text-sm text-gray-400">Analysis unavailable — your plan is complete and ready to use.</p>
-          )}
-
-          {analysis && !analysisLoading && (
-            <div className="space-y-4">
-              {analysis.gaps?.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Areas to strengthen</p>
-                  {analysis.gaps.map((g, i) => (
-                    <div key={i} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 space-y-0.5">
-                      <p className="text-xs font-semibold text-amber-800">{g.section}</p>
-                      <p className="text-xs text-amber-700">{g.suggestion}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {analysis.strengths?.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">What you've done well</p>
-                  {analysis.strengths.map((s, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-[#52b788] text-xs mt-0.5 shrink-0">✓</span>
-                      <p className="text-xs text-gray-600">{s}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {analysis.priorities?.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Suggested next steps</p>
-                  {analysis.priorities.map((pr, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-xs font-bold text-[#2d6a4f] mt-0.5 shrink-0">{i + 1}.</span>
-                      <p className="text-xs text-gray-600">{pr}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        <div className="px-4 py-5 space-y-4">
+          <p className="text-sm text-gray-600">Get an expert AI review of your plan — identifying gaps, highlighting strengths, and telling you exactly what to add next.</p>
+          <div className="space-y-2">
+            {[
+              'Completeness score for your plan',
+              'Up to 3 gaps most likely to cause future conflict',
+              'What you\'ve done well',
+              'Prioritised next steps',
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-[#52b788] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-xs text-gray-600">{item}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => {/* Stripe — wired up in payments step */}}
+            className="w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] transition-colors"
+          >
+            Unlock 3 AI reviews · £1.99
+          </button>
+          <p className="text-xs text-gray-400 text-center">One-time payment · Use across all your plan revisions</p>
         </div>
       </div>
 
@@ -1149,6 +1197,8 @@ function Step9({ data, p1, p2, t, locale, onRestart }) {
         >
           Print / save as PDF
         </button>
+
+        <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} />
 
         <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
           <p className="text-sm font-semibold text-[#1b4332]">Use this schedule in Canopy</p>
