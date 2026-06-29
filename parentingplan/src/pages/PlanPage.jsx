@@ -172,6 +172,7 @@ function blank() {
     urgentProcess: '',
     documentSharing: '',
     firstRefusal: 'other_parent',
+    firstRefusalOther: '',
     carers: [{ name: '', relationship: '' }],
     extendedFamily: '',
     siblings: '',
@@ -809,8 +810,12 @@ function Step6({ data, set }) {
             { value: 'other_parent', label: 'The other parent (right of first refusal)' },
             { value: 'agreed_list', label: 'An agreed list of family members or carers' },
             { value: 'resident_decides', label: "Either option — at the resident parent's discretion" },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.firstRefusal === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.firstRefusalOther} onChange={v => set('firstRefusalOther', v)} rows={2} />
+        )}
         <div className="space-y-2">
           <label className="block text-xs font-medium text-gray-500">Agreed carers who can look after the children when neither parent is available</label>
           {data.carers.map((c, i) => (
@@ -1194,7 +1199,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       {(data.firstRefusal || data.carers.some(c => c.name) || data.extendedFamily || data.siblings) && (
         <PlanSection title="6. Childcare and family">
           {data.firstRefusal && <PlanRow label="If resident parent unavailable" value={{
-            other_parent: 'Other parent has right of first refusal', agreed_list: 'Agreed list of carers', resident_decides: "Resident parent's discretion",
+            other_parent: 'Other parent has right of first refusal', agreed_list: 'Agreed list of carers', resident_decides: "Resident parent's discretion", other: data.firstRefusalOther,
           }[data.firstRefusal]} />}
           {data.carers.filter(c => c.name).map((c, i) => (
             <PlanRow key={i} label={i === 0 ? 'Agreed carers' : ''} value={`${c.name}${c.relationship ? ` (${c.relationship})` : ''}`} />
