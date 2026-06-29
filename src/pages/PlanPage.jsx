@@ -18,6 +18,115 @@ const PATTERN_DESCRIPTIONS = {
   custom:            'Build your own cycle day by day.',
 }
 
+// ── Localisation ──────────────────────────────────────────────────────────────
+
+const LOCALES = [
+  { key: 'en-gb', label: 'England & Wales', flag: '🇬🇧' },
+  { key: 'en-sc', label: 'Scotland',        flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+  { key: 'en-ie', label: 'Ireland',         flag: '🇮🇪' },
+  { key: 'en-us', label: 'United States',   flag: '🇺🇸' },
+  { key: 'en-au', label: 'Australia',       flag: '🇦🇺' },
+  { key: 'en-ca', label: 'Canada',          flag: '🇨🇦' },
+  { key: 'other', label: 'Other',           flag: '🌍' },
+]
+
+const TERMS = {
+  'en-gb': {
+    schoolHolidays: 'school holidays',
+    schoolNursery:  'school or nursery',
+    gp:             'GP',
+    optician:       'optician',
+    parentsEvening: "parents' evenings",
+    abroad:         'abroad',
+    termTimeOption: 'Follow the same pattern as term time',
+    termTimeLabel:  'Follow term-time pattern',
+    legalNote:      'This plan is not a legally binding document. For matters involving formal court orders, always seek independent legal advice.',
+  },
+  'en-sc': {
+    schoolHolidays: 'school holidays',
+    schoolNursery:  'school or nursery',
+    gp:             'GP',
+    optician:       'optician',
+    parentsEvening: "parents' evenings",
+    abroad:         'abroad',
+    termTimeOption: 'Follow the same pattern as term time',
+    termTimeLabel:  'Follow term-time pattern',
+    legalNote:      'This plan is not a legally binding document. Scottish family law (Children (Scotland) Act 1995) differs from the rest of the UK — always seek independent Scottish legal advice.',
+  },
+  'en-ie': {
+    schoolHolidays: 'school holidays',
+    schoolNursery:  'school or crèche',
+    gp:             'GP',
+    optician:       'optician',
+    parentsEvening: "parents' evenings",
+    abroad:         'abroad',
+    termTimeOption: 'Follow the same pattern as term time',
+    termTimeLabel:  'Follow term-time pattern',
+    legalNote:      'This plan is not a legally binding document. For matters involving formal court orders under Irish law, always seek independent legal advice.',
+  },
+  'en-us': {
+    schoolHolidays: 'school breaks',
+    schoolNursery:  'school or preschool',
+    gp:             'pediatrician',
+    optician:       'eye doctor',
+    parentsEvening: 'parent-teacher conferences',
+    abroad:         'out of the country',
+    termTimeOption: 'Follow the same pattern during the school year',
+    termTimeLabel:  'Follow school year pattern',
+    legalNote:      'This plan is not a legally binding document. Custody and parenting laws vary by state — always seek independent legal advice for your jurisdiction.',
+  },
+  'en-au': {
+    schoolHolidays: 'school holidays',
+    schoolNursery:  'school or childcare',
+    gp:             'GP',
+    optician:       'optometrist',
+    parentsEvening: 'parent-teacher interviews',
+    abroad:         'overseas',
+    termTimeOption: 'Follow the same pattern as term time',
+    termTimeLabel:  'Follow term-time pattern',
+    legalNote:      'This plan is not a legally binding document. You may wish to file it with the Family Court to give it the force of a parenting order. Always seek independent legal advice.',
+  },
+  'en-ca': {
+    schoolHolidays: 'school breaks',
+    schoolNursery:  'school or daycare',
+    gp:             'family doctor',
+    optician:       'optometrist',
+    parentsEvening: 'parent-teacher interviews',
+    abroad:         'out of the country',
+    termTimeOption: 'Follow the same pattern during the school year',
+    termTimeLabel:  'Follow school year pattern',
+    legalNote:      'This plan is not a legally binding document. Family law varies by province — always seek independent legal advice for your jurisdiction.',
+  },
+  'other': {
+    schoolHolidays: 'school holidays',
+    schoolNursery:  'school or preschool',
+    gp:             'family doctor',
+    optician:       'optician',
+    parentsEvening: 'parent-teacher meetings',
+    abroad:         'abroad',
+    termTimeOption: 'Follow the same pattern as term time',
+    termTimeLabel:  'Follow term-time pattern',
+    legalNote:      'This plan is not a legally binding document. Always seek independent legal advice relevant to your country.',
+  },
+}
+
+function detectLocale() {
+  try {
+    const saved = localStorage.getItem('pp_locale')
+    if (saved && TERMS[saved]) return saved
+  } catch {}
+  const lang = (navigator.language ?? 'en-GB').toLowerCase()
+  if (lang.startsWith('en-us')) return 'en-us'
+  if (lang.startsWith('en-au')) return 'en-au'
+  if (lang.startsWith('en-ca')) return 'en-ca'
+  if (lang.startsWith('en-ie')) return 'en-ie'
+  return 'en-gb'
+}
+
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1) }
+
+// ── Default form data ─────────────────────────────────────────────────────────
+
 function blank() {
   return {
     parent1: '', parent2: '',
@@ -74,9 +183,14 @@ export default function PlanPage() {
     try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : blank() }
     catch { return blank() }
   })
+  const [locale, setLocale] = useState(detectLocale)
+  const [localeOpen, setLocaleOpen] = useState(false)
   const topRef = useRef(null)
 
+  const t = TERMS[locale] ?? TERMS['en-gb']
+
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
+  useEffect(() => { try { localStorage.setItem('pp_locale', locale) } catch {} }, [locale])
 
   function set(field, value) { setData(p => ({ ...p, [field]: value })) }
 
@@ -91,7 +205,7 @@ export default function PlanPage() {
   const stepTitles = [
     'About your family',
     'The schedule',
-    'Handovers & school holidays',
+    `Handovers & ${t.schoolHolidays}`,
     'Special occasions & travel',
     'Digital life & communication',
     'Childcare & family',
@@ -99,6 +213,8 @@ export default function PlanPage() {
     'Decisions & money',
     'Your parenting plan',
   ]
+
+  const currentLocaleItem = LOCALES.find(l => l.key === locale) ?? LOCALES[0]
 
   return (
     <div className="min-h-screen bg-[#f4fbf4]" ref={topRef}>
@@ -109,9 +225,41 @@ export default function PlanPage() {
             <div className="w-7 h-7 rounded-lg bg-[#52b788] flex items-center justify-center text-[#1b4332] text-xs font-bold">C</div>
             <span className="text-white font-semibold text-sm">parentingplan.help</span>
           </div>
-          {step < TOTAL_STEPS && (
-            <span className="text-[#b7e4c7] text-xs">{step} of {TOTAL_STEPS - 1}</span>
-          )}
+          <div className="flex items-center gap-3">
+            {step < TOTAL_STEPS && (
+              <span className="text-[#b7e4c7] text-xs">{step} of {TOTAL_STEPS - 1}</span>
+            )}
+            {/* Locale picker */}
+            <div className="relative">
+              <button
+                onClick={() => setLocaleOpen(p => !p)}
+                className="flex items-center gap-1 text-[#b7e4c7] hover:text-white text-sm transition-colors"
+                aria-label="Change region"
+              >
+                <span>{currentLocaleItem.flag}</span>
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {localeOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLocaleOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50 min-w-[180px]">
+                    {LOCALES.map(l => (
+                      <button
+                        key={l.key}
+                        onClick={() => { setLocale(l.key); setLocaleOpen(false) }}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${locale === l.key ? 'text-[#1b4332] font-semibold' : 'text-gray-700'}`}
+                      >
+                        <span className="text-base">{l.flag}</span>
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </header>
 
@@ -133,13 +281,13 @@ export default function PlanPage() {
 
         {step === 1 && <Step1 data={data} set={set} />}
         {step === 2 && <Step2 data={data} set={set} p1={p1} p2={p2} />}
-        {step === 3 && <Step3 data={data} set={set} />}
-        {step === 4 && <Step4 data={data} set={set} p1={p1} p2={p2} />}
+        {step === 3 && <Step3 data={data} set={set} t={t} />}
+        {step === 4 && <Step4 data={data} set={set} p1={p1} p2={p2} t={t} />}
         {step === 5 && <Step5 data={data} set={set} />}
         {step === 6 && <Step6 data={data} set={set} />}
-        {step === 7 && <Step7 data={data} set={set} />}
-        {step === 8 && <Step8 data={data} set={set} />}
-        {step === 9 && <Step9 data={data} p1={p1} p2={p2} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
+        {step === 7 && <Step7 data={data} set={set} t={t} />}
+        {step === 8 && <Step8 data={data} set={set} t={t} />}
+        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
 
         {step < TOTAL_STEPS && (
           <div className="flex gap-3 pt-2">
@@ -220,14 +368,9 @@ function Step1({ data, set }) {
 function Step2({ data, set, p1, p2 }) {
   const isCustom = data.patternType === 'custom'
 
-  function addDay(parent) {
-    set('customCycle', [...data.customCycle, parent])
-  }
-  function removeDay(i) {
-    set('customCycle', data.customCycle.filter((_, idx) => idx !== i))
-  }
+  function addDay(parent) { set('customCycle', [...data.customCycle, parent]) }
+  function removeDay(i) { set('customCycle', data.customCycle.filter((_, idx) => idx !== i)) }
 
-  // Build the preview cycle
   let cycle = []
   if (isCustom) {
     cycle = data.customCycle
@@ -248,7 +391,6 @@ function Step2({ data, set, p1, p2 }) {
     <div className="space-y-6">
       <p className="text-sm text-gray-600">Choose the pattern that best reflects how you'll share time with your children. You can customise this at any point.</p>
 
-      {/* Pattern selector */}
       <div className="space-y-2">
         <label className="block text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Rotation pattern</label>
         {PATTERNS.map(p => (
@@ -274,7 +416,6 @@ function Step2({ data, set, p1, p2 }) {
         ))}
       </div>
 
-      {/* Starting parent (presets only) */}
       {!isCustom && (
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">First period starts with</label>
@@ -296,7 +437,6 @@ function Step2({ data, set, p1, p2 }) {
         </div>
       )}
 
-      {/* Custom cycle builder */}
       {isCustom && (
         <div className="space-y-3">
           <label className="block text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">
@@ -312,9 +452,7 @@ function Step2({ data, set, p1, p2 }) {
                 onClick={() => removeDay(i)}
                 title="Tap to remove"
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                  owner === 'parent_a'
-                    ? 'bg-[#d8f3dc] text-[#1b4332]'
-                    : 'bg-gray-100 text-gray-700'
+                  owner === 'parent_a' ? 'bg-[#d8f3dc] text-[#1b4332]' : 'bg-gray-100 text-gray-700'
                 }`}
               >
                 {owner === 'parent_a' ? p1.charAt(0) : p2.charAt(0)}
@@ -322,16 +460,10 @@ function Step2({ data, set, p1, p2 }) {
             ))}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => addDay('parent_a')}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#d8f3dc] text-[#1b4332] hover:bg-[#b7e4c7] transition-colors"
-            >
+            <button onClick={() => addDay('parent_a')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#d8f3dc] text-[#1b4332] hover:bg-[#b7e4c7] transition-colors">
               + {p1}
             </button>
-            <button
-              onClick={() => addDay('parent_b')}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-            >
+            <button onClick={() => addDay('parent_b')} className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
               + {p2}
             </button>
             {data.customCycle.length > 0 && (
@@ -343,7 +475,6 @@ function Step2({ data, set, p1, p2 }) {
         </div>
       )}
 
-      {/* 14-day preview */}
       {preview.length > 0 && (
         <div className="space-y-2">
           <label className="block text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Preview — first 14 days</label>
@@ -375,7 +506,7 @@ function Step2({ data, set, p1, p2 }) {
 
 // ── Step 3: Handovers & school holidays ───────────────────────────────────
 
-function Step3({ data, set }) {
+function Step3({ data, set, t }) {
   return (
     <div className="space-y-6">
       <Card title="Handovers">
@@ -403,20 +534,20 @@ function Step3({ data, set }) {
         />
       </Card>
 
-      <Card title="School holidays">
+      <Card title={cap(t.schoolHolidays)}>
         <RadioGroup
-          label="How will school holidays be divided?"
+          label={`How will ${t.schoolHolidays} be divided?`}
           name="holidaySplit"
           value={data.holidaySplit}
           onChange={v => set('holidaySplit', v)}
           options={[
             { value: 'equal', label: 'Split equally between both parents' },
-            { value: 'term_pattern', label: 'Follow the same pattern as term time' },
+            { value: 'term_pattern', label: t.termTimeOption },
             { value: 'agreed_annually', label: 'Agreed separately each school year' },
           ]}
         />
         <RadioGroup
-          label="Maximum consecutive days with one parent during holidays (without specific agreement)"
+          label={`Maximum consecutive days with one parent during ${t.schoolHolidays} (without specific agreement)`}
           name="maxDays"
           value={data.maxDays}
           onChange={v => set('maxDays', v)}
@@ -445,7 +576,7 @@ function Step3({ data, set }) {
 
 // ── Step 4: Special occasions & travel ────────────────────────────────────
 
-function Step4({ data, set, p1, p2 }) {
+function Step4({ data, set, p1, p2, t }) {
   const infoOptions = [
     { value: 'destination', label: 'Destination country' },
     { value: 'itinerary', label: 'Full itinerary' },
@@ -500,9 +631,9 @@ function Step4({ data, set, p1, p2 }) {
         />
       </Card>
 
-      <Card title="Travel abroad">
+      <Card title={`Travel ${t.abroad}`}>
         <RadioGroup
-          label="Can either parent take the children abroad without the other parent's prior written agreement?"
+          label={`Can either parent take the children ${t.abroad} without the other parent's prior written agreement?`}
           name="abroad"
           value={data.abroad}
           onChange={v => set('abroad', v)}
@@ -512,7 +643,7 @@ function Step4({ data, set, p1, p2 }) {
           ]}
         />
         <RadioGroup
-          label="How much notice is required before a holiday abroad?"
+          label={`How much notice is required before a trip ${t.abroad}?`}
           name="abroadWeeks"
           value={data.abroadWeeks}
           onChange={v => set('abroadWeeks', v)}
@@ -658,16 +789,28 @@ function Step6({ data, set }) {
 
 // ── Step 7: Education & health ─────────────────────────────────────────────
 
-function Step7({ data, set }) {
+function Step7({ data, set, t }) {
   return (
     <div className="space-y-6">
       <Card title="Education">
         <Prose label="If parents disagree about an education decision, how will this be resolved?" value={data.educationDisputes} onChange={v => set('educationDisputes', v)} rows={3} placeholder="e.g. Direct conversation first, with a two-week deadline to reach agreement. If unresolved, attend mediation." />
-        <Prose label="How will both parents stay informed about school events, reports and parents' evenings?" value={data.schoolInfo} onChange={v => set('schoolInfo', v)} rows={2} placeholder="e.g. Both parents listed as contacts with the school. Information shared via the co-parenting app on the day it is received." />
+        <Prose
+          label={`How will both parents stay informed about school events, reports and ${t.parentsEvening}?`}
+          value={data.schoolInfo}
+          onChange={v => set('schoolInfo', v)}
+          rows={2}
+          placeholder="e.g. Both parents listed as contacts with the school. Information shared via the co-parenting app on the day it is received."
+        />
       </Card>
 
       <Card title="Health and medical">
-        <Prose label="Who arranges routine health appointments — GP, dentist, optician?" value={data.routineHealth} onChange={v => set('routineHealth', v)} rows={2} placeholder="e.g. Kate takes the lead on arranging appointments but Chris is happy to attend or cover during school holidays." />
+        <Prose
+          label={`Who arranges routine health appointments — ${t.gp}, dentist, ${t.optician}?`}
+          value={data.routineHealth}
+          onChange={v => set('routineHealth', v)}
+          rows={2}
+          placeholder="e.g. Kate takes the lead on arranging appointments but Chris is happy to attend or cover during school holidays."
+        />
         <Prose label="If a child needs non-emergency medical treatment during one parent's time, what must happen before proceeding?" value={data.nonEmergency} onChange={v => set('nonEmergency', v)} rows={3} placeholder="e.g. Inform the other parent and discuss before agreeing to treatment. If the other parent cannot be reached within 4 hours, the resident parent may proceed." />
         <Prose label="In a medical emergency, what is the process for informing the other parent?" value={data.medicalEmergency} onChange={v => set('medicalEmergency', v)} rows={2} placeholder="e.g. Call as soon as the child is in safe hands. Share hospital name, condition, and next steps." />
       </Card>
@@ -677,15 +820,15 @@ function Step7({ data, set }) {
 
 // ── Step 8: Decisions & money ─────────────────────────────────────────────
 
-function Step8({ data, set }) {
+function Step8({ data, set, t }) {
   const jointOptions = [
-    { value: 'school', label: 'Choice of school or nursery' },
-    { value: 'relocation', label: 'Moving to a different area or country' },
-    { value: 'medical', label: 'Non-emergency medical treatment or surgery' },
-    { value: 'medication', label: 'Starting or stopping prescribed medication' },
-    { value: 'surname', label: 'Change of surname' },
-    { value: 'travel', label: 'International travel' },
-    { value: 'activities', label: 'Significant new extracurricular commitments' },
+    { value: 'school',      label: `Choice of ${t.schoolNursery}` },
+    { value: 'relocation',  label: 'Moving to a different area or country' },
+    { value: 'medical',     label: 'Non-emergency medical treatment or surgery' },
+    { value: 'medication',  label: 'Starting or stopping prescribed medication' },
+    { value: 'surname',     label: 'Change of surname' },
+    { value: 'travel',      label: 'International travel' },
+    { value: 'activities',  label: 'Significant new extracurricular commitments' },
   ]
 
   return (
@@ -753,27 +896,32 @@ function Step8({ data, set }) {
 
 // ── Step 9: Generated plan ─────────────────────────────────────────────────
 
-function Step9({ data, p1, p2, onRestart }) {
+function Step9({ data, p1, p2, t, onRestart }) {
   const children = data.children.filter(c => c.name)
 
   const JOINT_LABELS = {
-    school: 'Choice of school or nursery',
+    school:     `Choice of ${t.schoolNursery}`,
     relocation: 'Moving to a different area or country',
-    medical: 'Non-emergency medical treatment or surgery',
+    medical:    'Non-emergency medical treatment or surgery',
     medication: 'Starting or stopping prescribed medication',
-    surname: 'Change of surname',
-    travel: 'International travel',
+    surname:    'Change of surname',
+    travel:     'International travel',
     activities: 'Significant new extracurricular commitments',
   }
 
   const CHRISTMAS_LABELS = {
     split_a_morning: `${p1} in the morning, handover to ${p2} at ${data.christmasTime}`,
     split_b_morning: `${p2} in the morning, handover to ${p1} at ${data.christmasTime}`,
-    alternates: 'Alternates each year between parents',
+    alternates:      'Alternates each year between parents',
     agreed_annually: 'Agreed each year',
   }
 
-  // Build schedule description
+  const HOLIDAY_SPLIT_LABELS = {
+    equal:           'Split equally between both parents',
+    term_pattern:    t.termTimeLabel,
+    agreed_annually: 'Agreed each school year',
+  }
+
   let scheduleDesc = ''
   if (data.patternType === 'custom') {
     scheduleDesc = `Custom ${data.customCycle.length}-day cycle`
@@ -794,7 +942,7 @@ function Step9({ data, p1, p2, onRestart }) {
         </p>
         <p className="text-xs text-gray-400">Created {format(new Date(), 'd MMMM yyyy')}</p>
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700 text-left mt-3">
-          <strong>Advisory only.</strong> This plan is not a legally binding document. For matters involving formal court orders, always seek independent legal advice.
+          <strong>Advisory only.</strong> {t.legalNote}
         </div>
       </div>
 
@@ -809,14 +957,12 @@ function Step9({ data, p1, p2, onRestart }) {
         <PlanRow label="Pattern" value={scheduleDesc} />
       </PlanSection>
 
-      <PlanSection title="3. Handovers and school holidays">
+      <PlanSection title={`3. Handovers and ${t.schoolHolidays}`}>
         {data.handoverLocation && <PlanRow label="Handover location" value={{
           school: 'At school', parent_a_home: "At one parent's home", neutral: 'Neutral location', other: data.handoverOther,
         }[data.handoverLocation]} />}
         {data.handoverLate && <PlanRow label="If a handover is delayed" value={data.handoverLate} />}
-        {data.holidaySplit && <PlanRow label="School holiday split" value={{
-          equal: 'Split equally between both parents', term_pattern: 'Follow term-time pattern', agreed_annually: 'Agreed each school year',
-        }[data.holidaySplit]} />}
+        {data.holidaySplit && <PlanRow label={`${cap(t.schoolHolidays)} split`} value={HOLIDAY_SPLIT_LABELS[data.holidaySplit]} />}
         {data.maxDays && <PlanRow label="Maximum consecutive days" value={data.maxDays === 'no_limit' ? 'No set limit — agreed case by case' : `${data.maxDays} days`} />}
         {data.noticeWeeks && <PlanRow label="Holiday notice required" value={`${data.noticeWeeks} weeks`} />}
       </PlanSection>
@@ -827,8 +973,8 @@ function Step9({ data, p1, p2, onRestart }) {
           separate: 'Each parent celebrates separately', joint: 'One joint celebration with both parents', resident: 'Resident parent celebrates; other parent has a separate celebration',
         }[data.birthdays]} />}
         {data.fixedOccasions && <PlanRow label="Other fixed occasions" value={data.fixedOccasions} />}
-        {data.abroad && <PlanRow label="International travel" value={data.abroad === 'required' ? 'Written agreement from both parents required' : 'Permitted with notice and trip details shared'} />}
-        {data.abroadWeeks && <PlanRow label="Notice for trips abroad" value={`${data.abroadWeeks} weeks`} />}
+        {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : 'Permitted with notice and trip details shared'} />}
+        {data.abroadWeeks && <PlanRow label="Notice for international trips" value={`${data.abroadWeeks} weeks`} />}
         {data.abroadInfo.length > 0 && <PlanRow label="Information to share" value={data.abroadInfo.map(v => ({
           destination: 'Destination country', itinerary: 'Full itinerary', accommodation: 'Accommodation address', emergency_contact: 'Emergency contact', return_details: 'Return travel details',
         }[v])).join(', ')} />}
