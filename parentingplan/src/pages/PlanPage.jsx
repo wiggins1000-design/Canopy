@@ -5,6 +5,9 @@ import { useState, useEffect, useRef } from 'react'
 import { buildPresetPattern, PATTERN_LABELS } from '../lib/scheduleEngine'
 import { format } from 'date-fns'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+
 const STORAGE_KEY = 'pp_draft'
 const TOTAL_STEPS = 9
 
@@ -287,7 +290,7 @@ export default function PlanPage() {
         {step === 6 && <Step6 data={data} set={set} />}
         {step === 7 && <Step7 data={data} set={set} t={t} />}
         {step === 8 && <Step8 data={data} set={set} t={t} />}
-        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
+        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
 
         {step < TOTAL_STEPS && (
           <div className="flex gap-3 pt-2">
@@ -896,7 +899,32 @@ function Step8({ data, set, t }) {
 
 // ── Step 9: Generated plan ─────────────────────────────────────────────────
 
-function Step9({ data, p1, p2, t, onRestart }) {
+function Step9({ data, p1, p2, t, locale, onRestart }) {
+  const [analysis, setAnalysis] = useState(null)
+  const [analysisLoading, setAnalysisLoading] = useState(true)
+  const [analysisError, setAnalysisError] = useState(false)
+
+  useEffect(() => {
+    async function run() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/analyze-plan`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ planData: data, locale, p1, p2 }),
+        })
+        if (!res.ok) throw new Error('failed')
+        setAnalysis(await res.json())
+      } catch {
+        setAnalysisError(true)
+      } finally {
+        setAnalysisLoading(false)
+      }
+    }
+    run()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const children = data.children.filter(c => c.name)
 
   const JOINT_LABELS = {
@@ -1036,6 +1064,82 @@ function Step9({ data, p1, p2, t, onRestart }) {
           }[data.reviewFrequency]} />}
         </PlanSection>
       )}
+
+      {/* AI Analysis */}
+      <div className="bg-white border border-[#d8f3dc] rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#d8f3dc] bg-[#f4fbf4] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-[#52b788] flex items-center justify-center shrink-0">
+              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            <h2 className="text-sm font-semibold text-[#1b4332]">AI Plan Review</h2>
+          </div>
+          {analysis && (
+            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+              analysis.completeness >= 70 ? 'bg-[#d8f3dc] text-[#1b4332]' :
+              analysis.completeness >= 40 ? 'bg-amber-100 text-amber-700' :
+              'bg-red-50 text-red-600'
+            }`}>
+              {analysis.completeness}% complete
+            </span>
+          )}
+        </div>
+
+        <div className="px-4 py-4">
+          {analysisLoading && (
+            <div className="flex items-center gap-3 py-1">
+              <div className="w-4 h-4 border-2 border-[#52b788] border-t-transparent rounded-full animate-spin shrink-0" />
+              <span className="text-sm text-gray-500">Reviewing your plan…</span>
+            </div>
+          )}
+
+          {analysisError && (
+            <p className="text-sm text-gray-400">Analysis unavailable — your plan is complete and ready to use.</p>
+          )}
+
+          {analysis && !analysisLoading && (
+            <div className="space-y-4">
+              {analysis.gaps?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Areas to strengthen</p>
+                  {analysis.gaps.map((g, i) => (
+                    <div key={i} className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 space-y-0.5">
+                      <p className="text-xs font-semibold text-amber-800">{g.section}</p>
+                      <p className="text-xs text-amber-700">{g.suggestion}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {analysis.strengths?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">What you've done well</p>
+                  {analysis.strengths.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-[#52b788] text-xs mt-0.5 shrink-0">✓</span>
+                      <p className="text-xs text-gray-600">{s}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {analysis.priorities?.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-[#2d6a4f] uppercase tracking-wide">Suggested next steps</p>
+                  {analysis.priorities.map((pr, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className="text-xs font-bold text-[#2d6a4f] mt-0.5 shrink-0">{i + 1}.</span>
+                      <p className="text-xs text-gray-600">{pr}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Actions */}
       <div className="space-y-3 pt-4">
