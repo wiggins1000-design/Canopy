@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
@@ -20,6 +20,17 @@ export default function InvitePage() {
   const navigate = useNavigate()
   const hasParentB = !!parentB
   const [togglingChildcare, setTogglingChildcare] = useState(null)
+  const [rateInputs,  setRateInputs]  = useState({})
+  const [rateSaving,  setRateSaving]  = useState(null)
+  const [rateSaved,   setRateSaved]   = useState(null)
+
+  // Initialise rate inputs from family config
+  useEffect(() => {
+    const rates = family?.config?.childcare_rates ?? {}
+    setRateInputs(
+      Object.fromEntries(Object.entries(rates).map(([id, pence]) => [id, (pence / 100).toFixed(2)]))
+    )
+  }, [JSON.stringify(family?.config?.childcare_rates)]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function toggleChildcare(userId) {
     setTogglingChildcare(userId)
@@ -28,6 +39,17 @@ export default function InvitePage() {
     await updateFamilyConfig({ childcare_members: next })
     setTogglingChildcare(null)
   }
+
+  async function saveRate(userId) {
+    setRateSaving(userId)
+    const pence = Math.round(parseFloat(rateInputs[userId] || '0') * 100)
+    const current = family?.config?.childcare_rates ?? {}
+    await updateFamilyConfig({ childcare_rates: { ...current, [userId]: pence } })
+    setRateSaving(null)
+    setRateSaved(userId)
+    setTimeout(() => setRateSaved((s) => (s === userId ? null : s)), 2000)
+  }
+
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
   const senderName = user?.user_metadata?.display_name ?? 'Someone'
 
@@ -123,21 +145,55 @@ export default function InvitePage() {
             </div>
 
             {/* Childcare toggle — parents only, third_party members only */}
-            {isParent && m.role === 'third_party' && (
-              <button
-                onClick={() => toggleChildcare(m.user_id)}
-                disabled={togglingChildcare === m.user_id}
-                className={`w-full flex items-center justify-between py-2 px-1 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 ${togglingChildcare === m.user_id ? 'opacity-50' : ''}`}
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-800 text-left">Childcare provider</p>
-                  <p className="text-xs text-gray-400 text-left">Lets them log childcare hours</p>
-                </div>
-                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${(family?.config?.childcare_members ?? []).includes(m.user_id) ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${(family?.config?.childcare_members ?? []).includes(m.user_id) ? 'translate-x-5' : 'translate-x-0'}`} />
-                </div>
-              </button>
-            )}
+            {isParent && m.role === 'third_party' && (() => {
+              const isCarerOn = (family?.config?.childcare_members ?? []).includes(m.user_id)
+              const rateVal   = rateInputs[m.user_id] ?? ''
+              return (
+                <>
+                  <button
+                    onClick={() => toggleChildcare(m.user_id)}
+                    disabled={togglingChildcare === m.user_id}
+                    className={`w-full flex items-center justify-between py-2 px-1 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 ${togglingChildcare === m.user_id ? 'opacity-50' : ''}`}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 text-left">Childcare provider</p>
+                      <p className="text-xs text-gray-400 text-left">Lets them log childcare hours</p>
+                    </div>
+                    <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${isCarerOn ? 'bg-canopy-mid' : 'bg-gray-300'}`}>
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isCarerOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </button>
+
+                  {isCarerOn && (
+                    <div className="px-1 pb-1 space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Hourly rate</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">£</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.50"
+                            value={rateVal}
+                            onChange={(e) => setRateInputs((prev) => ({ ...prev, [m.user_id]: e.target.value }))}
+                            placeholder="e.g. 12.50"
+                            className="w-full border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
+                          />
+                        </div>
+                        <button
+                          onClick={() => saveRate(m.user_id)}
+                          disabled={rateSaving === m.user_id || !rateVal}
+                          className="shrink-0 px-4 py-2 rounded-xl bg-canopy-mid text-white text-sm font-semibold hover:bg-canopy-deep disabled:opacity-40 transition-colors"
+                        >
+                          {rateSaved === m.user_id ? '✓' : rateSaving === m.user_id ? '…' : 'Save'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400">Used to calculate total wages in the childcare summary.</p>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         ))}
       </section>

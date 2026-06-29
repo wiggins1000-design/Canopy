@@ -140,13 +140,45 @@ export default function ChildcarePage() {
   const summaryLogs = (() => {
     if (!periodFrom || !periodTo) return []
     const filtered = logs.filter((l) => l.log_date >= periodFrom && l.log_date <= periodTo)
-    // Childcare member sees own logs only; parents see all
     return isParent ? filtered : filtered.filter((l) => l.logged_by === member?.user_id)
   })()
 
+  const rates = family?.config?.childcare_rates ?? {}
+
+  // Per-carer breakdown: [ { carerId, carerName, rate, paHours, pbHours, totalHours, paWages, pbWages, totalWages, hasRate } ]
+  const carerIds = [...new Set(summaryLogs.map((l) => l.logged_by))]
+  const carerBreakdown = carerIds.map((carerId) => {
+    const carerLogs = summaryLogs.filter((l) => l.logged_by === carerId)
+    const paHours   = carerLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal), 0)
+    const pbHours   = carerLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal), 0)
+    const totalHrs  = paHours + pbHours
+    const ratePence = rates[carerId] ?? 0
+    const hasRate   = ratePence > 0
+    return {
+      carerId,
+      carerName:  members.find((m) => m.user_id === carerId)?.display_name ?? 'Unknown',
+      rate:        ratePence,
+      paHours, pbHours,
+      totalHours: totalHrs,
+      paWages:    hasRate ? (paHours  * ratePence / 100) : null,
+      pbWages:    hasRate ? (pbHours  * ratePence / 100) : null,
+      totalWages: hasRate ? (totalHrs * ratePence / 100) : null,
+      hasRate,
+    }
+  })
+
+  const grandTotalHours = carerBreakdown.reduce((s, c) => s + c.totalHours, 0)
+  const grandTotalWages = carerBreakdown.every((c) => c.hasRate)
+    ? carerBreakdown.reduce((s, c) => s + (c.totalWages ?? 0), 0)
+    : null
+
+  // Overall per-parent totals (for the top cards)
   const paHours    = summaryLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal), 0)
   const pbHours    = summaryLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal), 0)
-  const totalHours = paHours + pbHours
+  const paWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.paWages ?? 0), 0) : null
+  const pbWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.pbWages ?? 0), 0) : null
+
+  function fmt(pounds) { return `£${pounds.toFixed(2)}` }
 
   function memberName(userId) {
     return members.find((m) => m.user_id === userId)?.display_name ?? 'Unknown'
@@ -376,38 +408,86 @@ export default function ChildcarePage() {
 
           {summaryLogs.length > 0 ? (
             <>
-              {/* Totals */}
+              {/* Per-parent totals */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
                   <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{paName}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(paHours)}</p>
+                  {paWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(paWages)}</p>}
                 </div>
                 <div className="bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
                   <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{pbName}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(pbHours)}</p>
+                  {pbWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(pbWages)}</p>}
                 </div>
               </div>
               <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-700">Total</p>
-                <p className="text-lg font-bold text-canopy-mid">{formatHours(totalHours)}</p>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-canopy-mid">{formatHours(grandTotalHours)}</p>
+                  {grandTotalWages !== null && <p className="text-sm font-semibold text-gray-600">{fmt(grandTotalWages)}</p>}
+                </div>
               </div>
+
+              {/* Per-carer breakdown (shown when multiple carers or when a rate is set) */}
+              {(carerBreakdown.length > 1 || carerBreakdown.some((c) => c.hasRate)) && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By carer</p>
+                  {carerBreakdown.map((c) => (
+                    <div key={c.carerId} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">{c.carerName}</p>
+                        {c.hasRate
+                          ? <span className="text-xs text-gray-500">{fmt(c.rate / 100)}/hr</span>
+                          : <span className="text-xs text-amber-600">No rate set</span>
+                        }
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-gray-50 rounded-xl px-3 py-2">
+                          <p className="font-semibold text-gray-500 truncate">{paName}</p>
+                          <p className="font-bold text-gray-800 mt-0.5">{formatHours(c.paHours)}</p>
+                          {c.paWages !== null && <p className="text-canopy-mid font-semibold">{fmt(c.paWages)}</p>}
+                        </div>
+                        <div className="bg-gray-50 rounded-xl px-3 py-2">
+                          <p className="font-semibold text-gray-500 truncate">{pbName}</p>
+                          <p className="font-bold text-gray-800 mt-0.5">{formatHours(c.pbHours)}</p>
+                          {c.pbWages !== null && <p className="text-canopy-mid font-semibold">{fmt(c.pbWages)}</p>}
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs pt-1 border-t border-gray-100">
+                        <span className="text-gray-500">Total</span>
+                        <span className="font-bold text-gray-800">
+                          {formatHours(c.totalHours)}{c.totalWages !== null ? ` = ${fmt(c.totalWages)}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Log entries */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Entries</p>
-                {summaryLogs.map((log) => (
-                  <div key={log.id} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">{formatLogDate(log.log_date)}</p>
-                      <span className="text-sm font-bold text-canopy-mid">{formatHours(log.hours_decimal)}</span>
+                {summaryLogs.map((log) => {
+                  const ratePence = rates[log.logged_by] ?? 0
+                  const wages = ratePence > 0 ? (Number(log.hours_decimal) * ratePence / 100) : null
+                  return (
+                    <div key={log.id} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900">{formatLogDate(log.log_date)}</p>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-canopy-mid">{formatHours(log.hours_decimal)}</span>
+                          {wages !== null && <p className="text-xs text-gray-600 font-semibold">{fmt(wages)}</p>}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {isParent && <>{memberName(log.logged_by)} · </>}
+                        {log.paying_parent === 'parent_a' ? paName : pbName} paying
+                        {log.notes ? ` · ${log.notes}` : ''}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {isParent && <>{memberName(log.logged_by)} · </>}
-                      {log.paying_parent === 'parent_a' ? paName : pbName} paying
-                      {log.notes ? ` · ${log.notes}` : ''}
-                    </p>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           ) : (
