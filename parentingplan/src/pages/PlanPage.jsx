@@ -204,6 +204,7 @@ function blank() {
     jointDecisions: ['school', 'relocation', 'medical', 'travel', 'medication'],
     dailyRules: '',
     disputeProcess: 'mediation',
+    disputeProcessOther: '',
     reviewFrequency: 'annually',
   }
 }
@@ -372,8 +373,8 @@ function Step1({ data, set }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Your name" value={data.parent1} onChange={v => set('parent1', v)} placeholder="e.g. Chris" />
-        <Field label="Other parent's name" value={data.parent2} onChange={v => set('parent2', v)} placeholder="e.g. Kate" />
+        <Field label="Your name" value={data.parent1} onChange={v => set('parent1', v)} placeholder="e.g. Alex" />
+        <Field label="Other parent's name" value={data.parent2} onChange={v => set('parent2', v)} placeholder="e.g. Jordan" />
       </div>
 
       <div className="space-y-3">
@@ -387,7 +388,7 @@ function Step1({ data, set }) {
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Full name" value={c.name} onChange={v => setChild(i, 'name', v)} placeholder="e.g. Isabelle" />
+              <Field label="Full name" value={c.name} onChange={v => setChild(i, 'name', v)} placeholder="e.g. Mia" />
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Date of birth</label>
                 <input
@@ -684,7 +685,7 @@ function Step4({ data, set, p1, p2, t, locale }) {
           value={data.fixedOccasions}
           onChange={v => set('fixedOccasions', v)}
           rows={3}
-          placeholder="e.g. Mother's Day with Kate, Father's Day with Chris, Eid with..."
+          placeholder="e.g. Mother's Day with Parent A, Father's Day with Parent B, Eid with..."
         />
       </Card>
 
@@ -898,7 +899,7 @@ function Step7({ data, set, t }) {
           value={data.routineHealth}
           onChange={v => set('routineHealth', v)}
           rows={2}
-          placeholder="e.g. Kate takes the lead on arranging appointments but Chris is happy to attend or cover during school holidays."
+          placeholder="e.g. Both parents listed as contacts. One parent takes the lead on arranging appointments; the other is copied in and may attend."
         />
         <Prose label="If a child needs non-emergency medical treatment during one parent's time, what must happen before proceeding?" value={data.nonEmergency} onChange={v => set('nonEmergency', v)} rows={3} placeholder="e.g. Inform the other parent and discuss before agreeing to treatment. If the other parent cannot be reached within 4 hours, the resident parent may proceed." />
         <Prose label="In a medical emergency, what is the process for informing the other parent?" value={data.medicalEmergency} onChange={v => set('medicalEmergency', v)} rows={2} placeholder="e.g. Call as soon as the child is in safe hands. Share hospital name, condition, and next steps." />
@@ -987,8 +988,8 @@ function Step8({ data, set, t, p1, p2, locale }) {
       </Card>
 
       <Card title="Money">
-        <Prose label="How are day-to-day costs handled when the children are with each parent?" value={data.dayCosts} onChange={v => set('dayCosts', v)} rows={3} placeholder="e.g. Each parent covers food, activities and incidentals during their own time. Kate contributes a larger share of shared costs while her income is higher." />
-        <Prose label="How are larger shared costs handled — school trips, sports equipment, medical costs?" value={data.bigCosts} onChange={v => set('bigCosts', v)} rows={3} placeholder="e.g. Agreed case by case, split proportionally based on income. Current split: Kate 66%, Chris 33%." />
+        <Prose label="How are day-to-day costs handled when the children are with each parent?" value={data.dayCosts} onChange={v => set('dayCosts', v)} rows={3} placeholder="e.g. Each parent covers food, activities and incidentals during their own time." />
+        <Prose label="How are larger shared costs handled — school trips, sports equipment, medical costs?" value={data.bigCosts} onChange={v => set('bigCosts', v)} rows={3} placeholder="e.g. Agreed case by case, split proportionally based on income." />
         <Prose label="What happens if one parent's financial situation changes significantly?" value={data.financialChange} onChange={v => set('financialChange', v)} rows={2} placeholder="e.g. The contribution split should be reviewed and agreed between both parents." />
         {locale === 'en-us' && (
           <Prose
@@ -1011,8 +1012,12 @@ function Step8({ data, set, t, p1, p2, locale }) {
             { value: 'conversation', label: 'A direct conversation with a set deadline to reach agreement' },
             { value: 'mediation', label: 'Mediation' },
             { value: 'legal', label: 'Legal advice' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.disputeProcess === 'other' && (
+          <Prose label="Please describe the process" value={data.disputeProcessOther} onChange={v => set('disputeProcessOther', v)} rows={2} />
+        )}
         <RadioGroup
           label="How often will you review this plan together?"
           name="reviewFrequency"
@@ -1308,7 +1313,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
           {data.financialChange && <PlanRow label="Change in finances" value={data.financialChange} />}
           {locale === 'en-us' && data.taxDependency && <PlanRow label="Tax dependency" value={data.taxDependency} />}
           {data.disputeProcess && <PlanRow label="First step if we disagree" value={{
-            conversation: 'Direct conversation with a set deadline', mediation: 'Mediation', legal: 'Legal advice',
+            conversation: 'Direct conversation with a set deadline', mediation: 'Mediation', legal: 'Legal advice', other: data.disputeProcessOther,
           }[data.disputeProcess]} />}
           {data.reviewFrequency && <PlanRow label="Plan review" value={{
             every_6_months: 'Every 6 months', annually: 'Every year', on_change: "When the children's circumstances change",
