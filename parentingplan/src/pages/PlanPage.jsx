@@ -145,8 +145,11 @@ function blank() {
     handoverOther: '',
     handoverLate: '',
     holidaySplit: 'equal',
+    holidaySplitOther: '',
     maxDays: '7',
+    maxDaysOther: '',
     noticeWeeks: '4',
+    noticeWeeksOther: '',
     christmas: 'split_a_morning',
     christmasTime: '14:00',
     birthdays: 'separate',
@@ -566,8 +569,12 @@ function Step3({ data, set, t }) {
             { value: 'equal', label: 'Split equally between both parents' },
             { value: 'term_pattern', label: t.termTimeOption },
             { value: 'agreed_annually', label: 'Agreed separately each school year' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.holidaySplit === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.holidaySplitOther} onChange={v => set('holidaySplitOther', v)} rows={2} />
+        )}
         <RadioGroup
           label={`Maximum consecutive days with one parent during ${t.schoolHolidays} (without specific agreement)`}
           name="maxDays"
@@ -577,8 +584,12 @@ function Step3({ data, set, t }) {
             { value: '7', label: '7 days' },
             { value: '14', label: '14 days' },
             { value: 'no_limit', label: 'No set limit — agreed case by case' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.maxDays === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.maxDaysOther} onChange={v => set('maxDaysOther', v)} rows={2} />
+        )}
         <RadioGroup
           label="How far in advance do holiday plans need to be agreed?"
           name="noticeWeeks"
@@ -589,8 +600,12 @@ function Step3({ data, set, t }) {
             { value: '4', label: '4 weeks' },
             { value: '6', label: '6 weeks' },
             { value: '8', label: '8 weeks or more' },
+            { value: 'other', label: 'Something else' },
           ]}
         />
+        {data.noticeWeeks === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.noticeWeeksOther} onChange={v => set('noticeWeeksOther', v)} rows={2} />
+        )}
       </Card>
     </div>
   )
@@ -1115,9 +1130,9 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
           school: 'At school', parent_a_home: "At one parent's home", neutral: 'Neutral location', other: data.handoverOther,
         }[data.handoverLocation]} />}
         {data.handoverLate && <PlanRow label="If a handover is delayed" value={data.handoverLate} />}
-        {data.holidaySplit && <PlanRow label={`${cap(t.schoolHolidays)} split`} value={HOLIDAY_SPLIT_LABELS[data.holidaySplit]} />}
-        {data.maxDays && <PlanRow label="Maximum consecutive days" value={data.maxDays === 'no_limit' ? 'No set limit — agreed case by case' : `${data.maxDays} days`} />}
-        {data.noticeWeeks && <PlanRow label="Holiday notice required" value={`${data.noticeWeeks} weeks`} />}
+        {data.holidaySplit && <PlanRow label={`${cap(t.schoolHolidays)} split`} value={data.holidaySplit === 'other' ? data.holidaySplitOther : HOLIDAY_SPLIT_LABELS[data.holidaySplit]} />}
+        {data.maxDays && <PlanRow label="Maximum consecutive days" value={data.maxDays === 'no_limit' ? 'No set limit — agreed case by case' : data.maxDays === 'other' ? data.maxDaysOther : `${data.maxDays} days`} />}
+        {data.noticeWeeks && <PlanRow label="Holiday notice required" value={data.noticeWeeks === 'other' ? data.noticeWeeksOther : `${data.noticeWeeks} weeks`} />}
       </PlanSection>
 
       <PlanSection title="4. Special occasions and travel">
