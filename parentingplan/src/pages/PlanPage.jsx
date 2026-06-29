@@ -37,6 +37,16 @@ const LOCALES = [
   { key: 'other', label: 'Other',           flag: '🌍' },
 ]
 
+const JOINT_DECISION_INFO = {
+  'en-gb': 'Under the Children Act 1989, both parents with parental responsibility must agree on major decisions affecting a child. Where agreement cannot be reached, either parent can apply to the court for a Specific Issue Order or Prohibited Steps Order. This is general information only and not legal advice.',
+  'en-sc': 'Under the Children (Scotland) Act 1995, both parents with parental rights and responsibilities must agree on major decisions affecting a child. Where agreement cannot be reached, either parent can apply to the court for a specific issue order. This is general information only and not legal advice.',
+  'en-ie': 'Under the Guardianship of Infants Act 1964 (as amended), guardians must agree on major decisions affecting a child. Where agreement cannot be reached, either guardian can apply to the District Court for direction. This is general information only and not legal advice.',
+  'en-au': 'Under the Family Law Act 1975, parents with equal shared parental responsibility must make a genuine effort to reach a joint decision on major long-term issues before applying to a court, which can make parenting orders where agreement cannot be reached. This is general information only and not legal advice.',
+  'en-ca': 'Under the Divorce Act 2021, parents with joint decision-making responsibility must consult each other and make a genuine effort to agree on major decisions affecting a child. Where agreement cannot be reached, either parent can apply to the court for a parenting order. Provincial family law may also apply. This is general information only and not legal advice.',
+  'en-us': 'Where a court order provides for joint legal custody, both parents must generally agree on major decisions affecting a child. However, custody arrangements in the United States vary significantly by state and by individual court order — this statement may not reflect your situation. Your existing custody order takes precedence over anything in this plan. This is general information only and not legal advice. You should seek independent legal advice in your state to understand your specific rights and obligations.',
+  'other':  'In most jurisdictions, both parents with parental rights must agree on major decisions affecting their children. Where agreement cannot be reached, a court can make an order allocating decision-making authority. Laws vary by jurisdiction and change over time. This is general information only — seek local legal advice to understand your specific rights and obligations.',
+}
+
 const TERMS = {
   'en-gb': {
     schoolHolidays: 'school holidays',
@@ -920,6 +930,7 @@ function Step7({ data, set, t }) {
 // ── Step 8: Decisions & money ─────────────────────────────────────────────
 
 function Step8({ data, set, t, p1, p2, locale }) {
+  const [showLawInfo, setShowLawInfo] = useState(false)
   const jointOptions = [
     { value: 'school',      label: `Choice of ${t.schoolNursery}` },
     { value: 'relocation',  label: 'Moving to a different area or country' },
@@ -934,7 +945,20 @@ function Step8({ data, set, t, p1, p2, locale }) {
     <div className="space-y-6">
       <Card title="Making decisions together">
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-gray-500">Which of the following require both parents to agree before a decision is made?</label>
+          <div className="flex items-center gap-2">
+            <label className="block text-xs font-medium text-gray-500">Which of the following require both parents to agree before a decision is made?</label>
+            <button
+              type="button"
+              onClick={() => setShowLawInfo(v => !v)}
+              className="shrink-0 w-4 h-4 rounded-full border border-[#52b788] text-[#52b788] text-[10px] font-bold leading-none flex items-center justify-center hover:bg-[#d8f3dc] transition-colors"
+              title="What does the law say about this?"
+            >i</button>
+          </div>
+          {showLawInfo && (
+            <div className="rounded-xl border border-[#d8f3dc] bg-[#f4fbf4] px-3 py-2.5 text-xs text-[#2d6a4f] leading-relaxed">
+              {JOINT_DECISION_INFO[locale] ?? JOINT_DECISION_INFO['other']}
+            </div>
+          )}
           {jointOptions.map(o => (
             <label key={o.value} className="flex items-center gap-2 cursor-pointer">
               <input
