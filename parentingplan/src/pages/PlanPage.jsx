@@ -232,6 +232,16 @@ export default function PlanPage({ planId, planSaving }) {
 
   function set(field, value) { setData(p => ({ ...p, [field]: value })) }
 
+  function changeLocale(newLocale) {
+    const hasUsAnswers = locale === 'en-us' && newLocale !== 'en-us' &&
+      (data.legalCustody || data.domesticTravel || data.taxDependency)
+    if (hasUsAnswers && !window.confirm(
+      "You've answered some US-specific questions (legal custody, domestic travel, tax dependency). " +
+      "These won't appear in your plan if you switch away from United States. Your answers are kept and will reappear if you switch back. Continue?"
+    )) return
+    setLocale(newLocale)
+  }
+
   function go(n) {
     setStep(n)
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -286,7 +296,7 @@ export default function PlanPage({ planId, planSaving }) {
                     {LOCALES.map(l => (
                       <button
                         key={l.key}
-                        onClick={() => { setLocale(l.key); setLocaleOpen(false) }}
+                        onClick={() => { changeLocale(l.key); setLocaleOpen(false) }}
                         className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${locale === l.key ? 'text-[#1b4332] font-semibold' : 'text-gray-700'}`}
                       >
                         {l.label}
