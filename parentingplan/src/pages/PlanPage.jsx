@@ -182,6 +182,12 @@ function blank() {
     nonEmergency: '',
     medicalEmergency: '',
     newPartners: '',
+    religiousUpbringing: '',
+    relocation: '',
+    legalCustody: '',
+    domesticTravel: '',
+    domesticTravelOther: '',
+    taxDependency: '',
     dayCosts: '',
     bigCosts: '',
     financialChange: '',
@@ -311,11 +317,11 @@ export default function PlanPage({ planId, planSaving }) {
         {step === 1 && <Step1 data={data} set={set} />}
         {step === 2 && <Step2 data={data} set={set} p1={p1} p2={p2} />}
         {step === 3 && <Step3 data={data} set={set} t={t} />}
-        {step === 4 && <Step4 data={data} set={set} p1={p1} p2={p2} t={t} />}
+        {step === 4 && <Step4 data={data} set={set} p1={p1} p2={p2} t={t} locale={locale} />}
         {step === 5 && <Step5 data={data} set={set} />}
         {step === 6 && <Step6 data={data} set={set} />}
         {step === 7 && <Step7 data={data} set={set} t={t} />}
-        {step === 8 && <Step8 data={data} set={set} t={t} />}
+        {step === 8 && <Step8 data={data} set={set} t={t} p1={p1} p2={p2} locale={locale} />}
         {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} isCollaborator={isCollaborator} p1OriginalName={p1OriginalName} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
 
         {step < TOTAL_STEPS && (
@@ -617,7 +623,7 @@ function Step3({ data, set, t }) {
 
 // ── Step 4: Special occasions & travel ────────────────────────────────────
 
-function Step4({ data, set, p1, p2, t }) {
+function Step4({ data, set, p1, p2, t, locale }) {
   const infoOptions = [
     { value: 'destination', label: 'Destination' },
     { value: 'itinerary', label: 'Itinerary' },
@@ -732,6 +738,24 @@ function Step4({ data, set, p1, p2, t }) {
           rows={2}
           placeholder="e.g. Written consent required for countries outside the EU. No travel during term time without agreement."
         />
+        {locale === 'en-us' && (
+          <RadioGroup
+            label="Does either parent need to notify the other before travelling domestically with the children?"
+            name="domesticTravel"
+            value={data.domesticTravel}
+            onChange={v => set('domesticTravel', v)}
+            options={[
+              { value: 'no_notice', label: 'No notice required for domestic travel' },
+              { value: '100_miles', label: 'Notice required for trips over 100 miles' },
+              { value: '150_miles', label: 'Notice required for trips over 150 miles' },
+              { value: '200_miles', label: 'Notice required for trips over 200 miles' },
+              { value: 'other', label: 'Something else' },
+            ]}
+          />
+        )}
+        {locale === 'en-us' && data.domesticTravel === 'other' && (
+          <Prose label="Please describe the arrangement" value={data.domesticTravelOther} onChange={v => set('domesticTravelOther', v)} rows={2} />
+        )}
         <RadioGroup
           label="Who holds the children's passports?"
           name="passports"
@@ -863,6 +887,13 @@ function Step7({ data, set, t }) {
           <p className="text-xs text-[#52b788]">★ The AI review will flag if this section is left vague — it's one of the most common sources of future disagreement.</p>
         )}
         <Prose
+          label="Have you agreed an approach to religious or cultural upbringing?"
+          value={data.religiousUpbringing}
+          onChange={v => set('religiousUpbringing', v)}
+          rows={2}
+          placeholder="e.g. The children will be raised without formal religious instruction. Both parents may share their own beliefs. Major celebrations from both backgrounds will be observed."
+        />
+        <Prose
           label={`How will both parents stay informed about school events, reports and ${t.parentsEvening}?`}
           value={data.schoolInfo}
           onChange={v => set('schoolInfo', v)}
@@ -888,7 +919,7 @@ function Step7({ data, set, t }) {
 
 // ── Step 8: Decisions & money ─────────────────────────────────────────────
 
-function Step8({ data, set, t }) {
+function Step8({ data, set, t, p1, p2, locale }) {
   const jointOptions = [
     { value: 'school',      label: `Choice of ${t.schoolNursery}` },
     { value: 'relocation',  label: 'Moving to a different area or country' },
@@ -922,7 +953,30 @@ function Step8({ data, set, t }) {
           ))}
         </div>
         <Prose label="For day-to-day decisions — diet, bedtime, activities — does each parent set their own rules, or is there a joint approach?" value={data.dailyRules} onChange={v => set('dailyRules', v)} rows={3} placeholder="e.g. Each parent sets their own house rules. We aim to be broadly consistent on bedtime and diet but don't need to agree on everything." />
+        <Prose
+          label="If either parent wants to move home, what notice is required and does the other parent need to agree?"
+          value={data.relocation}
+          onChange={v => set('relocation', v)}
+          rows={2}
+          placeholder="e.g. 3 months' written notice required for any move that would significantly affect contact. Both parents must agree on any move abroad or more than 50 miles away."
+        />
       </Card>
+
+      {locale === 'en-us' && (
+        <Card title="Legal custody">
+          <RadioGroup
+            label="What type of legal custody are you agreeing to?"
+            name="legalCustody"
+            value={data.legalCustody}
+            onChange={v => set('legalCustody', v)}
+            options={[
+              { value: 'joint', label: `Joint legal custody — ${p1} and ${p2} share decision-making` },
+              { value: `sole_p1`, label: `Sole legal custody — ${p1} makes major decisions` },
+              { value: `sole_p2`, label: `Sole legal custody — ${p2} makes major decisions` },
+            ]}
+          />
+        </Card>
+      )}
 
       <Card title="New partners">
         <Prose label="What is your agreed approach to introducing new partners to the children?" value={data.newPartners} onChange={v => set('newPartners', v)} rows={4} placeholder="e.g. Both parents to be informed before a new partner meets the children. Introduction should be gradual — initially as a friend. A new partner should not stay overnight until they have known the children for at least..." />
@@ -932,6 +986,15 @@ function Step8({ data, set, t }) {
         <Prose label="How are day-to-day costs handled when the children are with each parent?" value={data.dayCosts} onChange={v => set('dayCosts', v)} rows={3} placeholder="e.g. Each parent covers food, activities and incidentals during their own time. Kate contributes a larger share of shared costs while her income is higher." />
         <Prose label="How are larger shared costs handled — school trips, sports equipment, medical costs?" value={data.bigCosts} onChange={v => set('bigCosts', v)} rows={3} placeholder="e.g. Agreed case by case, split proportionally based on income. Current split: Kate 66%, Chris 33%." />
         <Prose label="What happens if one parent's financial situation changes significantly?" value={data.financialChange} onChange={v => set('financialChange', v)} rows={2} placeholder="e.g. The contribution split should be reviewed and agreed between both parents." />
+        {locale === 'en-us' && (
+          <Prose
+            label="Who will claim the children as tax dependants each year?"
+            value={data.taxDependency}
+            onChange={v => set('taxDependency', v)}
+            rows={2}
+            placeholder="e.g. Parents alternate annually — odd years: Alex, even years: Jordan. Either parent may claim in any year the other waives their right in writing."
+          />
+        )}
       </Card>
 
       <Card title="When you disagree">
@@ -1180,6 +1243,11 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         }[v])).join(', ')} />}
         {data.abroadRequirements && <PlanRow label="Other travel requirements" value={data.abroadRequirements} />}
         {data.passports && <PlanRow label="Passports held by" value={{ both: 'Each parent holds their own / stored separately', last_used: 'Whoever last used them' }[data.passports] ?? data.passports} />}
+        {locale === 'en-us' && data.domesticTravel && <PlanRow label="Domestic travel" value={{
+          no_notice: 'No notice required', '100_miles': 'Notice required for trips over 100 miles',
+          '150_miles': 'Notice required for trips over 150 miles', '200_miles': 'Notice required for trips over 200 miles',
+          other: data.domesticTravelOther,
+        }[data.domesticTravel]} />}
       </PlanSection>
 
       {(data.screenTime || data.socialMedia || data.restrictedApps || data.devicesPolicy || data.childContact || data.contactRestrictions || data.parentChannel) && (
@@ -1211,9 +1279,10 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         </PlanSection>
       )}
 
-      {(data.educationDisputes || data.schoolInfo || data.routineHealth || data.nonEmergency || data.medicalEmergency) && (
+      {(data.educationDisputes || data.schoolInfo || data.religiousUpbringing || data.routineHealth || data.nonEmergency || data.medicalEmergency) && (
         <PlanSection title="7. Education and health">
           {data.educationDisputes && <PlanRow label="Education disagreements" value={data.educationDisputes} />}
+          {data.religiousUpbringing && <PlanRow label="Religious / cultural upbringing" value={data.religiousUpbringing} />}
           {data.schoolInfo && <PlanRow label="School communication" value={data.schoolInfo} />}
           {data.routineHealth && <PlanRow label="Routine health appointments" value={data.routineHealth} />}
           {data.nonEmergency && <PlanRow label="Non-emergency treatment" value={data.nonEmergency} />}
@@ -1221,14 +1290,21 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         </PlanSection>
       )}
 
-      {(data.jointDecisions.length > 0 || data.dailyRules || data.newPartners || data.dayCosts || data.bigCosts || data.financialChange || data.disputeProcess || data.reviewFrequency) && (
+      {(data.jointDecisions.length > 0 || data.dailyRules || data.relocation || data.legalCustody || data.newPartners || data.dayCosts || data.bigCosts || data.financialChange || data.taxDependency || data.disputeProcess || data.reviewFrequency) && (
         <PlanSection title="8. Decisions, money and disagreements">
+          {locale === 'en-us' && data.legalCustody && <PlanRow label="Legal custody" value={{
+            joint: `Joint legal custody — ${p1} and ${p2} share decision-making`,
+            sole_p1: `Sole legal custody — ${p1} makes major decisions`,
+            sole_p2: `Sole legal custody — ${p2} makes major decisions`,
+          }[data.legalCustody]} />}
           {data.jointDecisions.length > 0 && <PlanRow label="Decisions requiring joint agreement" value={data.jointDecisions.map(v => JOINT_LABELS[v]).join(', ')} />}
           {data.dailyRules && <PlanRow label="Day-to-day decisions" value={data.dailyRules} />}
+          {data.relocation && <PlanRow label="Relocation" value={data.relocation} />}
           {data.newPartners && <PlanRow label="New partners" value={data.newPartners} />}
           {data.dayCosts && <PlanRow label="Day-to-day costs" value={data.dayCosts} />}
           {data.bigCosts && <PlanRow label="Larger shared costs" value={data.bigCosts} />}
           {data.financialChange && <PlanRow label="Change in finances" value={data.financialChange} />}
+          {locale === 'en-us' && data.taxDependency && <PlanRow label="Tax dependency" value={data.taxDependency} />}
           {data.disputeProcess && <PlanRow label="First step if we disagree" value={{
             conversation: 'Direct conversation with a set deadline', mediation: 'Mediation', legal: 'Legal advice',
           }[data.disputeProcess]} />}
