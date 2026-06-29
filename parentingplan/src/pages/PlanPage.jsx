@@ -6,7 +6,6 @@ import { buildPresetPattern, PATTERN_LABELS } from '../lib/scheduleEngine'
 import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import PlanAmendments from '../components/PlanAmendments'
 import PlanVersionHistory from '../components/PlanVersionHistory'
 import PlanPaywall from '../components/PlanPaywall'
 
@@ -195,6 +194,13 @@ export default function PlanPage({ planId, planSaving }) {
   const [localeOpen, setLocaleOpen] = useState(false)
   const topRef = useRef(null)
 
+  const [isCollaborator] = useState(() => {
+    try { return localStorage.getItem('pp_role') === 'collaborator' } catch { return false }
+  })
+  const [p1OriginalName] = useState(() => {
+    try { return localStorage.getItem('pp_p1_name') || '' } catch { return '' }
+  })
+
   const t = TERMS[locale] ?? TERMS['en-gb']
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
@@ -287,6 +293,14 @@ export default function PlanPage({ planId, planSaving }) {
           </div>
         )}
 
+        {step < TOTAL_STEPS && isCollaborator && (
+          <div className="bg-[#d8f3dc] rounded-xl px-4 py-3">
+            <p className="text-xs text-[#1b4332]">
+              You're reviewing {p1OriginalName || p1}'s proposals — go through each step and update anything you'd like to change.
+            </p>
+          </div>
+        )}
+
         {step === 1 && <Step1 data={data} set={set} />}
         {step === 2 && <Step2 data={data} set={set} p1={p1} p2={p2} />}
         {step === 3 && <Step3 data={data} set={set} t={t} />}
@@ -295,7 +309,7 @@ export default function PlanPage({ planId, planSaving }) {
         {step === 6 && <Step6 data={data} set={set} />}
         {step === 7 && <Step7 data={data} set={set} t={t} />}
         {step === 8 && <Step8 data={data} set={set} t={t} />}
-        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
+        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} isCollaborator={isCollaborator} p1OriginalName={p1OriginalName} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
 
         {step < TOTAL_STEPS && (
           <div className="flex gap-3 pt-2">
@@ -1035,7 +1049,7 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
   )
 }
 
-function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
+function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1OriginalName, onRestart }) {
   const children = data.children.filter(c => c.name)
 
   const JOINT_LABELS = {
@@ -1187,9 +1201,11 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
           Print / save as PDF
         </button>
 
-        <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} planId={planId} planSaving={planSaving} />
+        {isCollaborator
+          ? <SubmitDraft planId={planId} planData={data} p1Name={p1OriginalName || p1} p2Name={p2} />
+          : <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} planId={planId} planSaving={planSaving} />
+        }
 
-        {planId && <PlanAmendments planId={planId} planData={data} />}
         {planId && <PlanVersionHistory planId={planId} currentPlanData={data} />}
 
         <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
@@ -1207,6 +1223,75 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
           Start a new plan
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── Submit draft (collaborator flow) ─────────────────────────────────────
+
+function SubmitDraft({ planId, planData, p1Name, p2Name }) {
+  const [submitted,  setSubmitted]  = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [draftNum,   setDraftNum]   = useState(null)
+  const [error,      setError]      = useState('')
+
+  useEffect(() => {
+    if (!planId) return
+    supabase
+      .from('pp_versions')
+      .select('version_number')
+      .eq('plan_id', planId)
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .then(({ data }) => setDraftNum((data?.[0]?.version_number ?? 1) + 1))
+  }, [planId])
+
+  async function submit() {
+    if (!planId || !planData) return
+    setSubmitting(true)
+    setError('')
+    const n    = draftNum ?? 2
+    const note = `Draft ${n} — ${p2Name || 'Parent 2'}`
+    const { error: err } = await supabase.rpc('pp_save_version', {
+      p_plan_id:   planId,
+      p_plan_data: planData,
+      p_note:      note,
+    })
+    setSubmitting(false)
+    if (err) { setError('Something went wrong — please try again.'); return }
+    setSubmitted(true)
+  }
+
+  if (!planId) return null
+
+  if (submitted) {
+    return (
+      <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-1.5">
+        <p className="text-sm font-semibold text-[#1b4332]">✓ Your version has been submitted</p>
+        <p className="text-xs text-[#2d6a4f]">
+          Draft {draftNum} is saved. {p1Name} will be able to review your proposals and respond with their own revision.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
+      <div>
+        <p className="text-sm font-semibold text-[#1b4332]">Submit your version</p>
+        <p className="text-xs text-[#2d6a4f] mt-1">
+          This saves your proposals as Draft {draftNum ?? '…'} and notifies {p1Name} that your version is ready to review.
+          They can then revise and send back a new draft.
+        </p>
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <button
+        onClick={submit}
+        disabled={submitting}
+        className="w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors"
+      >
+        {submitting ? 'Submitting…' : `Submit my version →`}
+      </button>
     </div>
   )
 }

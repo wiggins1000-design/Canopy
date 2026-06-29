@@ -31,12 +31,18 @@ export function usePlanSave() {
       p_p1_name:   data.parent1 || 'Parent 1',
       p_p2_name:   data.parent2 || 'Parent 2',
       p_plan_data: data,
-    }).then(({ data: id, error }) => {
+    }).then(async ({ data: id, error }) => {
       setSaving(false)
       if (error) { console.error('pp_save_plan failed', error); return }
       localStorage.setItem(PLAN_ID_KEY, id)
       localStorage.removeItem(PENDING_KEY)
       setPlanId(id)
+      // Auto-save Draft 1 so collaborators can see the baseline
+      await supabase.rpc('pp_save_version', {
+        p_plan_id:   id,
+        p_plan_data: data,
+        p_note:      `Draft 1 — ${data.parent1 || 'Parent 1'}`,
+      })
     })
   }, [user, planId])
 

@@ -68,8 +68,8 @@ export default function PlanVersionHistory({ planId, currentPlanData }) {
           <svg className="w-4 h-4 text-[#52b788] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-sm font-semibold text-[#1b4332]">Version history</span>
-          <span className="text-xs text-gray-400">{versions.length} snapshot{versions.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm font-semibold text-[#1b4332]">Draft history</span>
+          <span className="text-xs text-gray-400">{versions.length} draft{versions.length !== 1 ? 's' : ''}</span>
         </div>
         <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -80,7 +80,7 @@ export default function PlanVersionHistory({ planId, currentPlanData }) {
         <div className="border-t border-[#d8f3dc]">
           {/* Save new version */}
           <div className="px-4 py-3 space-y-2 bg-[#f4fbf4]">
-            <p className="text-xs text-gray-500">Save a snapshot of the current plan state</p>
+            <p className="text-xs text-gray-500">Save the current state as a named draft</p>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -94,7 +94,7 @@ export default function PlanVersionHistory({ planId, currentPlanData }) {
                 disabled={saving || !currentPlanData}
                 className="shrink-0 px-4 py-2 rounded-xl text-xs font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Saving…' : 'Save snapshot'}
+                {saving ? 'Saving…' : 'Save draft'}
               </button>
             </div>
           </div>
