@@ -7,6 +7,8 @@ import { format } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import PlanAmendments from '../components/PlanAmendments'
+import PlanVersionHistory from '../components/PlanVersionHistory'
+import PlanPaywall from '../components/PlanPaywall'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -1174,42 +1176,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
         </PlanSection>
       )}
 
-      {/* AI Analysis — paywall */}
-      <div className="bg-white border border-[#d8f3dc] rounded-2xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#d8f3dc] bg-[#f4fbf4] flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-[#52b788] flex items-center justify-center shrink-0">
-            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          </div>
-          <h2 className="text-sm font-semibold text-[#1b4332]">AI Plan Review</h2>
-        </div>
-        <div className="px-4 py-5 space-y-4">
-          <p className="text-sm text-gray-600">Get an expert AI review of your plan — identifying gaps, highlighting strengths, and telling you exactly what to add next.</p>
-          <div className="space-y-2">
-            {[
-              'Completeness score for your plan',
-              'Up to 3 gaps most likely to cause future conflict',
-              'What you\'ve done well',
-              'Prioritised next steps',
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-[#52b788] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-xs text-gray-600">{item}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => {/* Stripe — wired up in payments step */}}
-            className="w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white hover:bg-[#2d6a4f] transition-colors"
-          >
-            Unlock 3 AI reviews · £1.99
-          </button>
-          <p className="text-xs text-gray-400 text-center">One-time payment · Use across all your plan revisions</p>
-        </div>
-      </div>
+      <PlanPaywall planId={planId} planData={data} />
 
       {/* Actions */}
       <div className="space-y-3 pt-4">
@@ -1223,6 +1190,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, onRestart }) {
         <SaveAndShare data={data} p1={p1} p2={p2} locale={locale} planId={planId} planSaving={planSaving} />
 
         {planId && <PlanAmendments planId={planId} planData={data} />}
+        {planId && <PlanVersionHistory planId={planId} currentPlanData={data} />}
 
         <div className="bg-[#d8f3dc] rounded-2xl p-5 space-y-3">
           <p className="text-sm font-semibold text-[#1b4332]">Use this schedule in Canopy</p>

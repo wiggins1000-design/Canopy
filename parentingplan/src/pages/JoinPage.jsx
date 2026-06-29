@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import PlanAmendments from '../components/PlanAmendments'
+import PlanVersionHistory from '../components/PlanVersionHistory'
 
 export default function JoinPage() {
   const { user, loading } = useAuth()
@@ -116,6 +117,7 @@ export default function JoinPage() {
               )}
             </div>
             <PlanAmendments planId={planId} planData={plan?.plan_data} />
+            <PlanVersionHistory planId={planId} currentPlanData={plan?.plan_data} />
           </div>
         )}
       </main>
