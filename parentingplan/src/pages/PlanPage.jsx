@@ -170,7 +170,7 @@ function blank() {
     abroadOther: '',
     abroadRequirements: '',
     abroadWeeks: '6',
-    abroadInfo: ['destination', 'accommodation', 'emergency_contact', 'return_details'],
+    abroadInfo: '',
     passports: 'both',
     screenTime: '',
     socialMedia: '',
@@ -260,7 +260,7 @@ export default function PlanPage({ planId, planSaving }) {
       <header className="bg-[#1b4332] px-6 py-4 no-print">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-[#52b788] flex items-center justify-center text-[#1b4332] text-xs font-bold">C</div>
+            <img src="/CanopyWhiteLogo.gif" alt="Canopy" style={{ height: 28 }} />
             <span className="text-white font-semibold text-sm">parentingplan.help</span>
           </div>
           <div className="flex items-center gap-6">
@@ -634,14 +634,6 @@ function Step3({ data, set, t }) {
 // ── Step 4: Special occasions & travel ────────────────────────────────────
 
 function Step4({ data, set, p1, p2, t, locale }) {
-  const infoOptions = [
-    { value: 'destination', label: 'Destination' },
-    { value: 'itinerary', label: 'Itinerary' },
-    { value: 'accommodation', label: 'Accommodation details' },
-    { value: 'emergency_contact', label: 'Emergency contact' },
-    { value: 'return_details', label: 'Return details' },
-  ]
-
   return (
     <div className="space-y-6">
       <Card title="Special occasions">
@@ -722,25 +714,13 @@ function Step4({ data, set, p1, p2, t, locale }) {
             { value: '8', label: '8 weeks' },
           ]}
         />
-        <div className="space-y-2">
-          <label className="block text-xs font-medium text-gray-500">What information should be shared before travelling abroad?</label>
-          {infoOptions.map(o => (
-            <label key={o.value} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={data.abroadInfo.includes(o.value)}
-                onChange={e => {
-                  const next = e.target.checked
-                    ? [...data.abroadInfo, o.value]
-                    : data.abroadInfo.filter(v => v !== o.value)
-                  set('abroadInfo', next)
-                }}
-                className="accent-[#1b4332] rounded"
-              />
-              <span className="text-sm text-gray-700">{o.label}</span>
-            </label>
-          ))}
-        </div>
+        <Prose
+          label="What information should be shared before travelling abroad?"
+          value={typeof data.abroadInfo === 'string' ? data.abroadInfo : ''}
+          onChange={v => set('abroadInfo', v)}
+          rows={2}
+          placeholder="e.g. Destination, accommodation address, emergency contact number, return travel details."
+        />
         <Prose
           label="Any other requirements around travel abroad?"
           value={data.abroadRequirements}
@@ -1262,9 +1242,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         {data.fixedOccasions && <PlanRow label="Other fixed occasions" value={data.fixedOccasions} />}
         {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : data.abroad === 'other' ? data.abroadOther : 'Permitted with notice and trip details shared'} />}
         {data.abroadWeeks && <PlanRow label="Notice for international trips" value={`${data.abroadWeeks} weeks`} />}
-        {data.abroadInfo.length > 0 && <PlanRow label="Information to share" value={data.abroadInfo.map(v => ({
-          destination: 'Destination', itinerary: 'Itinerary', accommodation: 'Accommodation details', emergency_contact: 'Emergency contact', return_details: 'Return details',
-        }[v])).join(', ')} />}
+        {data.abroadInfo && typeof data.abroadInfo === 'string' && <PlanRow label="Information to share" value={data.abroadInfo} />}
         {data.abroadRequirements && <PlanRow label="Other travel requirements" value={data.abroadRequirements} />}
         {data.passports && <PlanRow label="Passports held by" value={{ both: 'Each parent holds their own / stored separately', last_used: 'Whoever last used them' }[data.passports] ?? data.passports} />}
         {locale === 'en-us' && data.domesticTravel && <PlanRow label="Domestic travel" value={{
