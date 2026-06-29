@@ -46,14 +46,25 @@ function monthLabel(yyyyMM) {
     .toLocaleString(undefined, { month: 'long', year: 'numeric' })
 }
 
+function formatHours(h) {
+  const n = Number(h)
+  if (!n) return '0h'
+  const whole = Math.floor(n)
+  const mins  = Math.round((n - whole) * 60)
+  if (mins === 0) return `${whole}h`
+  if (whole === 0) return `${mins}m`
+  return `${whole}h ${mins}m`
+}
+
 export default function ExpensesPage() {
   const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
-  const { family, member, members, isParent } = useFamily()
+  const { family, member, members, isParent, parentA, parentB } = useFamily()
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('outstanding')
   const [showNew, setShowNew] = useState(false)
   const [settling, setSettling] = useState(false)
+  const [childcareLogs, setChildcareLogs] = useState([])
 
   const childcareMembers = family?.config?.childcare_members ?? []
   const isChildcare = childcareMembers.includes(member?.user_id)
@@ -62,6 +73,22 @@ export default function ExpensesPage() {
     ? !!myFeatures.childcare
     : members.some((m) => (m.role === 'parent_a' || m.role === 'parent_b') && !!m.consents?.features?.childcare)
   const showChildcare = childcareEnabled && (isChildcare || (isParent && childcareMembers.length > 0))
+
+  useEffect(() => {
+    if (!showChildcare || !family?.id) return
+    const now  = new Date()
+    const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const to   = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`
+    supabase
+      .from('childcare_logs')
+      .select('*')
+      .eq('family_id', family.id)
+      .gte('log_date', from)
+      .lte('log_date', to)
+      .order('log_date', { ascending: false })
+      .then(({ data }) => setChildcareLogs(data ?? []))
+  }, [showChildcare, family?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSettle() {
     setSettling(true)
@@ -78,29 +105,71 @@ export default function ExpensesPage() {
 
       <h1 className="text-xl font-bold text-gray-900 mb-3">Expenses</h1>
 
-      {/* Childcare hours entry point */}
-      {showChildcare && (
-        <button
-          onClick={() => navigate('/childcare')}
-          className="w-full flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 text-left hover:bg-amber-100 active:scale-[0.99] transition-all"
-        >
-          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="9" />
-              <path strokeLinecap="round" d="M12 7v5l3 3" />
-            </svg>
+      {/* Childcare hours */}
+      {showChildcare && (() => {
+        const paName   = parentA?.display_name ?? 'Parent A'
+        const pbName   = parentB?.display_name ?? 'Parent B'
+        const rates    = family?.config?.childcare_rates ?? {}
+        const paHours  = childcareLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal), 0)
+        const pbHours  = childcareLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal), 0)
+        const allHaveRate = childcareLogs.length > 0 && [...new Set(childcareLogs.map((l) => l.logged_by))].every((id) => (rates[id] ?? 0) > 0)
+        const paWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
+        const pbWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
+        const fmt      = (p) => `£${p.toFixed(2)}`
+
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-amber-900">Childcare hours — this month</p>
+              <button onClick={() => navigate('/childcare')} className="text-xs text-amber-700 hover:underline">
+                {isChildcare ? 'Log hours →' : 'View all →'}
+              </button>
+            </div>
+
+            {childcareLogs.length === 0 ? (
+              <p className="text-xs text-amber-700">No hours logged this month.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white/60 rounded-xl px-3 py-2">
+                    <p className="text-xs font-semibold text-amber-700 truncate">{paName}</p>
+                    <p className="text-lg font-bold text-amber-900">{formatHours(paHours)}</p>
+                    {paWages !== null && <p className="text-xs font-semibold text-amber-700">{fmt(paWages)}</p>}
+                  </div>
+                  <div className="bg-white/60 rounded-xl px-3 py-2">
+                    <p className="text-xs font-semibold text-amber-700 truncate">{pbName}</p>
+                    <p className="text-lg font-bold text-amber-900">{formatHours(pbHours)}</p>
+                    {pbWages !== null && <p className="text-xs font-semibold text-amber-700">{fmt(pbWages)}</p>}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {childcareLogs.slice(0, 5).map((log) => {
+                    const wages = (rates[log.logged_by] ?? 0) > 0
+                      ? Number(log.hours_decimal) * rates[log.logged_by] / 100
+                      : null
+                    const carerName = members.find((m) => m.user_id === log.logged_by)?.display_name
+                    return (
+                      <div key={log.id} className="flex items-center justify-between text-xs">
+                        <span className="text-amber-800">
+                          {new Date(log.log_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {carerName && isParent ? ` · ${carerName}` : ''}
+                          {` · ${log.paying_parent === 'parent_a' ? paName : pbName} paying`}
+                        </span>
+                        <span className="font-semibold text-amber-900 shrink-0 ml-2">
+                          {formatHours(log.hours_decimal)}{wages !== null ? ` = ${fmt(wages)}` : ''}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {childcareLogs.length > 5 && (
+                    <p className="text-xs text-amber-600 text-center pt-1">+{childcareLogs.length - 5} more — <button onClick={() => navigate('/childcare')} className="underline">view all</button></p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-amber-900">Childcare hours</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              {isChildcare ? 'Log your hours and view totals' : 'View hours logged by carers'}
-            </p>
-          </div>
-          <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
+        )
+      })()}
 
       {/* Balance banner */}
       {!loading && (

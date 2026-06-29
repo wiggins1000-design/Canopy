@@ -22,7 +22,6 @@ export default function InvitePage() {
   const [togglingChildcare, setTogglingChildcare] = useState(null)
   const [rateInputs,  setRateInputs]  = useState({})
   const [rateSaving,  setRateSaving]  = useState(null)
-  const [rateSaved,   setRateSaved]   = useState(null)
 
   // Initialise rate inputs from family config
   useEffect(() => {
@@ -46,8 +45,6 @@ export default function InvitePage() {
     const current = family?.config?.childcare_rates ?? {}
     await updateFamilyConfig({ childcare_rates: { ...current, [userId]: pence } })
     setRateSaving(null)
-    setRateSaved(userId)
-    setTimeout(() => setRateSaved((s) => (s === userId ? null : s)), 2000)
   }
 
   const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
@@ -146,8 +143,11 @@ export default function InvitePage() {
 
             {/* Childcare toggle — parents only, third_party members only */}
             {isParent && m.role === 'third_party' && (() => {
-              const isCarerOn = (family?.config?.childcare_members ?? []).includes(m.user_id)
-              const rateVal   = rateInputs[m.user_id] ?? ''
+              const isCarerOn    = (family?.config?.childcare_members ?? []).includes(m.user_id)
+              const rateVal      = rateInputs[m.user_id] ?? ''
+              const storedPence  = family?.config?.childcare_rates?.[m.user_id] ?? 0
+              const currentPence = Math.round(parseFloat(rateVal || '0') * 100)
+              const isDirty      = currentPence !== storedPence
               return (
                 <>
                   <button
@@ -182,10 +182,10 @@ export default function InvitePage() {
                         </div>
                         <button
                           onClick={() => saveRate(m.user_id)}
-                          disabled={rateSaving === m.user_id || !rateVal}
+                          disabled={rateSaving === m.user_id || !isDirty}
                           className="shrink-0 px-4 py-2 rounded-xl bg-canopy-mid text-white text-sm font-semibold hover:bg-canopy-deep disabled:opacity-40 transition-colors"
                         >
-                          {rateSaved === m.user_id ? '✓' : rateSaving === m.user_id ? '…' : 'Save'}
+                          {rateSaving === m.user_id ? '…' : !isDirty ? '✓' : 'Save'}
                         </button>
                       </div>
                       <p className="text-xs text-gray-400">Used to calculate total wages in the childcare summary.</p>
