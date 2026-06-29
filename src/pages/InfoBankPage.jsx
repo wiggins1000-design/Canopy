@@ -44,6 +44,11 @@ export default function InfoBankPage() {
     if (tabs.length > 0 && activeTab === null) setActiveTab(tabs[0])
   }, [tabs.join(',')])
 
+  useEffect(() => {
+    if (!activeTab) return
+    setActiveSection(petNames.has(activeTab) ? 'vet' : activeTab === 'Family' ? 'contacts' : 'school')
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadAll = useCallback(async () => {
     if (!family?.id) return
     const { data } = await supabase.from('info_bank').select('*').eq('family_id', family.id)
@@ -284,9 +289,12 @@ export default function InfoBankPage() {
 
 // ── Shared field components ───────────────────────────────────
 
-function Field({ label, value, onChange, placeholder, readOnly, type = 'text' }) {
+function Field({ label, value, onChange, placeholder, readOnly, type = 'text', updatedAt }) {
   const [copied, setCopied] = useState(false)
   const [fieldError, setFieldError] = useState(null)
+  const updatedLabel = updatedAt
+    ? new Date(updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
 
   const actionHref = value
     ? type === 'tel'   ? `tel:${value.replace(/\s/g, '')}`
@@ -344,6 +352,7 @@ function Field({ label, value, onChange, placeholder, readOnly, type = 'text' })
         )}
       </div>
       {fieldError && <p className="text-xs text-red-600 mt-1">{fieldError}</p>}
+      {updatedLabel && <p className="text-xs text-gray-400 mt-0.5">Updated {updatedLabel}</p>}
     </div>
   )
 }
@@ -891,26 +900,39 @@ function PetMedicalSection({ data, isParent, onSave, updatedAt }) {
 
 // ── Personal ──────────────────────────────────────────────────
 
-function PersonalSection({ data, isParent, onSave, updatedAt }) {
-  const [d, setD] = useState({ dob: '', top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data })
+function PersonalSection({ data, isParent, onSave }) {
+  const defaults = { dob: '', height: '', weight: '', top_size: '', bottom_size: '', shoe_size: '', notes: '' }
+  const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setD({ dob: '', top_size: '', bottom_size: '', shoe_size: '', notes: '', ...data }) }, [JSON.stringify(data)])
+  useEffect(() => { setD({ ...defaults, ...data }) }, [JSON.stringify(data)])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
 
+  const fu = data?._field_updated ?? {}
+
   async function save() {
-    const { error } = await onSave(d)
+    const now = new Date().toISOString()
+    const prev = { ...defaults, ...data }
+    const newFu = { ...fu }
+    for (const k of Object.keys(defaults)) {
+      if (d[k] !== prev[k]) newFu[k] = now
+    }
+    const { error } = await onSave({ ...d, _field_updated: newFu })
     if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
   }
 
   return (
-    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
-      <Field label="Date of birth" type="date" {...f('dob')} />
+    <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={null}>
+      <Field label="Date of birth" type="date" {...f('dob')} updatedAt={fu.dob} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Height" placeholder="e.g. 128cm / 4ft 2in" {...f('height')} updatedAt={fu.height} />
+        <Field label="Weight" placeholder="e.g. 26kg / 4st 1lb" {...f('weight')} updatedAt={fu.weight} />
+      </div>
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Top size" placeholder="Age 8 / 128cm" {...f('top_size')} />
-        <Field label="Bottoms" placeholder="Age 8 / 128cm" {...f('bottom_size')} />
-        <Field label="Shoe size" placeholder="2 / EU 34" {...f('shoe_size')} />
+        <Field label="Top size" placeholder="Age 8 / 128cm" {...f('top_size')} updatedAt={fu.top_size} />
+        <Field label="Bottoms" placeholder="Age 8 / 128cm" {...f('bottom_size')} updatedAt={fu.bottom_size} />
+        <Field label="Shoe size" placeholder="2 / EU 34" {...f('shoe_size')} updatedAt={fu.shoe_size} />
       </div>
       <TextArea label="Notes" placeholder="e.g. Prefers slim fit, sensitive skin…" rows={3} {...f('notes')} />
     </SectionWrapper>
