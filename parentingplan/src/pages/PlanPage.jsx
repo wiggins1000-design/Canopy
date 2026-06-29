@@ -1260,6 +1260,10 @@ function SubmitDraft({ planId, planData, p1Name, p2Name }) {
     setSubmitting(false)
     if (err) { setError('Something went wrong — please try again.'); return }
     setSubmitted(true)
+    // Fire-and-forget: notify the other parent by email
+    supabase.functions.invoke('pp-draft-submitted', {
+      body: { plan_id: planId, draft_num: n, submitter_name: p2Name || 'Parent 2' },
+    })
   }
 
   if (!planId) return null

@@ -60,8 +60,7 @@ export default function LandingPage() {
             The parenting plan<br className="hidden sm:block" /> both parents agree on.
           </h1>
           <p className="text-lg text-gray-600 leading-relaxed mb-8 max-w-2xl mx-auto">
-            One parent drafts their proposals — no account needed. Share it with the other parent.
-            They write their own version. You each revise in turn until you reach a version you're both happy with.
+            Start by writing your proposals across each section. The other parent opens the plan, adds their own input, and together you refine it, until you both agree.
             AI guidance is there whenever you need it.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
