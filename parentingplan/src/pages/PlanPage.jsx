@@ -158,6 +158,7 @@ function blank() {
     fixedOccasions: '',
     abroad: 'required',
     abroadOther: '',
+    abroadRequirements: '',
     abroadWeeks: '6',
     abroadInfo: ['destination', 'accommodation', 'emergency_contact', 'return_details'],
     passports: 'both',
@@ -618,11 +619,11 @@ function Step3({ data, set, t }) {
 
 function Step4({ data, set, p1, p2, t }) {
   const infoOptions = [
-    { value: 'destination', label: 'Destination country' },
-    { value: 'itinerary', label: 'Full itinerary' },
-    { value: 'accommodation', label: 'Accommodation address' },
-    { value: 'emergency_contact', label: 'Emergency contact number' },
-    { value: 'return_details', label: 'Return travel details' },
+    { value: 'destination', label: 'Destination' },
+    { value: 'itinerary', label: 'Itinerary' },
+    { value: 'accommodation', label: 'Accommodation details' },
+    { value: 'emergency_contact', label: 'Emergency contact' },
+    { value: 'return_details', label: 'Return details' },
   ]
 
   return (
@@ -706,7 +707,7 @@ function Step4({ data, set, p1, p2, t }) {
           ]}
         />
         <div className="space-y-2">
-          <label className="block text-xs font-medium text-gray-500">Information that must be shared before an international trip</label>
+          <label className="block text-xs font-medium text-gray-500">What information should be shared before travelling abroad?</label>
           {infoOptions.map(o => (
             <label key={o.value} className="flex items-center gap-2 cursor-pointer">
               <input
@@ -724,6 +725,13 @@ function Step4({ data, set, p1, p2, t }) {
             </label>
           ))}
         </div>
+        <Prose
+          label="Any other requirements around travel abroad?"
+          value={data.abroadRequirements}
+          onChange={v => set('abroadRequirements', v)}
+          rows={2}
+          placeholder="e.g. Written consent required for countries outside the EU. No travel during term time without agreement."
+        />
         <RadioGroup
           label="Who holds the children's passports?"
           name="passports"
@@ -1160,8 +1168,9 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         {data.abroad && <PlanRow label={`Travel ${t.abroad}`} value={data.abroad === 'required' ? 'Written agreement from both parents required' : data.abroad === 'other' ? data.abroadOther : 'Permitted with notice and trip details shared'} />}
         {data.abroadWeeks && <PlanRow label="Notice for international trips" value={`${data.abroadWeeks} weeks`} />}
         {data.abroadInfo.length > 0 && <PlanRow label="Information to share" value={data.abroadInfo.map(v => ({
-          destination: 'Destination country', itinerary: 'Full itinerary', accommodation: 'Accommodation address', emergency_contact: 'Emergency contact', return_details: 'Return travel details',
+          destination: 'Destination', itinerary: 'Itinerary', accommodation: 'Accommodation details', emergency_contact: 'Emergency contact', return_details: 'Return details',
         }[v])).join(', ')} />}
+        {data.abroadRequirements && <PlanRow label="Other travel requirements" value={data.abroadRequirements} />}
         {data.passports && <PlanRow label="Passports held by" value={data.passports} />}
       </PlanSection>
 
