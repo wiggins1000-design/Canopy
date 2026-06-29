@@ -771,7 +771,7 @@ function Step5({ data, set }) {
       <Card title="Digital life and social media">
         <Prose label="What boundaries, if any, have you agreed around screen time in each home?" value={data.screenTime} onChange={v => set('screenTime', v)} rows={3} placeholder="e.g. No screens within 30 minutes of bedtime. Devices off by 8pm on school nights." />
         <Prose label="What is your agreed approach to sharing photos or videos of the children on social media?" value={data.socialMedia} onChange={v => set('socialMedia', v)} rows={3} placeholder="e.g. Both parents to agree before posting any photos of the children publicly..." />
-        <Prose label="Are there any apps or platforms the children are not permitted to use?" value={data.restrictedApps} onChange={v => set('restrictedApps', v)} rows={2} placeholder="e.g. TikTok, Snapchat until age 13..." />
+        <Prose label="Are there any apps or platforms the children are not permitted to use?" value={data.restrictedApps} onChange={v => set('restrictedApps', v)} rows={2} placeholder="e.g. No social media until age 16. Gaming limited to age-appropriate platforms." />
         <Prose label="How will you handle the children's own devices and accounts as they get older?" value={data.devicesPolicy} onChange={v => set('devicesPolicy', v)} rows={3} placeholder="e.g. First phone at secondary school. Both parents to have access to accounts until age 16..." />
       </Card>
 
