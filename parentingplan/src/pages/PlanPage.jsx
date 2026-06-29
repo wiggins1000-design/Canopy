@@ -247,7 +247,7 @@ export default function PlanPage({ planId, planSaving }) {
             <div className="w-7 h-7 rounded-lg bg-[#52b788] flex items-center justify-center text-[#1b4332] text-xs font-bold">C</div>
             <span className="text-white font-semibold text-sm">parentingplan.help</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             {step < TOTAL_STEPS && (
               <span className="text-[#b7e4c7] text-xs">{step} of {TOTAL_STEPS - 1}</span>
             )}
@@ -271,9 +271,8 @@ export default function PlanPage({ planId, planSaving }) {
                       <button
                         key={l.key}
                         onClick={() => { setLocale(l.key); setLocaleOpen(false) }}
-                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${locale === l.key ? 'text-[#1b4332] font-semibold' : 'text-gray-700'}`}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${locale === l.key ? 'text-[#1b4332] font-semibold' : 'text-gray-700'}`}
                       >
-                        <span className="text-base">{l.flag}</span>
                         {l.label}
                       </button>
                     ))}
