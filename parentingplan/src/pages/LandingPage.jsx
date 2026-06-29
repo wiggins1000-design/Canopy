@@ -13,9 +13,9 @@ const SECTIONS = [
 ]
 
 const DRAFTS = [
-  { author: 'Alex',   avatar: 'A', draft: 1, date: '14 Jun', text: 'I'd like alternating weeks, starting after the summer break.' },
-  { author: 'Jordan', avatar: 'J', draft: 2, date: '16 Jun', text: 'I'd prefer 2-2-5-5 — it keeps the children in regular contact with both of us.' },
-  { author: 'Alex',   avatar: 'A', draft: 3, date: 'Today',  text: '2-2-5-5 works for me. Can we do school-gate handovers rather than at the house?', current: true },
+  { author: 'Alex',   avatar: 'A', draft: 1, date: '14 Jun', text: "I'd like alternating weeks, starting after the summer break." },
+  { author: 'Jordan', avatar: 'J', draft: 2, date: '16 Jun', text: "I'd prefer 2-2-5-5 — it keeps the children in regular contact with both of us." },
+  { author: 'Alex',   avatar: 'A', draft: 3, date: 'Today',  text: "2-2-5-5 works for me. Can we do school-gate handovers rather than at the house?", current: true },
 ]
 
 export default function LandingPage() {
