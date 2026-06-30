@@ -28,7 +28,6 @@ const InvitePage          = lazy(() => import('./pages/InvitePage'))
 const RequestsPage        = lazy(() => import('./pages/RequestsPage'))
 const InfoBankPage        = lazy(() => import('./pages/InfoBankPage'))
 const ExportPage          = lazy(() => import('./pages/ExportPage'))
-const CourtOrderPage      = lazy(() => import('./pages/CourtOrderPage'))
 const MessagesPage        = lazy(() => import('./pages/MessagesPage'))
 const ThreadPage          = lazy(() => import('./pages/ThreadPage'))
 const ExpensesPage        = lazy(() => import('./pages/ExpensesPage'))
@@ -82,7 +81,6 @@ export default function App() {
               <Route path="/requests" element={<RequestsPage />} />
               <Route path="/info" element={<InfoBankPage />} />
               <Route path="/export" element={<ExportPage />} />
-              <Route path="/court-order" element={<CourtOrderPage />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/messages/:threadId" element={<ThreadPage />} />
               <Route path="/expenses" element={<ExpensesPage />} />

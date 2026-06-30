@@ -1092,7 +1092,6 @@ export default function ConfigPage() {
       {/* â"€â"€ Legal â"€â"€ */}
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
-        <NavRow label="Parenting agreement" description="Upload and manage advisory compliance checks" onPress={() => navigate('/court-order')} />
         <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://canopy-app.app/privacy.html', '_blank')} />
         <NavRow label="Terms of Use" description="Your rights and responsibilities when using Canopy" onPress={() => window.open('https://canopy-app.app/terms.html', '_blank')} />
       </AccordionGroup>

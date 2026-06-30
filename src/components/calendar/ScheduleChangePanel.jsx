@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { format, differenceInDays } from 'date-fns'
+import { format } from 'date-fns'
 import { supabase, sendPushNotification } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
@@ -17,27 +17,6 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
   const [isHoliday, setIsHoliday]   = useState(false)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState(null)
-  const [courtFlags, setCourtFlags] = useState([])
-  const [activeOrder, setActiveOrder] = useState(null)
-
-  // Load active parenting agreement for advisory checks
-  useEffect(() => {
-    if (!family?.id) return
-    supabase
-      .from('court_orders')
-      .select('raw_rules')
-      .eq('family_id', family.id)
-      .eq('status', 'active')
-      .maybeSingle()
-      .then(({ data }) => setActiveOrder(data?.raw_rules ?? null))
-  }, [family?.id])
-
-  // Re-run advisory checks whenever dates, holiday flag, or order change
-  useEffect(() => {
-    if (!activeOrder || !startDay) { setCourtFlags([]); return }
-    setCourtFlags(checkCourtOrder(activeOrder, formatDate(startDay.date), endDateStr, isHoliday))
-  }, [activeOrder, startDay, endDateStr, isHoliday])
-
   const startDateStr    = startDay ? formatDate(startDay.date) : null
   const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
   const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
@@ -202,19 +181,6 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
           />
         </div>
 
-        {/* Court order advisory flags */}
-        {courtFlags.length > 0 && (
-          <div className="space-y-1.5">
-            {courtFlags.map((flag, i) => (
-              <div key={i} className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
-                <span className="text-amber-500 text-sm shrink-0">⚠️</span>
-                <p className="text-xs text-amber-700 leading-relaxed">{flag}</p>
-              </div>
-            ))}
-            <p className="text-xs text-gray-400">Advisory only — not legal advice.</p>
-          </div>
-        )}
-
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <Button
@@ -228,54 +194,4 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
       </div>
     </BottomSheet>
   )
-}
-
-function checkCourtOrder(rules, startDate, endDate, isHoliday) {
-  const flags = []
-  if (!rules || !startDate) return flags
-
-  const today     = new Date()
-  const start     = new Date(startDate)
-  const daysNotice = differenceInDays(start, today)
-
-  // Notice period check
-  if (isHoliday && rules.notice_requirements?.holiday_request_days) {
-    const required = rules.notice_requirements.holiday_request_days
-    if (daysNotice < required) {
-      flags.push(`Your parenting agreement requires ${required} days' notice for holiday requests. This request is only ${daysNotice} day${daysNotice !== 1 ? 's' : ''} ahead.`)
-    }
-  } else if (!isHoliday && rules.notice_requirements?.schedule_change_hours) {
-    const required = rules.notice_requirements.schedule_change_hours
-    const hoursNotice = daysNotice * 24
-    if (hoursNotice < required) {
-      flags.push(`Your parenting agreement requires ${required} hours' notice for schedule changes. This request is only ~${Math.round(hoursNotice)}h ahead.`)
-    }
-  }
-
-  // Holiday duration check
-  if (isHoliday && endDate && rules.holiday_entitlements?.length > 0) {
-    const duration = differenceInDays(new Date(endDate), start) + 1
-    const startMonth = start.getMonth()
-    let period = 'other'
-    if (startMonth >= 6 && startMonth <= 8) period = 'summer'
-    else if (startMonth === 11 || startMonth === 0) period = 'christmas'
-    else if (startMonth === 2 || startMonth === 3) period = 'easter'
-
-    const entitlement = rules.holiday_entitlements.find(h =>
-      h.period?.toLowerCase().includes(period) || h.period?.toLowerCase().includes('half')
-    )
-    if (entitlement) {
-      const myDays = rules.residence?.primary_parent === 'parent_a' ? entitlement.parent_b_days : entitlement.parent_a_days
-      if (myDays != null && duration > myDays) {
-        flags.push(`Your parenting agreement entitles you to ${myDays} days for this period. This request covers ${duration} days.`)
-      }
-    }
-  }
-
-  // Geographic flag
-  if (rules.geographic_restrictions) {
-    flags.push(`Reminder: ${rules.geographic_restrictions}`)
-  }
-
-  return flags
 }
