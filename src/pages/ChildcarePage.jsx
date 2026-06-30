@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { getBaselineOwner, formatDate } from '../lib/scheduleEngine'
@@ -39,6 +40,7 @@ function getPeriodRange(period, customFrom, customTo) {
 }
 
 export default function ChildcarePage() {
+  const navigate = useNavigate()
   const { family, member, members, isParent, parentA, parentB, schedule } = useFamily()
 
   const childcareMembers = family?.config?.childcare_members ?? []
@@ -208,7 +210,14 @@ export default function ChildcarePage() {
 
   return (
     <div className="px-4 py-5 space-y-4">
-      <h1 className="text-xl font-bold text-gray-900">Childcare</h1>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-xl font-bold text-gray-900">Childcare</h1>
+      </div>
 
       {/* Tabs — only shown to childcare members */}
       {isChildcare && (
