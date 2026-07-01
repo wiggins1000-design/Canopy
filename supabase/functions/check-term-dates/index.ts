@@ -328,11 +328,11 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       if (patternMatch) {
         candidates.push(patternMatch)
       } else {
-        // Try 4: common UK school URL patterns — fast HEAD checks, no Claude needed.
+        // Try 4: common URL patterns for this locale — fast HEAD checks, no Claude needed.
         // Run before Claude because large homepages (1MB+) often exceed the raw HTML
         // fetch cap, leaving nav links missing and Claude with irrelevant links to guess from.
         console.log('Pattern match failed, trying common URL patterns…')
-        const commonPath = await tryCommonPaths(origin)
+        const commonPath = await tryCommonPaths(origin, locale)
         if (commonPath) candidates.push(commonPath)
       }
 
@@ -341,16 +341,15 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       if (candidates.length === 0) {
         console.log('No high-confidence URL found, asking Claude for ranked candidates…')
         const [claudePicks, contentPick] = await Promise.all([
-          links.length > 0 ? pickTermDatesLinks(links, origin) : Promise.resolve([]),
-          findTermDatesUrl(homepageContent, origin),
+          links.length > 0 ? pickTermDatesLinks(links, origin, locale) : Promise.resolve([]),
+          findTermDatesUrl(homepageContent, origin, locale),
         ])
         for (const p of claudePicks) if (!candidates.includes(p)) candidates.push(p)
         if (contentPick && !candidates.includes(contentPick)) candidates.push(contentPick)
       }
 
-      // Homepage as absolute last resort (inline dates)
-      const lc = homepageContent.toLowerCase()
-      if (lc.includes('term') && (lc.includes('autumn') || lc.includes('spring') || lc.includes('summer'))) {
+      // Homepage as absolute last resort (inline dates) — locale-aware check
+      if (getLocaleConfig(locale).termDateRegex.test(homepageContent)) {
         if (!candidates.includes(homepageUrl)) candidates.push(homepageUrl)
       }
     }
@@ -461,8 +460,8 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       if (homepageContentForFallback) {
         console.log('Initial candidates exhausted, asking Claude for additional fallbacks…')
         const [claudePicks, contentPick] = await Promise.all([
-          linksForFallback.length > 0 ? pickTermDatesLinks(linksForFallback, origin) : Promise.resolve([]),
-          findTermDatesUrl(homepageContentForFallback, origin),
+          linksForFallback.length > 0 ? pickTermDatesLinks(linksForFallback, origin, locale) : Promise.resolve([]),
+          findTermDatesUrl(homepageContentForFallback, origin, locale),
         ])
         const newCandidates = [...claudePicks, contentPick].filter((p): p is string => !!p && !candidates.includes(p))
         if (newCandidates.length > 0) {
@@ -629,9 +628,12 @@ async function fetchViaJina(url: string): Promise<string | null> {
   }
 }
 
-async function findTermDatesUrl(homepageContent: string, origin: string): Promise<string | null> {
+async function findTermDatesUrl(homepageContent: string, origin: string, locale: string): Promise<string | null> {
+  const cfg = getLocaleConfig(locale)
+  const schoolType = { uk: 'UK school', us: 'US school district', au: 'Australian school', ie: 'Irish school' }[cfg.claudeVariant] ?? 'school'
+  const urlHints = cfg.urlKeywords.map(k => `"${k}"`).join(', ')
   const res = await callClaude(
-    `Find the term dates page URL on this UK school website.
+    `Find the term dates or school calendar page URL on this ${schoolType} website.
 
 School website origin: ${origin}
 
@@ -639,8 +641,7 @@ Homepage content (may be truncated):
 ${homepageContent}
 
 Look for navigation links, menu items or page links related to:
-"Term Dates", "School Calendar", "Key Dates", "Academic Calendar", "Term Times",
-"Holiday Dates", "School Dates", "Dates & Deadlines", "Key Information", "Parents > Term Dates"
+${urlHints}, "Key Dates", "Dates & Deadlines", "Key Information", "Parents > Calendar"
 
 Rules:
 - Return ONLY the URL as plain text, nothing else
@@ -681,11 +682,14 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
 
 // Returns up to 3 candidate URLs ranked by likelihood, so the extraction loop
 // can fall back to the second or third pick if the first yields no dates.
-async function pickTermDatesLinks(links: string[], origin: string): Promise<string[]> {
+async function pickTermDatesLinks(links: string[], origin: string, locale: string): Promise<string[]> {
+  const cfg = getLocaleConfig(locale)
+  const schoolType = { uk: 'UK school', us: 'US school district', au: 'Australian school', ie: 'Irish school' }[cfg.claudeVariant] ?? 'school'
+  const urlHints = cfg.urlKeywords.join(', ')
   const res = await callClaude(
-    `From this list of URLs from a UK school website (${origin}), return the URLs most likely to be the term dates, school calendar, or holiday dates page.
+    `From this list of URLs from a ${schoolType} website (${origin}), return the URLs most likely to be the term dates, school calendar, or holiday dates page.
 
-Include URLs containing: term-dates, term-times, school-calendar, academic-calendar, key-dates, holiday-dates, school-dates, calendar, term-times.
+Include URLs containing: ${urlHints}, key-dates, holiday-dates, school-dates, calendar.
 Exclude URLs that are clearly news articles, blog posts (paths like /news/, /blog/, /YYYY/MM/), policy pages, newsletters, or announcements about individual events.
 
 Return ONLY a JSON array of up to 3 URLs in order of likelihood. Return [] if none are relevant. No explanation.
@@ -710,8 +714,10 @@ ${links.slice(0, 40).join('\n')}`,
   } catch { return [] }
 }
 
-async function tryCommonPaths(origin: string): Promise<string | null> {
-  const paths = [
+async function tryCommonPaths(origin: string, locale: string): Promise<string | null> {
+  // Start with locale-specific paths from config, then append universal fallbacks
+  const localePaths = getLocaleConfig(locale).commonPaths
+  const universalPaths = [
     '/term-dates', '/term-dates/', '/term_dates', '/termdates',
     '/parents/term-dates', '/parents-and-carers/term-dates',
     '/key-information/term-dates', '/school-information/term-dates',
@@ -720,7 +726,11 @@ async function tryCommonPaths(origin: string): Promise<string | null> {
     '/parents/calendar', '/key-information/calendar',
     '/term-times', '/parents/term-times',
     '/holiday-dates', '/school-dates',
+    '/district-calendar', '/school-year-calendar', '/important-dates',
+    '/school-year', '/about/calendar', '/resources/calendar',
+    '/school-terms', '/key-dates', '/school-info/term-dates',
   ]
+  const paths = [...new Set([...localePaths, ...universalPaths])]
 
   const checks = await Promise.all(
     paths.map(async (path) => {
