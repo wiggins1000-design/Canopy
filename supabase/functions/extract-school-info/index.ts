@@ -14,6 +14,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendDebugAlert } from '../_shared/debugAlert.ts'
+import { getLocaleConfig, getLocaleFromUrl, getClosedDayPatterns, CLAUDE_EXTRACTION_PROMPTS } from '../_shared/localeConfig.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -28,6 +29,30 @@ const supabase = createClient(
 const READER_URL    = Deno.env.get('READER_URL') ?? ''
 const READER_SECRET = Deno.env.get('READER_SECRET') ?? ''
 const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
+
+const CLOSED_DAY_TITLE: Record<string, string> = {
+  'en-GB': 'INSET Day',
+  'en-US': 'Professional Development Day',
+  'en-AU': 'Pupil-Free Day',
+  'en-IE': 'In-Service Day',
+}
+
+async function getFamilyLocale(familyId: string | undefined, schoolUrl?: string): Promise<string> {
+  if (schoolUrl) {
+    const fromUrl = getLocaleFromUrl(schoolUrl)
+    if (fromUrl) return fromUrl
+  }
+  if (familyId) {
+    const { data } = await supabase
+      .from('families')
+      .select('config')
+      .eq('id', familyId)
+      .maybeSingle()
+    const locale = (data?.config as any)?.locale
+    if (locale) return locale
+  }
+  return 'en-GB'
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -57,6 +82,7 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
   // ── Multi-image mode — OCR all images, combine text, return dates for client review ──
   if (images && Array.isArray(images) && images.length > 0) {
     try {
+      const locale = await getFamilyLocale(family_id, school_url)
       const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
       const texts = await Promise.all(
         (images as any[]).map((img) => {
@@ -69,8 +95,8 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
         return respond({ error: 'Could not read text from any of the images. Please try clearer photos.' })
       }
       const combined = validTexts.join('\n\n---\n\n')
-      let termDates = await extractTermDates(combined, 4096)
-      const inferred = [...inferSummerHolidays(combined), ...inferInsetDays(combined)]
+      let termDates = await extractTermDates(combined, 4096, locale)
+      const inferred = [...inferSummerHolidays(combined, locale), ...inferInsetDays(combined, locale)]
       const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
       for (const d of inferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
@@ -87,6 +113,7 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
   // ── Single image upload mode ───────────────────────────────────────────────
   if (image_base64) {
     try {
+      const locale = await getFamilyLocale(family_id, school_url)
       const mediaType = (['image/jpeg','image/png','image/gif','image/webp'].includes(image_media_type)
         ? image_media_type : 'image/jpeg') as 'image/jpeg'|'image/png'|'image/gif'|'image/webp'
 
@@ -96,8 +123,8 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
         return respond({ error: 'Could not read text from the image. Please try a clearer photo.' })
       }
 
-      let termDates = await extractTermDates(imageText, 4096)
-      const inferred = [...inferSummerHolidays(imageText), ...inferInsetDays(imageText)]
+      let termDates = await extractTermDates(imageText, 4096, locale)
+      const inferred = [...inferSummerHolidays(imageText, locale), ...inferInsetDays(imageText, locale)]
       const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
       for (const d of inferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
@@ -125,6 +152,8 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
   console.log(`extract-school-info: ${normalised}`)
 
   try {
+    const locale = await getFamilyLocale(family_id, normalised)
+
     // ── Check cache for existing school info ──────────────────────────────────
     const { data: cached } = await supabase
       .from('school_calendars')
@@ -143,7 +172,7 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
 
     // ── Extract school info ───────────────────────────────────────────────────
     const origin = (() => { try { return new URL(normalised).origin } catch { return normalised } })()
-    let schoolInfo = await extractSchoolInfo(homepageText, normalised)
+    let schoolInfo = await extractSchoolInfo(homepageText, normalised, locale)
     console.log('Homepage extraction:', JSON.stringify(schoolInfo))
 
     // Fill contact blanks from cache
@@ -160,7 +189,7 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
 
     // ── Enrich contact info if incomplete ────────────────────────────────────
     if (isMissingContactInfo(schoolInfo)) {
-      schoolInfo = await enrichFromContactPage(schoolInfo, normalised, origin)
+      schoolInfo = await enrichFromContactPage(schoolInfo, normalised, origin, locale)
       console.log('After contact enrichment:', JSON.stringify(schoolInfo))
     }
 
@@ -305,12 +334,21 @@ interface SchoolInfo {
   contact_url:    string | null
 }
 
-async function extractSchoolInfo(content: string, pageUrl: string): Promise<SchoolInfo> {
+async function extractSchoolInfo(content: string, pageUrl: string, locale = 'en-GB'): Promise<SchoolInfo> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
-  return parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(content, pageUrl, origin), 600))
+  return parseSchoolInfoJson(await callClaude(buildSchoolInfoPrompt(content, pageUrl, origin, locale), 600))
 }
 
-function buildSchoolInfoPrompt(content: string, pageUrl: string, origin: string): string {
+function buildSchoolInfoPrompt(content: string, pageUrl: string, origin: string, locale = 'en-GB'): string {
+  const headLabel = locale === 'en-GB'
+    ? 'headteacher / principal full name'
+    : 'principal full name'
+  const termDatesHints = locale === 'en-US'
+    ? "'academic calendar', 'school calendar', 'school year', 'important dates', 'calendar'"
+    : locale === 'en-AU'
+    ? "'term dates', 'school calendar', 'key dates', 'terms', 'calendar'"
+    : "'term dates', 'term times', 'school calendar', 'holidays', 'academic year'"
+
   return `Extract school information from this webpage content.
 
 Base URL: ${pageUrl}
@@ -321,7 +359,7 @@ Return ONLY valid JSON — no markdown, no explanation:
   "school_address": "full postal address on one line or null",
   "school_email":   "main office email address or null",
   "school_phone":   "main office phone number or null",
-  "head_teacher":   "headteacher / principal full name or null",
+  "head_teacher":   "${headLabel} or null",
   "school_hours":   "school day hours e.g. '8:50am – 3:15pm' or null",
   "term_dates_url": "absolute URL of the term dates / school calendar page, or null",
   "contact_url":    "absolute URL of the contact / contact us page, or null"
@@ -329,7 +367,7 @@ Return ONLY valid JSON — no markdown, no explanation:
 
 Rules:
 - For relative URLs (starting with /), prefix with ${origin}
-- For term_dates_url: links mentioning 'term dates', 'term times', 'school calendar', 'holidays', 'academic year'
+- For term_dates_url: links mentioning ${termDatesHints}
 - For contact_url: links mentioning 'contact', 'contact us', 'get in touch', 'find us'
 - If multiple emails/phones, prefer the main office one
 - Return null for any field not found
@@ -476,7 +514,9 @@ function _parseSections(text: string): Array<{term: string, year: number, lines:
 // Infer summer holiday from term boundaries — handles both full-date format
 // ("last day of term: 15 July 2026") and no-year format ("END OF TERM" with
 // the year from the section heading "Summer Term 2026").
-function inferSummerHolidays(allContent: string): Array<{title: string, date: string, end_date: string}> {
+function inferSummerHolidays(allContent: string, locale = 'en-GB'): Array<{title: string, date: string, end_date: string}> {
+  // Section-based inference only works for UK/IE (term headings: "Autumn Term 2026", etc.)
+  if (locale !== 'en-GB' && locale !== 'en-IE') return []
   const text = allContent.replace(/\*\*/g, ' ')
   const results: Array<{title: string, date: string, end_date: string}> = []
   const seen = new Set<string>()
@@ -576,29 +616,28 @@ function inferSummerHolidays(allContent: string): Array<{title: string, date: st
 // Infer INSET / closure days — handles both "Staff Training Days: 1 Sep 2026"
 // (full-date format) and "8th September - Staff Inset (school closed to students)"
 // (no-year format with section heading context).
-function inferInsetDays(allContent: string): Array<{title: string, date: string, end_date: null}> {
+function inferInsetDays(allContent: string, locale = 'en-GB'): Array<{title: string, date: string, end_date: null}> {
   const text = allContent.replace(/\*\*/g, ' ')
   const seen = new Set<string>()
   const results: Array<{title: string, date: string, end_date: null}> = []
-  const add = (date: string) => { if (!seen.has(date)) { seen.add(date); results.push({ title: 'INSET Day', date, end_date: null }) } }
+  const title = CLOSED_DAY_TITLE[locale] ?? 'INSET Day'
+  const add = (date: string) => { if (!seen.has(date)) { seen.add(date); results.push({ title, date, end_date: null }) } }
 
-  // Full-date patterns (dates include year)
-  for (const pat of [
-    /(?:inset|staff\s+training|teacher\s+training|training|professional\s+development)\s+days?[^\n]{0,300}/gi,
-    /(?:inset|training)\s+day\s*[:\-–][^\n]{0,100}/gi,
-  ]) {
-    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(add)
+  const patterns = getClosedDayPatterns(locale)
+
+  // Full-date patterns (dates include year) — run all locale patterns against the full text
+  for (const pat of patterns) {
+    const fullPat = new RegExp(pat.source + '[^\\n]{0,300}', 'gi')
+    for (const m of text.matchAll(fullPat)) _datesFromSnippet(m[0]).forEach(add)
   }
 
-  // Section-based patterns (no year in dates — e.g. "Friday 2nd October - Staff Target Setting Inset")
-  const CLOSED_RE = /school\s+closed\s+to\s+(?:students?|pupils?)/i
-  const INSET_RE   = /\binset\b/i
-  const TRAINING_RE = /\btraining\b/i
-  const OCCASIONAL_RE = /occasional\s+day/i
-  for (const section of _parseSections(text)) {
-    for (const line of section.lines) {
-      if (CLOSED_RE.test(line) || INSET_RE.test(line) || OCCASIONAL_RE.test(line) || TRAINING_RE.test(line)) {
-        _datesFromSnippetWithYear(line, section.year).forEach(add)
+  // Section-based patterns — only reliable for UK/IE where term headings say "Autumn Term 2026"
+  if (locale === 'en-GB' || locale === 'en-IE') {
+    for (const section of _parseSections(text)) {
+      for (const line of section.lines) {
+        if (patterns.some(p => p.test(line))) {
+          _datesFromSnippetWithYear(line, section.year).forEach(add)
+        }
       }
     }
   }
@@ -656,7 +695,7 @@ async function findContactUrl(homepageUrl: string, origin: string, claudeContact
   return pathChecks.find(Boolean) ?? null
 }
 
-async function enrichFromContactPage(info: SchoolInfo, homepageUrl: string, origin: string): Promise<SchoolInfo> {
+async function enrichFromContactPage(info: SchoolInfo, homepageUrl: string, origin: string, locale = 'en-GB'): Promise<SchoolInfo> {
   const contactUrl = await findContactUrl(homepageUrl, origin, info.contact_url)
   if (!contactUrl) {
     console.log('No contact page found')
@@ -668,7 +707,7 @@ async function enrichFromContactPage(info: SchoolInfo, homepageUrl: string, orig
   if (!contactText) return info
 
   const contactInfo = parseSchoolInfoJson(
-    await callClaude(buildSchoolInfoPrompt(contactText, contactUrl, origin), 600)
+    await callClaude(buildSchoolInfoPrompt(contactText, contactUrl, origin, locale), 600)
   )
 
   // Merge: fill in any blanks from the contact page
@@ -713,11 +752,13 @@ async function enrichFromSchoolDayPage(info: SchoolInfo, origin: string): Promis
   return extracted.school_hours ? { ...info, school_hours: extracted.school_hours } : info
 }
 
-async function extractTermDates(content: string, maxTokens = 2048): Promise<any[]> {
+async function extractTermDates(content: string, maxTokens = 2048, locale = 'en-GB'): Promise<any[]> {
   const today = new Date().toISOString().split('T')[0]
 
-  const res = await callClaude(
-    `Extract all UK school term dates from this content. Today is ${today}.
+  // UK uses detailed prompt to handle end-of-term inference and section headings;
+  // other locales use the shared variant prompts which are simpler but correct.
+  const promptBody = locale === 'en-GB'
+    ? `Extract all UK school term dates from this content. Today is ${today}.
 
 Return ONLY valid JSON — no markdown, no explanation:
 {
@@ -745,9 +786,13 @@ Rules:
 - Use academic year context to determine the correct year for each date
 
 Content:
-${content.slice(0, 30000)}`,
-    maxTokens
-  )
+${content.slice(0, 30000)}`
+    : `${CLAUDE_EXTRACTION_PROMPTS[getLocaleConfig(locale).claudeVariant]}
+
+Content:
+${content.slice(0, 30000)}`
+
+  const res = await callClaude(promptBody, maxTokens)
 
   if (!res) return []
   try {

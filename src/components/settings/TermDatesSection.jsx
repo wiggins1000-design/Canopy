@@ -2,17 +2,9 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
+import { useLocale } from '../../hooks/useLocale'
 import Button from '../ui/Button'
 import BottomSheet from '../ui/BottomSheet'
-
-const HOLIDAY_TITLES = [
-  'Summer Holiday',
-  'Christmas Holiday',
-  'Easter Holiday',
-  'Autumn Half Term',
-  'Spring Half Term',
-  'Summer Half Term',
-]
 
 function classify(ev) {
   if (ev.title.toLowerCase().includes('inset')) return 'inset'
@@ -31,6 +23,8 @@ function normaliseUrl(url) {
 
 export default function TermDatesSection({ onNewDates }) {
   const { family, isParent } = useFamily()
+  const regionConfig = useLocale()
+  const holidayTitles = regionConfig.termLabels.holidays
   const [events, setEvents]           = useState([])
   const [loading, setLoading]         = useState(true)
   const [showInspect, setShowInspect] = useState(false)
@@ -51,7 +45,7 @@ export default function TermDatesSection({ onNewDates }) {
   // Inspect sheet — inline add
   const [showInspectAdd, setShowInspectAdd] = useState(false)
   const [iAddType, setIAddType]   = useState('holiday')
-  const [iAddTitle, setIAddTitle] = useState(HOLIDAY_TITLES[0])
+  const [iAddTitle, setIAddTitle] = useState(() => regionConfig.termLabels.holidays[0])
   const [iAddCustom, setIAddCustom] = useState('')
   const [iAddDate, setIAddDate]   = useState('')
   const [iAddEnd, setIAddEnd]     = useState('')
@@ -76,7 +70,7 @@ export default function TermDatesSection({ onNewDates }) {
 
   // Manual
   const [addType, setAddType]   = useState('holiday')
-  const [addTitle, setAddTitle] = useState(HOLIDAY_TITLES[0])
+  const [addTitle, setAddTitle] = useState(() => regionConfig.termLabels.holidays[0])
   const [addCustom, setAddCustom] = useState('')
   const [addDate, setAddDate]   = useState('')
   const [addEnd, setAddEnd]     = useState('')
@@ -414,7 +408,7 @@ export default function TermDatesSection({ onNewDates }) {
 
   async function addManually() {
     const title = addType === 'inset'
-      ? 'INSET Day'
+      ? regionConfig.termLabels.insetDay
       : (addTitle === 'Other' ? addCustom.trim() : addTitle)
     if (!addDate) { setAddError('Enter a date.'); return }
     if (addType === 'holiday' && !addEnd) { setAddError('Enter an end date.'); return }
@@ -476,7 +470,7 @@ export default function TermDatesSection({ onNewDates }) {
 
   async function addInInspect() {
     const title = iAddType === 'inset'
-      ? 'INSET Day'
+      ? regionConfig.termLabels.insetDay
       : (iAddTitle === 'Other' ? iAddCustom.trim() : iAddTitle)
     if (!iAddDate) { setIAddError('Enter a date.'); return }
     if (iAddType === 'holiday' && !iAddEnd) { setIAddError('Enter an end date.'); return }
@@ -683,7 +677,7 @@ export default function TermDatesSection({ onNewDates }) {
                     options={schoolOptions}
                   />
                   <div className="flex gap-2">
-                    {[['holiday', 'Holiday'], ['inset', 'INSET Day']].map(([t, label]) => (
+                    {[['holiday', 'Holiday'], ['inset', regionConfig.termLabels.insetDay]].map(([t, label]) => (
                       <button
                         key={t}
                         onClick={() => setIAddType(t)}
@@ -704,7 +698,7 @@ export default function TermDatesSection({ onNewDates }) {
                         onChange={e => setIAddTitle(e.target.value)}
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green"
                       >
-                        {HOLIDAY_TITLES.map(t => <option key={t}>{t}</option>)}
+                        {holidayTitles.map(t => <option key={t}>{t}</option>)}
                         <option value="Other">Other…</option>
                       </select>
                       {iAddTitle === 'Other' && (
@@ -941,7 +935,7 @@ export default function TermDatesSection({ onNewDates }) {
               />
               {/* Type toggle */}
               <div className="flex gap-2">
-                {[['holiday', 'School Holiday'], ['inset', 'INSET Day']].map(([t, label]) => (
+                {[['holiday', regionConfig.termLabels.schoolHoliday], ['inset', regionConfig.termLabels.insetDay]].map(([t, label]) => (
                   <button
                     key={t}
                     onClick={() => setAddType(t)}

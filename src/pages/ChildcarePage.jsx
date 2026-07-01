@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
+import { useLocale } from '../hooks/useLocale'
 import { getBaselineOwner, formatDate } from '../lib/scheduleEngine'
 import Button from '../components/ui/Button'
 
@@ -42,6 +43,7 @@ function getPeriodRange(period, customFrom, customTo) {
 export default function ChildcarePage() {
   const navigate = useNavigate()
   const { family, member, members, isParent, parentA, parentB, schedule } = useFamily()
+  const regionConfig = useLocale()
 
   const childcareMembers = family?.config?.childcare_members ?? []
   const isChildcare = childcareMembers.includes(member?.user_id)
@@ -180,14 +182,19 @@ export default function ChildcarePage() {
   const paWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.paWages ?? 0), 0) : null
   const pbWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.pbWages ?? 0), 0) : null
 
-  function fmt(pounds) { return `£${pounds.toFixed(2)}` }
+  function fmt(majorUnits) {
+    return new Intl.NumberFormat(regionConfig.locale, {
+      style: 'currency',
+      currency: regionConfig.currency.code,
+    }).format(majorUnits)
+  }
 
   function memberName(userId) {
     return members.find((m) => m.user_id === userId)?.display_name ?? 'Unknown'
   }
 
   function formatLogDate(dateStr) {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString(regionConfig.locale, { weekday: 'short', day: 'numeric', month: 'short' })
   }
 
   if (!isChildcare && !isParent) {

@@ -10,12 +10,15 @@ import PasswordField from '../components/ui/PasswordField'
 import CalendarSyncSection from '../components/calendar/CalendarSyncSection'
 import TermDatesSection from '../components/settings/TermDatesSection'
 import { useSubscription } from '../hooks/useSubscription'
+import { useLocale } from '../hooks/useLocale'
+import { SUPPORTED_LOCALES } from '../config/regions'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
   const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, updateMemberFeatures, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
   const { user, signOut } = useAuth()
+  const regionConfig = useLocale()
   const familyFeedAddress = 'familyfeed@canopy-app.app'
   const navigate    = useNavigate()
 
@@ -1090,6 +1093,34 @@ export default function ConfigPage() {
       )}
 
       {/* â"€â"€ Legal â"€â"€ */}
+      {/* Region */}
+      {isParent && (
+        <AccordionGroup label="Region">
+          <div className="px-4 pt-3 pb-4 space-y-2">
+            <p className="text-xs text-gray-400 mb-3">Sets your currency, school term labels, and how Canopy reads school calendars.</p>
+            {SUPPORTED_LOCALES.map(({ code, label, flag }) => (
+              <button
+                key={code}
+                onClick={() => updateFamilyConfig({ locale: code })}
+                className={[
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors',
+                  regionConfig.locale === code
+                    ? 'border-canopy-green bg-canopy-green/5 text-canopy-dark'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300',
+                ].join(' ')}
+              >
+                <span className="text-xl">{flag}</span>
+                {label}
+                {regionConfig.locale === code && (
+                  <span className="ml-auto text-canopy-green text-xs font-semibold">Current</span>
+                )}
+              </button>
+            ))}
+            <p className="text-xs text-gray-400 text-center pt-1">More countries coming soon</p>
+          </div>
+        </AccordionGroup>
+      )}
+
       <AccordionGroup label="Legal">
         <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
         <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://canopy-app.app/privacy.html', '_blank')} />

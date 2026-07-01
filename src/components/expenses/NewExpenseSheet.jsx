@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
+import { useLocale } from '../../hooks/useLocale'
 import { formatDate } from '../../lib/scheduleEngine'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
@@ -22,6 +23,7 @@ const CATEGORIES = [
 export default function NewExpenseSheet({ open, onClose, createExpense, otherShare, myShare }) {
   const { family, members, userRole } = useFamily()
   const { user } = useAuth()
+  const regionConfig = useLocale()
 
   const [amountStr, setAmountStr]   = useState('')
   const [description, setDescription] = useState('')
@@ -223,7 +225,7 @@ export default function NewExpenseSheet({ open, onClose, createExpense, otherSha
         <div>
           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Amount</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">£</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">{regionConfig.currency.symbol}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -337,7 +339,7 @@ export default function NewExpenseSheet({ open, onClose, createExpense, otherSha
             <span>0%</span>
             <span className="text-gray-500">
               {amountStr && splitPct > 0
-                ? `${paidBySelf ? otherName : 'You'} owe £${(parseFloat(amountStr || '0') * splitPct / 100).toFixed(2)}`
+                ? `${paidBySelf ? otherName : 'You'} owe ${new Intl.NumberFormat(regionConfig.locale, { style: 'currency', currency: regionConfig.currency.code }).format(parseFloat(amountStr || '0') * splitPct / 100)}`
                 : 'No split'
               }
             </span>

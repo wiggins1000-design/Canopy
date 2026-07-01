@@ -20,6 +20,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import PostalMime from 'https://esm.sh/postal-mime@2.2.8'
 import { sendDebugAlert } from '../_shared/debugAlert.ts'
+import { getLocaleConfig, deriveKeyStage } from '../_shared/localeConfig.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -36,23 +37,8 @@ function fmtDate(iso: string): string {
   return `${d}/${m}/${y.slice(2)}`
 }
 
-function isTermDateLike(title: string): boolean {
-  return /half.?term|end of term|last day of term|first day of term|term\s+start|term\s+end|term\s+begin|school\s+holiday|school\s+break|school\s+clos|school\s+returns?|inset\s+day|christmas\s+holid|easter\s+holid|summer\s+holid|spring\s+holid|autumn\s+holid/i.test(title)
-}
-
-function deriveKeyStage(yearGroup: string | undefined): string | null {
-  if (!yearGroup) return null
-  const lower = yearGroup.toLowerCase().trim()
-  if (/nursery|reception|eyfs|\bfs\b|\bfs1\b|\bfs2\b/.test(lower)) return 'EYFS'
-  if (/sixth.?form|year\s*1[23]|y1[23]/.test(lower)) return 'KS5'
-  const m = lower.match(/year\s*(\d+)|^y(\d+)$/)
-  if (!m) return null
-  const y = parseInt(m[1] ?? m[2])
-  if (y <= 2) return 'KS1'
-  if (y <= 6) return 'KS2'
-  if (y <= 9) return 'KS3'
-  if (y <= 11) return 'KS4'
-  return 'KS5'
+function isTermDateLike(title: string, locale: string): boolean {
+  return getLocaleConfig(locale).termDateRegex.test(title)
 }
 
 Deno.serve(async (req) => {
@@ -154,6 +140,8 @@ async function handleRequest(req: Request): Promise<Response> {
   if (!family) {
     return new Response(JSON.stringify({ skipped: 'family not found' }), { status: 200, headers: CORS })
   }
+
+  const locale: string = (family.config as any)?.locale ?? 'en-GB'
 
   // ── Check FamilyFeed consent ───────────────────────────────────────────────
   // Each parent must individually consent to AI processing of email content.
@@ -322,7 +310,7 @@ async function handleRequest(req: Request): Promise<Response> {
           const className = school.class_name || c.class_name
           const parts = [c.name]
           if (yearGroup) parts.push(yearGroup)
-          const ks = deriveKeyStage(yearGroup)
+          const ks = deriveKeyStage(yearGroup, locale)
           if (ks) parts.push(ks)
           if (className) parts.push(`${className} class`)
           return `- ${parts.join(', ')}`
@@ -419,7 +407,7 @@ Rules:
   for (const ev of events) {
     if (!ev.title || !ev.date) continue
     if (ev.date < cutoff) continue  // skip events more than 1 month in the past
-    if (hasTermDates && isTermDateLike(ev.title)) continue  // official term dates already loaded
+    if (hasTermDates && isTermDateLike(ev.title, locale)) continue  // official term dates already loaded
 
     if (ev.existing_id) {
       // Duplicate detected by Claude

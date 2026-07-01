@@ -103,8 +103,9 @@ export function validateManualEntry({ addType, addDate, addEnd }) {
 }
 
 // Resolves the event title from the manual-entry form state.
-export function resolveManualTitle({ addType, addTitle, addCustom }) {
-  if (addType === 'inset') return 'INSET Day'
+// Pass regionConfig from useLocale() so the INSET label is locale-aware.
+export function resolveManualTitle({ addType, addTitle, addCustom, regionConfig }) {
+  if (addType === 'inset') return regionConfig?.termLabels?.insetDay ?? 'INSET Day'
   if (addTitle === 'Other') return (addCustom ?? '').trim()
   return addTitle
 }

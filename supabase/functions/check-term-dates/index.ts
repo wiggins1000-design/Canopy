@@ -20,6 +20,7 @@
 //   npx supabase functions deploy check-term-dates --no-verify-jwt --project-ref <ref>
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getLocaleConfig, getLocaleFromUrl, CLAUDE_EXTRACTION_PROMPTS } from '../_shared/localeConfig.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -172,6 +173,19 @@ Deno.serve(async (req) => {
 // ── Core processing ───────────────────────────────────────────────────────────
 
 async function processSchool(homepageUrl: string, familyIds: string[], forceRefresh: boolean) {
+  // Derive locale from URL TLD; fall back to first family's stored locale
+  let locale = getLocaleFromUrl(homepageUrl) ?? 'en-GB'
+  if (locale === 'en-GB' && familyIds.length > 0) {
+    const { data: fam } = await supabase
+      .from('families')
+      .select('config')
+      .eq('id', familyIds[0])
+      .maybeSingle()
+    if (fam && (fam as any).config?.locale) {
+      locale = (fam as any).config.locale
+    }
+  }
+
   try {
     const { data: cached } = await supabase
       .from('school_calendars')
@@ -190,7 +204,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
     if (!cached || isStale || forceRefresh) {
       const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
-      const scraped = await scrapeTermDates(homepageUrl, existingHash)
+      const scraped = await scrapeTermDates(homepageUrl, existingHash, locale)
 
       if (scraped.unchanged) {
         await supabase.from('school_calendars')
@@ -261,7 +275,7 @@ async function postTermDatesNotice(familyId: string, addedCount: number, schoolN
 
 // ── Two-hop scrape ────────────────────────────────────────────────────────────
 
-async function scrapeTermDates(homepageUrl: string, existingHash: string | null) {
+async function scrapeTermDates(homepageUrl: string, existingHash: string | null, locale: string) {
   const urlObj  = new URL(homepageUrl)
   const origin  = urlObj.origin
   const isDirectUrl = urlObj.pathname.length > 1 || urlObj.search.length > 0
@@ -355,7 +369,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
     console.log(`Trying candidate: ${candidateUrl}`)
     triedUrls.push(candidateUrl)
 
-    const termDatesContent = await fetchPage(candidateUrl)
+    const termDatesContent = await fetchPage(candidateUrl, locale)
     console.log(`Content length: ${termDatesContent?.length ?? 0}`)
 
     if (!termDatesContent) {
@@ -377,7 +391,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       if (rawHtmlDocLinks.length > 0) console.log(`Raw HTML doc links: ${JSON.stringify(rawHtmlDocLinks)}`)
 
       const [htmlResult, docLinks] = await Promise.all([
-        extractTermDates(termDatesContent),
+        extractTermDates(termDatesContent, locale),
         findDocumentLinksViaClaude(termDatesContent, candidateUrl),
       ])
       let { termDates, schoolName } = htmlResult
@@ -389,9 +403,9 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null)
       if (uniqueDocLinks.length > 0) {
         const pdfResults = await Promise.all(
           uniqueDocLinks.map(async (docUrl: string) => {
-            const docContent = await fetchPage(docUrl)
+            const docContent = await fetchPage(docUrl, locale)
             if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
-            const result = await extractTermDates(docContent)
+            const result = await extractTermDates(docContent, locale)
             return { ...result, url: docUrl }
           })
         )
@@ -469,9 +483,9 @@ async function fetchHomepage(url: string): Promise<string | null> {
   return fetchPageWithCheck(url, isRealPage)
 }
 
-// Fetch term dates page — strict check requires calendar-relevant keywords.
-async function fetchPage(url: string): Promise<string | null> {
-  return fetchPageWithCheck(url, looksLikeUsefulContent)
+// Fetch term dates page — strict check requires calendar-relevant keywords (locale-aware).
+async function fetchPage(url: string, locale: string): Promise<string | null> {
+  return fetchPageWithCheck(url, (t) => looksLikeUsefulContent(t, locale))
 }
 
 async function fetchPageWithCheck(url: string, check: (t: string) => boolean): Promise<string | null> {
@@ -577,19 +591,19 @@ function isRealPage(text: string): boolean {
          !lc.includes('enable javascript to continue')
 }
 
-// Term dates page — must contain calendar-relevant keywords
-function looksLikeUsefulContent(text: string): boolean {
+// Term dates page — must contain calendar-relevant keywords (locale-aware)
+function looksLikeUsefulContent(text: string, locale: string): boolean {
   if (text.length < 200) return false
   const lc = text.toLowerCase()
-  if (lc.includes('<noscript>') && !lc.includes('term') && !lc.includes('holiday')) return false
+  const keywords = getLocaleConfig(locale).contentKeywords
+  if (lc.includes('<noscript>') && !keywords.some(k => lc.includes(k))) return false
   // Reject Jina-proxied 404 pages — Jina returns 200 with this warning in the body
   if (lc.includes('target url returned error 404')) return false
   // Reject cookie consent walls — keywords appear only in meta/title, not actual content
   if ((lc.includes('we value your privacy') || lc.includes('cookie consent') ||
        (lc.includes('accept all') && lc.includes('reject all'))) &&
       !(/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(text))) return false
-  return lc.includes('term') || lc.includes('holiday') || lc.includes('inset') ||
-         lc.includes('autumn') || lc.includes('spring') || lc.includes('summer')
+  return keywords.some(k => lc.includes(k))
 }
 
 async function fetchViaJina(url: string): Promise<string | null> {
@@ -879,8 +893,7 @@ function stripUrls(content: string): string {
     .trim()
 }
 
-async function extractTermDates(rawContent: string): Promise<{ termDates: any[], schoolName: string | null }> {
-  const today = new Date().toISOString().split('T')[0]
+async function extractTermDates(rawContent: string, locale: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const cleaned = cleanForClaude(rawContent)
   const stripped = stripUrls(cleaned)
   const content = findDatesSection(stripped)
@@ -888,29 +901,28 @@ async function extractTermDates(rawContent: string): Promise<{ termDates: any[],
   console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→stripped ${stripped.length}→section ${content.length} chars`)
   console.log('section preview:', content.slice(0, 500))
 
+  const variant = getLocaleConfig(locale).claudeVariant
+  const systemPrompt = CLAUDE_EXTRACTION_PROMPTS[variant]
+
   const res = await callClaude(
-    `Extract all dated events from this UK school term calendar. Include everything: term start/end dates, half terms, holidays, INSET days, bank holidays.
+    `${systemPrompt}
 
 Return ONLY valid JSON — no markdown, no explanation:
 {
   "school_name": "name of the school or null",
   "events": [
     {
-      "title": "descriptive title e.g. Half Term / Christmas Holiday / INSET Day / Spring Term / Autumn Term begins",
+      "title": "descriptive title",
       "date": "YYYY-MM-DD",
       "end_date": "YYYY-MM-DD or null (use for multi-day periods)"
     }
   ]
 }
 
-Rules:
+Additional rules:
 - Include ALL dates shown — past, present and future
 - For multi-day periods always set end_date
 - Use the academic year context to infer the year for any dates missing it
-- Holiday inference: if two consecutive terms have no holiday listed between them, infer one:
-  • Michaelmas/Autumn term ends → Lent/Spring term begins: infer "Christmas Holiday" (date = day after term end, end_date = day before next term start or INSET day)
-  • Lent/Spring term ends → Summer term begins: infer "Easter Holiday" (date = day after term end, end_date = day before next term start or INSET day)
-  • Summer term ends → Michaelmas/Autumn term begins: infer "Summer Holiday" (date = day after term end, end_date = day before next term start or INSET day)
 
 Content:
 ${content.slice(0, 15000)}`,

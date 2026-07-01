@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
+import { useLocale } from '../../hooks/useLocale'
 import { supabase } from '../../lib/supabase'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -21,6 +22,7 @@ const SCHOOL_COLORS = [
 
 export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
+  const regionConfig = useLocale()
   const [editingChangeover, setEditingChangeover] = useState(false)
   const [draftTime, setDraftTime] = useState('')
   const [draftLocation, setDraftLocation] = useState('')
@@ -70,7 +72,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
           byType[s.type].push(s)
         }
         return Object.entries(byType).flatMap(([type, schools]) => {
-          const label = type === 'inset' ? 'INSET Day' : 'School Holiday'
+          const label = type === 'inset' ? regionConfig.termLabels.insetDay : regionConfig.termLabels.schoolHoliday
           const allClosed = totalSchoolCount > 0 && schools.length === totalSchoolCount
           if (allClosed) {
             const suffix = totalSchoolCount === 1

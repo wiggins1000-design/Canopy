@@ -2,19 +2,29 @@ import { useState } from 'react'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
+import { SUPPORTED_LOCALES } from '../config/regions'
+
+function detectDefaultLocale() {
+  const lang = navigator.language ?? 'en-GB'
+  if (lang.startsWith('en-AU')) return 'en-AU'
+  if (lang.startsWith('en-IE')) return 'en-IE'
+  if (lang.startsWith('en-US')) return 'en-US'
+  return 'en-GB'
+}
 
 export default function OnboardingPage() {
   const { createFamily, joinFamily } = useFamily()
   const { signOut } = useAuth()
-  const [step, setStep] = useState('choose') // 'choose' | 'create' | 'join'
+  const [step, setStep] = useState('choose') // 'choose' | 'create' | 'country' | 'join'
   const [inviteCode, setInviteCode] = useState('')
+  const [selectedLocale, setSelectedLocale] = useState(detectDefaultLocale)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleCreate() {
     setLoading(true)
     setError(null)
-    const { error } = await createFamily()
+    const { error } = await createFamily(selectedLocale)
     if (error) setError(error.message)
     setLoading(false)
   }
@@ -64,6 +74,40 @@ export default function OnboardingPage() {
               <p className="text-xs text-gray-400">
                 You'll be set up as Parent A. Share an invite code from the People tab for Parent B to join.
               </p>
+              <Button className="w-full py-3" onClick={() => setStep('country')}>
+                Continue
+              </Button>
+            </>
+          )}
+
+          {step === 'country' && (
+            <>
+              <button onClick={() => setStep('create')} className="text-sm text-canopy-mid flex items-center gap-1 mb-1">
+                ← Back
+              </button>
+              <p className="text-sm font-semibold text-gray-700">Where is your family based?</p>
+              <p className="text-xs text-gray-400">This sets your currency and school calendar language.</p>
+              <div className="space-y-2 pt-1">
+                {SUPPORTED_LOCALES.map(({ code, label, flag }) => (
+                  <button
+                    key={code}
+                    onClick={() => setSelectedLocale(code)}
+                    className={[
+                      'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors',
+                      selectedLocale === code
+                        ? 'border-canopy-green bg-canopy-green/5 text-canopy-dark'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300',
+                    ].join(' ')}
+                  >
+                    <span className="text-xl">{flag}</span>
+                    {label}
+                    {selectedLocale === code && (
+                      <span className="ml-auto text-canopy-green">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 text-center">More countries coming soon</p>
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button className="w-full py-3" loading={loading} onClick={handleCreate}>
                 Set up
