@@ -3,39 +3,43 @@ import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
+const LOCALES = [
+  { code: null,    label: 'All',       flag: '' },
+  { code: 'en-GB', label: 'UK',        flag: '🇬🇧' },
+  { code: 'en-AU', label: 'Australia', flag: '🇦🇺' },
+  { code: 'en-IE', label: 'Ireland',   flag: '🇮🇪' },
+  { code: 'en-US', label: 'US',        flag: '🇺🇸' },
+]
+
+const LOCALE_FLAG = { 'en-GB': '🇬🇧', 'en-AU': '🇦🇺', 'en-IE': '🇮🇪', 'en-US': '🇺🇸' }
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [families, setFamilies] = useState([])
   const [search, setSearch] = useState('')
+  const [locale, setLocale] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadStats()
-  }, [])
+  useEffect(() => { loadStats() }, [])
 
   useEffect(() => {
-    loadFamilies()
-  }, [])
-
-  // Debounced search
-  useEffect(() => {
-    const t = setTimeout(() => loadFamilies(search), 300)
+    const t = setTimeout(() => loadFamilies(search, locale), 300)
     return () => clearTimeout(t)
-  }, [search])
+  }, [search, locale])
 
   async function loadStats() {
     const { data } = await supabase.rpc('get_admin_stats')
     if (data) setStats(data)
   }
 
-  async function loadFamilies(q = '') {
+  async function loadFamilies(q = '', loc = null) {
     setLoading(true)
     const { data } = await supabase.rpc('get_admin_families', {
       p_search: q || null,
-      p_limit: 50,
+      p_limit:  50,
       p_offset: 0,
+      p_locale: loc,
     })
     setFamilies(data ?? [])
     setLoading(false)
@@ -58,7 +62,7 @@ export default function AdminDashboardPage() {
 
       {/* Families table */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
           <h2 className="text-lg font-semibold text-white">
             Families
             {!loading && <span className="text-slate-500 font-normal text-sm ml-2">({families.length})</span>}
@@ -72,12 +76,30 @@ export default function AdminDashboardPage() {
           />
         </div>
 
+        {/* Locale filter */}
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          {LOCALES.map(l => (
+            <button
+              key={l.code ?? 'all'}
+              onClick={() => setLocale(l.code)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+                locale === l.code
+                  ? 'bg-canopy-green text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {l.flag && <span>{l.flag}</span>}
+              <span>{l.label}</span>
+            </button>
+          ))}
+        </div>
+
         <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  {['Family', 'Members', 'Schedule', 'Posts', 'Events', 'Created'].map((h) => (
+                  {['Family', 'Region', 'Members', 'Schedule', 'Posts', 'Events', 'Created'].map((h) => (
                     <th key={h} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-3 whitespace-nowrap">
                       {h}
                     </th>
@@ -87,20 +109,25 @@ export default function AdminDashboardPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center">
+                    <td colSpan={7} className="px-4 py-10 text-center">
                       <div className="w-6 h-6 border-4 border-canopy-green border-t-transparent rounded-full animate-spin mx-auto" />
                     </td>
                   </tr>
                 ) : families.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                      {search ? 'No families match that search' : 'No families yet'}
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
+                      {search || locale ? 'No families match that filter' : 'No families yet'}
                     </td>
                   </tr>
                 ) : families.map((f) => (
                   <tr key={f.id} onClick={() => navigate(`/admin/family/${f.id}`)} className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer">
                     <td className="px-4 py-3">
                       <p className="text-white font-medium">{f.parent_names ?? '—'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-base" title={f.locale ?? 'en-GB'}>
+                        {LOCALE_FLAG[f.locale ?? 'en-GB'] ?? '🌐'}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-slate-300">{f.member_count}</td>
                     <td className="px-4 py-3">

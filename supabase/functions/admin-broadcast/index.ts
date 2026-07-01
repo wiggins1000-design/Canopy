@@ -1,6 +1,6 @@
 // Canopy — admin-broadcast edge function
 // Sends a bulk email to a filtered segment of Canopy parents via Resend.
-// Segments: 'all' | 'inactive_30'
+// Segments: 'all' | 'inactive_30' | 'locale_en-GB' | 'locale_en-AU' | 'locale_en-IE' | 'locale_en-US'
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -36,43 +36,20 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'subject and body_html are required' }), { status: 400, headers: CORS })
   }
 
-  // Build recipient query — join auth.users for last_sign_in_at
-  const { data: allMembers, error: membersError } = await supabase
-    .from('family_members')
-    .select('email, display_name, user_id')
-    .in('role', ['parent_a', 'parent_b'])
-    .not('email', 'is', null)
+  // Use the RPC which handles all segment logic (all, inactive_30, locale_*)
+  // and correctly joins auth.users for emails
+  const { data: recipients, error: recError } = await supabase
+    .rpc('admin_get_broadcast_recipients', { p_segment: segment })
 
-  if (membersError) {
-    return new Response(JSON.stringify({ error: membersError.message }), { status: 500, headers: CORS })
-  }
-
-  let recipients = allMembers ?? []
-
-  if (segment === 'inactive_30') {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const userIds = recipients.map((m: { user_id: string }) => m.user_id)
-
-    // Fetch last_sign_in_at for these users
-    const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 1000 })
-    const activeIds = new Set(
-      (authUsers?.users ?? [])
-        .filter((u: { id: string; last_sign_in_at?: string }) =>
-          u.last_sign_in_at && u.last_sign_in_at > cutoff,
-        )
-        .map((u: { id: string }) => u.id),
-    )
-
-    recipients = recipients.filter(
-      (m: { user_id: string }) => !activeIds.has(m.user_id),
-    )
+  if (recError) {
+    return new Response(JSON.stringify({ error: recError.message }), { status: 500, headers: CORS })
   }
 
   // Deduplicate by email
   const seen = new Set<string>()
-  const uniqueRecipients = recipients.filter((m: { email: string }) => {
-    if (seen.has(m.email)) return false
-    seen.add(m.email)
+  const uniqueRecipients = (recipients ?? []).filter((r: { email: string }) => {
+    if (seen.has(r.email)) return false
+    seen.add(r.email)
     return true
   })
 

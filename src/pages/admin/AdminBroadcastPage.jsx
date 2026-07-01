@@ -2,24 +2,26 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const SEGMENTS = [
-  { id: 'all',         label: 'All users',          description: 'Every parent on Canopy' },
-  { id: 'inactive_30', label: 'Inactive 30+ days',  description: 'Parents who haven\'t signed in for 30+ days' },
+  { id: 'all',          label: 'All users',          description: 'Every parent on Canopy' },
+  { id: 'inactive_30',  label: 'Inactive 30+ days',  description: "Parents who haven't signed in for 30+ days" },
+  { id: 'locale_en-GB', label: '🇬🇧 UK users',        description: 'Parents with region set to United Kingdom' },
+  { id: 'locale_en-AU', label: '🇦🇺 Australia users', description: 'Parents with region set to Australia' },
+  { id: 'locale_en-IE', label: '🇮🇪 Ireland users',   description: 'Parents with region set to Ireland' },
+  { id: 'locale_en-US', label: '🇺🇸 US users',        description: 'Parents with region set to United States' },
 ]
 
 export default function AdminBroadcastPage() {
-  const [segment, setSegment]         = useState('all')
-  const [subject, setSubject]         = useState('')
-  const [body, setBody]               = useState('')
+  const [segment, setSegment]               = useState('all')
+  const [subject, setSubject]               = useState('')
+  const [body, setBody]                     = useState('')
   const [recipientCount, setRecipientCount] = useState(null)
   const [countLoading, setCountLoading]     = useState(false)
-  const [sending, setSending]         = useState(false)
-  const [result, setResult]           = useState(null)
-  const [error, setError]             = useState(null)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const [sending, setSending]               = useState(false)
+  const [result, setResult]                 = useState(null)
+  const [error, setError]                   = useState(null)
+  const [showConfirm, setShowConfirm]       = useState(false)
 
-  useEffect(() => {
-    previewCount()
-  }, [segment])
+  useEffect(() => { previewCount() }, [segment])
 
   async function previewCount() {
     setCountLoading(true)
@@ -131,7 +133,7 @@ export default function AdminBroadcastPage() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={10}
-            placeholder="Hi there,&#10;&#10;We've been working on something new…"
+            placeholder={"Hi there,\n\nWe've been working on something new…"}
             className="w-full bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-canopy-green resize-y font-mono"
           />
         </div>
