@@ -2,12 +2,21 @@ import { useState, useEffect } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 
+const LOCALES = [
+  { code: 'all',   label: 'All',       flag: '' },
+  { code: 'en-GB', label: 'UK',        flag: '🇬🇧' },
+  { code: 'en-AU', label: 'Australia', flag: '🇦🇺' },
+  { code: 'en-IE', label: 'Ireland',   flag: '🇮🇪' },
+  { code: 'en-US', label: 'US',        flag: '🇺🇸' },
+]
+
 export default function AdminTermDatesPage() {
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(null)
   const [failedOpen, setFailedOpen] = useState(false)
   const [filter, setFilter] = useState('')
+  const [locale, setLocale] = useState('all')
 
   useEffect(() => { load() }, [])
 
@@ -19,16 +28,20 @@ export default function AdminTermDatesPage() {
   }
 
   const q = filter.trim().toLowerCase()
-  const visible = q
-    ? schools.filter(s =>
-        (s.school_name ?? '').toLowerCase().includes(q) ||
-        (s.homepage_url ?? '').toLowerCase().includes(q),
-      )
-    : schools
+  const visible = schools.filter(s => {
+    if (locale !== 'all' && (s.locale ?? 'en-GB') !== locale) return false
+    if (q) return (s.school_name ?? '').toLowerCase().includes(q) || (s.homepage_url ?? '').toLowerCase().includes(q)
+    return true
+  })
 
   const failed  = visible.filter(s => s.scrape_error)
   const ok      = visible.filter(s => !s.scrape_error && s.last_fetched_at)
   const pending = visible.filter(s => !s.scrape_error && !s.last_fetched_at)
+
+  const countsByLocale = LOCALES.slice(1).reduce((acc, l) => {
+    acc[l.code] = schools.filter(s => (s.locale ?? 'en-GB') === l.code).length
+    return acc
+  }, {})
 
   return (
     <div className="space-y-8">
@@ -46,9 +59,32 @@ export default function AdminTermDatesPage() {
         />
       </div>
 
+      {/* Country filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {LOCALES.map(l => (
+          <button
+            key={l.code}
+            onClick={() => setLocale(l.code)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+              locale === l.code
+                ? 'bg-canopy-green text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+          >
+            {l.flag && <span>{l.flag}</span>}
+            <span>{l.label}</span>
+            {l.code !== 'all' && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${locale === l.code ? 'bg-white/20' : 'bg-slate-600'}`}>
+                {countsByLocale[l.code] ?? 0}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label={q ? 'Matching' : 'Total schools'} value={loading ? null : visible.length} />
+        <StatCard label={q || locale !== 'all' ? 'Matching' : 'Total schools'} value={loading ? null : visible.length} />
         <StatCard label="Synced OK"     value={loading ? null : ok.length}      colour="green" />
         <StatCard label="Failed"        value={loading ? null : failed.length}   colour="red" />
       </div>

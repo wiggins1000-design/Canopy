@@ -201,6 +201,7 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
     // ── Cache school info (term dates are managed separately by check-term-dates) ──
     await supabase.from('school_calendars').upsert({
       homepage_url:    normalised,
+      locale,
       school_name:     schoolInfo.school_name     ?? undefined,
       school_address:  schoolInfo.school_address  ?? undefined,
       school_email:    schoolInfo.school_email    ?? undefined,

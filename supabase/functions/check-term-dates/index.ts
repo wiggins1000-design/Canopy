@@ -69,11 +69,12 @@ Deno.serve(async (req) => {
 
   if (body?.test_urls?.length && isCronOrWebhook) {
     const testUrls: string[] = (body.test_urls as string[]).map(normalizeUrl)
-    console.log(`Test mode: processing ${testUrls.length} URLs`)
+    const testLocale: string | undefined = body.locale  // optional locale override for US schools
+    console.log(`Test mode: processing ${testUrls.length} URLs${testLocale ? ` (locale: ${testLocale})` : ''}`)
     const results = await Promise.allSettled(
       testUrls.map(async (url) => {
         console.log(`Test-processing: ${url}`)
-        const result = await processSchool(url, [], true)
+        const result = await processSchool(url, [], true, testLocale)
           .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
         return { url, ...result }
       })
@@ -89,11 +90,12 @@ Deno.serve(async (req) => {
   // Body: { manual_scrape: { homepage_url: "https://...", term_dates_url: "https://..." } }
   if (body?.manual_scrape && isCronOrWebhook) {
     const { homepage_url, term_dates_url } = body.manual_scrape as { homepage_url: string; term_dates_url: string }
-    console.log(`Manual scrape: ${homepage_url} → ${term_dates_url}`)
+    const manualLocale = getLocaleFromUrl(homepage_url) ?? 'en-GB'
+    console.log(`Manual scrape: ${homepage_url} → ${term_dates_url} (locale: ${manualLocale})`)
     const scraped = await scrapeTermDates(term_dates_url, null)
     if (scraped.error) {
       if ((scraped as any).diagnostic) {
-        await storeDiagnostic(homepage_url, scraped.error, (scraped as any).diagnostic)
+        await storeDiagnostic(homepage_url, scraped.error, (scraped as any).diagnostic, manualLocale)
       }
       return new Response(JSON.stringify({ ok: false, error: scraped.error, diagnostic: (scraped as any).diagnostic }), {
         headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -106,6 +108,7 @@ Deno.serve(async (req) => {
       term_dates:       scraped.termDates,
       content_hash:     scraped.contentHash,
       last_fetched_at:  new Date().toISOString(),
+      locale:           manualLocale,
       scrape_error:     null,
       scrape_error_at:  null,
       scrape_diagnosis: null,
@@ -172,10 +175,10 @@ Deno.serve(async (req) => {
 
 // ── Core processing ───────────────────────────────────────────────────────────
 
-async function processSchool(homepageUrl: string, familyIds: string[], forceRefresh: boolean) {
+async function processSchool(homepageUrl: string, familyIds: string[], forceRefresh: boolean, localeOverride?: string) {
   // Derive locale from URL TLD; fall back to first family's stored locale
-  let locale = getLocaleFromUrl(homepageUrl) ?? 'en-GB'
-  if (locale === 'en-GB' && familyIds.length > 0) {
+  let locale = localeOverride ?? getLocaleFromUrl(homepageUrl) ?? 'en-GB'
+  if (!localeOverride && locale === 'en-GB' && familyIds.length > 0) {
     const { data: fam } = await supabase
       .from('families')
       .select('config')
@@ -215,7 +218,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       if (scraped.error) {
         console.error(`Scrape error for ${homepageUrl}:`, scraped.error)
         if ((scraped as any).diagnostic) {
-          await storeDiagnostic(homepageUrl, scraped.error, (scraped as any).diagnostic)
+          await storeDiagnostic(homepageUrl, scraped.error, (scraped as any).diagnostic, locale)
         }
         return { status: 'error', error: scraped.error }
       }
@@ -230,6 +233,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
           term_dates:       termDates,
           content_hash:     scraped.contentHash,
           last_fetched_at:  new Date().toISOString(),
+          locale,
           scrape_error:     null,
           scrape_error_at:  null,
           scrape_diagnosis: null,
@@ -1138,10 +1142,11 @@ In 2-3 sentences explain: what went wrong, the likely root cause (e.g. homepage 
   )
 }
 
-async function storeDiagnostic(homepageUrl: string, errorMessage: string, diagnostic: Record<string, any>): Promise<void> {
+async function storeDiagnostic(homepageUrl: string, errorMessage: string, diagnostic: Record<string, any>, locale = 'en-GB'): Promise<void> {
   const diagnosis = await generateDiagnosis(homepageUrl, errorMessage, diagnostic).catch(() => null)
   const { error } = await supabase.from('school_calendars').upsert({
     homepage_url:     homepageUrl,
+    locale,
     scrape_error:     { ...diagnostic, error_message: errorMessage },
     scrape_error_at:  new Date().toISOString(),
     scrape_diagnosis: diagnosis,
