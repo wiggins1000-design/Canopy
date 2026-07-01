@@ -582,7 +582,7 @@ export default function ConfigPage() {
       <h1 className="text-xl font-bold text-gray-900 mb-4">Settings</h1>
 
       {/* â"€â"€ Region â"€â"€ */}
-      <AccordionGroup label="Region" defaultOpen>
+      <AccordionGroup label="Region">
         <div className="px-4 pt-3 pb-4 space-y-2">
           <p className="text-xs text-gray-400 mb-3">Sets your currency, school term labels, and how Canopy reads school calendars.</p>
           {SUPPORTED_LOCALES.map(({ code, label, flag }) => (
