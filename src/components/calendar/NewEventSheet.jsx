@@ -15,13 +15,10 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
   const { user } = useAuth()
 
   const children = (family?.config?.children ?? []).filter((c) => c.name)
-  // Correctly-spelled names to bias transcription/OCR corrections toward —
-  // e.g. voice input mishearing "Isabelle" as something similar-sounding.
-  const knownNames = [...new Set([
-    ...children.map(c => c.name),
-    parentA?.display_name,
-    parentB?.display_name,
-  ].filter(Boolean))]
+  // Passed to extraction so it can (a) correct mis-transcribed/misread names against the
+  // real spelling and (b) auto-tag children when the event is clearly about one of them.
+  const knownChildren = children.map(c => c.name)
+  const knownParents  = [parentA?.display_name, parentB?.display_name].filter(Boolean)
 
   const [title, setTitle]                   = useState('')
   const [date, setDate]                     = useState(initialDate ?? formatDate(new Date()))
@@ -75,7 +72,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey':        SUPABASE_ANON,
         },
-        body: JSON.stringify({ type: 'image', image_base64: base64, media_type: mimeType, known_names: knownNames }),
+        body: JSON.stringify({ type: 'image', image_base64: base64, media_type: mimeType, known_children: knownChildren, known_parents: knownParents }),
       })
       const json = await res.json()
       if (json.ok && json.event) {
@@ -188,7 +185,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey':        SUPABASE_ANON,
         },
-        body: JSON.stringify({ type: 'voice', transcript: text, known_names: knownNames }),
+        body: JSON.stringify({ type: 'voice', transcript: text, known_children: knownChildren, known_parents: knownParents }),
       })
       const json = await res.json()
       if (json.ok && json.event) {
@@ -202,6 +199,8 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setExtracting(false)
   }
 
+  const VALID_RECURRENCES = ['weekly', 'fortnightly', 'monthly', 'yearly']
+
   function applyExtracted(ev) {
     if (ev.title) setTitle(ev.title)
     if (ev.date)  setDate(ev.date)
@@ -209,6 +208,11 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     if (ev.end_time) setEndTime(ev.end_time)
     if (ev.time)  setTime(ev.time)
     if (ev.notes) setNotes(ev.notes)
+    if (VALID_RECURRENCES.includes(ev.recurrence)) setRecurrence(ev.recurrence)
+    if (Array.isArray(ev.tagged_children)) {
+      const matched = ev.tagged_children.filter((n) => children.some((c) => c.name === n))
+      if (matched.length) setTaggedChildren((prev) => [...new Set([...prev, ...matched])])
+    }
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────

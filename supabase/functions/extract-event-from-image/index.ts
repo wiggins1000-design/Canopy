@@ -48,12 +48,19 @@ Deno.serve(async (req) => {
 
   // Family member names, passed from the client so Claude can correct near-miss
   // transcriptions/OCR (e.g. voice input mishearing "Isabelle" as something similar-sounding)
-  // to the actual spelling instead of whatever it guessed.
-  const knownNames: string[] = Array.isArray(body?.known_names)
-    ? body.known_names.filter((n: unknown) => typeof n === 'string' && n.trim()).slice(0, 20)
-    : []
-  const knownNamesLine = knownNames.length
-    ? `\nKnown family member names: ${knownNames.join(', ')}. If the text/image contains a name that sounds or looks similar to one of these, use the correct spelling from this list rather than a phonetic guess.`
+  // to the actual spelling instead of whatever it guessed. Children are kept separate from
+  // parents because only children can be tagged on an event (see tagged_children below).
+  const cleanNames = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((n: unknown): n is string => typeof n === 'string' && !!n.trim()).slice(0, 20) : []
+  const knownChildren = cleanNames(body?.known_children)
+  const knownParents  = cleanNames(body?.known_parents)
+  const allKnownNames = [...new Set([...knownChildren, ...knownParents])]
+
+  const knownNamesLine = allKnownNames.length
+    ? `\nKnown family member names: ${allKnownNames.join(', ')}. If the text/image contains a name that sounds or looks similar to one of these, use the correct spelling from this list rather than a phonetic guess.`
+    : ''
+  const taggedChildrenLine = knownChildren.length
+    ? `\nThe family's children are: ${knownChildren.join(', ')}. If the event is clearly about one or more of them (e.g. "Henry's football", "school run for Isabelle"), include their exact name(s) from this list in tagged_children. Otherwise return an empty array — do not guess.`
     : ''
 
   const SYSTEM_PROMPT = `You are a helpful assistant that extracts calendar event details from text or images.
@@ -64,11 +71,14 @@ Return ONLY valid JSON — no markdown fences, no explanation:
   "date": "YYYY-MM-DD",
   "end_date": "YYYY-MM-DD or null",
   "time": "HH:MM or null (24h format)",
-  "notes": "any extra details, or null"
+  "notes": "any extra details, or null",
+  "recurrence": "weekly|fortnightly|monthly|yearly|null",
+  "tagged_children": ["names from the known children list this event is about, or empty array"]
 }
 If you cannot determine a specific date, use today's date.
 If you cannot determine a time, use null.
-For voice notes like "football on Monday is now at 4:40" interpret relative days from today's date.${knownNamesLine}`
+For voice notes like "football on Monday is now at 4:40" interpret relative days from today's date.
+Set recurrence when the text implies a repeating event ("every Monday", "every other week", "monthly", "every year") — otherwise null. "Every week"/"every Monday" etc. = weekly.${knownNamesLine}${taggedChildrenLine}`
 
   let claudeMessages: any[]
 
