@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
+import { getCalendarMonthDays, formatDate } from '../../lib/scheduleEngine'
+import { buildTermDaysMap } from '../../lib/termDatesUtils'
+import CalendarGrid from '../../components/calendar/CalendarGrid'
 
 const LOCALES = [
   { code: 'all',   label: 'All',       flag: '' },
@@ -17,6 +20,7 @@ export default function AdminTermDatesPage() {
   const [failedOpen, setFailedOpen] = useState(false)
   const [filter, setFilter] = useState('')
   const [locale, setLocale] = useState('all')
+  const [previewSchool, setPreviewSchool] = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -134,7 +138,7 @@ export default function AdminTermDatesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-700">
-                    {['School', 'Homepage', 'Term dates URL', 'Dates', 'Last synced'].map(h => (
+                    {['School', 'Homepage', 'Term dates URL', 'Dates', 'Last synced', ''].map(h => (
                       <th key={h} className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-3 whitespace-nowrap">
                         {h}
                       </th>
@@ -167,6 +171,16 @@ export default function AdminTermDatesPage() {
                           ? formatDistanceToNow(new Date(school.last_fetched_at), { addSuffix: true })
                           : '—'}
                       </td>
+                      <td className="px-4 py-3">
+                        {school.term_dates_count > 0 && (
+                          <button
+                            onClick={() => setPreviewSchool(school)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-canopy-green hover:text-white transition-colors whitespace-nowrap"
+                          >
+                            View in calendar
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -184,6 +198,104 @@ export default function AdminTermDatesPage() {
           ))}
         </div>
       )}
+
+      {previewSchool && (
+        <SchoolCalendarModal school={previewSchool} onClose={() => setPreviewSchool(null)} />
+      )}
+    </div>
+  )
+}
+
+// Renders a school's cached term_dates on a plain month calendar — fetched fresh from
+// school_calendars via an admin-only RPC, purely client-side. Never reads or writes
+// family_events, so this can't affect any real family's calendar.
+function SchoolCalendarModal({ school, onClose }) {
+  const [termDates, setTermDates] = useState(null)
+  const [error, setError] = useState(null)
+  const [viewDate, setViewDate] = useState(new Date())
+
+  useEffect(() => {
+    let cancelled = false
+    supabase.rpc('get_admin_school_term_dates', { p_school_id: school.id }).then(({ data, error: err }) => {
+      if (cancelled) return
+      if (err) { setError(err.message); return }
+      const dates = data ?? []
+      setTermDates(dates)
+      // Jump straight to the month of the earliest upcoming date (or the earliest date
+      // at all, if every date is in the past) so the admin isn't stuck on an empty month.
+      const today = formatDate(new Date())
+      const sorted = [...dates].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''))
+      const target = sorted.find(d => d.date >= today) ?? sorted[0]
+      if (target?.date) setViewDate(new Date(`${target.date}T00:00:00`))
+    })
+    return () => { cancelled = true }
+  }, [school.id])
+
+  const year = viewDate.getFullYear()
+  const month = viewDate.getMonth()
+
+  const calendarDays = useMemo(() => (
+    getCalendarMonthDays(year, month).map(({ date, current }) => ({ date, dateStr: formatDate(date), current }))
+  ), [year, month])
+
+  const termDaysMap = useMemo(() => {
+    if (!termDates) return new Map()
+    const rows = termDates.map(d => ({
+      event_date:     d.date,
+      end_date:       d.end_date ?? null,
+      title:          d.title,
+      source_subject: school.school_name ?? 'School',
+    }))
+    return buildTermDaysMap(rows)
+  }, [termDates, school.school_name])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md overflow-hidden">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5">
+          <div>
+            <h2 className="text-lg font-bold text-white">{school.school_name ?? 'School'}</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Preview only — not linked to any family calendar</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none px-1">×</button>
+        </div>
+
+        <div className="p-5">
+          {error ? (
+            <p className="text-sm text-red-400">{error}</p>
+          ) : !termDates ? (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 border-4 border-canopy-green border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setViewDate(new Date(year, month - 1, 1))}
+                  className="w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center justify-center"
+                >‹</button>
+                <span className="text-sm font-semibold text-white">
+                  {viewDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => setViewDate(new Date(year, month + 1, 1))}
+                  className="w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-slate-600 flex items-center justify-center"
+                >›</button>
+              </div>
+
+              <div className="bg-white rounded-2xl p-3">
+                <CalendarGrid calendarDays={calendarDays} termDays={termDaysMap} onSelectDay={() => {}} />
+              </div>
+
+              <div className="flex items-center gap-4 mt-3 text-xs text-slate-400">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-purple-400" /> Holiday</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-purple-200" /> INSET / closure day</span>
+                <span className="ml-auto text-slate-500">{termDates.length} date{termDates.length === 1 ? '' : 's'} in KB</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
