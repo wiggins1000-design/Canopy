@@ -62,7 +62,7 @@ export default function NoticeBoardPage() {
     <div className="px-4 pt-5 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">Notice Board</h1>
+        <h1 className="text-xl font-bold text-gray-900">Notices</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/board/media')}
