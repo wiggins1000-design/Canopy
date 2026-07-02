@@ -395,7 +395,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
 
       const [htmlResult, docLinks] = await Promise.all([
         extractTermDates(termDatesContent, locale),
-        findDocumentLinksViaClaude(termDatesContent, candidateUrl),
+        findDocumentLinksViaClaude(termDatesContent, candidateUrl, locale),
       ])
       let { termDates, schoolName } = htmlResult
       console.log(`Extracted ${termDates.length} events from HTML at ${candidateUrl}`)
@@ -424,12 +424,12 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
         }
       }
 
-      inferMissingHolidays(termDates)
+      inferMissingHolidays(termDates, locale)
 
       // Filter to school-closed events before saving to KB — removes term start/end
       // dates, pupils return days etc. so the KB only contains calendar-worthy events.
       // inferMissingHolidays must run first as it needs term-end events to find gaps.
-      termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title))
+      termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title, locale))
       termDates = deduplicateOverlapping(termDates)
       console.log(`Total events for KB from ${candidateUrl}: ${termDates.length}`)
 
@@ -630,7 +630,7 @@ async function fetchViaJina(url: string): Promise<string | null> {
 
 async function findTermDatesUrl(homepageContent: string, origin: string, locale: string): Promise<string | null> {
   const cfg = getLocaleConfig(locale)
-  const schoolType = { uk: 'UK school', us: 'US school district', au: 'Australian school', ie: 'Irish school' }[cfg.claudeVariant] ?? 'school'
+  const schoolType = cfg.schoolTypeLabel
   const urlHints = cfg.urlKeywords.map(k => `"${k}"`).join(', ')
   const res = await callClaude(
     `Find the term dates or school calendar page URL on this ${schoolType} website.
@@ -684,7 +684,7 @@ function findTermDatesLinkByPattern(links: string[]): string | null {
 // can fall back to the second or third pick if the first yields no dates.
 async function pickTermDatesLinks(links: string[], origin: string, locale: string): Promise<string[]> {
   const cfg = getLocaleConfig(locale)
-  const schoolType = { uk: 'UK school', us: 'US school district', au: 'Australian school', ie: 'Irish school' }[cfg.claudeVariant] ?? 'school'
+  const schoolType = cfg.schoolTypeLabel
   const urlHints = cfg.urlKeywords.join(', ')
   const res = await callClaude(
     `From this list of URLs from a ${schoolType} website (${origin}), return the URLs most likely to be the term dates, school calendar, or holiday dates page.
@@ -827,13 +827,14 @@ function extractDocLinksFromHtml(html: string, pageUrl: string): string[] {
   }))].slice(0, 10)
 }
 
-async function findDocumentLinksViaClaude(content: string, pageUrl: string): Promise<string[]> {
+async function findDocumentLinksViaClaude(content: string, pageUrl: string, locale: string): Promise<string[]> {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
+  const cfg = getLocaleConfig(locale)
   const res = await callClaude(
     `Find links to downloadable documents (PDFs, Word files, spreadsheets) on this school webpage that contain term dates, school holidays, or academic calendars — i.e. when the school is open or closed.
 
 Include documents labelled: term dates, school calendar, academic calendar, holiday dates, school dates, key dates, term times.
-Exclude documents that are ONLY about: exam timetables, GCSE/A-level schedules, PPE schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates).
+Exclude documents that are ONLY about: exam timetables, ${cfg.docExcludeTerms}.
 
 Base URL: ${pageUrl}
 
@@ -874,11 +875,9 @@ function cleanForClaude(raw: string): string {
 
 // When HTML is fetched (vs Jina markdown), navigation menus produce a long preamble before the
 // actual dates section. Find where the term dates content begins and discard everything before it.
-function findDatesSection(content: string): string {
+function findDatesSection(content: string, locale: string): string {
   if (content.length <= 2500) return content
-  const idx = content.search(
-    /(?:ACADEMIC YEAR|School\s+Term\s+Dates?|Term\s+Dates?\s*\n|(?:Autumn|Spring|Summer)\s+Term)\s+20\d\d/i
-  )
+  const idx = content.search(getLocaleConfig(locale).sectionHeadingRegex)
   if (idx > 300) return content.slice(Math.max(0, idx - 80))
   return content
 }
@@ -887,8 +886,8 @@ function findDatesSection(content: string): string {
 // We're already on the term dates page, so links/nav are pure noise.
 // Bullet list items are kept only if they contain holiday-related keywords
 // (some schools format dates as bullets; navigation items never do).
-function stripUrls(content: string): string {
-  const holidayBullet = /\b(inset\s*day|half.?term|bank\s+holiday|christmas|easter|summer\s+holid|school\s+term\s+dates?|break\s+up|academic\s+year)\b/i
+function stripUrls(content: string, locale: string): string {
+  const holidayBullet = getLocaleConfig(locale).bulletFilter
   return content
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -909,8 +908,8 @@ function stripUrls(content: string): string {
 
 async function extractTermDates(rawContent: string, locale: string): Promise<{ termDates: any[], schoolName: string | null }> {
   const cleaned = cleanForClaude(rawContent)
-  const stripped = stripUrls(cleaned)
-  const content = findDatesSection(stripped)
+  const stripped = stripUrls(cleaned, locale)
+  const content = findDatesSection(stripped, locale)
 
   console.log(`extractTermDates: raw ${rawContent.length}→cleaned ${cleaned.length}→stripped ${stripped.length}→section ${content.length} chars`)
   console.log('section preview:', content.slice(0, 500))
@@ -957,9 +956,12 @@ ${content.slice(0, 15000)}`,
   }
 }
 
-// Post-merge: infer Summer/Christmas/Easter holidays when they span two separate sources
-// (e.g. 2025-26 PDF ends at "Summer Term ends" and 2026-27 PDF starts with INSET days)
-function inferMissingHolidays(events: any[]): void {
+// Post-merge: infer holidays that span the gap between two term-end/term-start events.
+// UK: infers Summer/Christmas/Easter from Autumn/Spring/Summer term labels.
+// AU:  infers Term 1–4 Holidays from Term N end → Term N+1 start.
+// US:  infers Winter/Summer Break from Fall/Spring semester labels.
+// IE:  infers Christmas/Easter/Summer from Autumn/Spring/Summer term labels.
+function inferMissingHolidays(events: any[], locale: string): void {
   const addDays = (d: string, n: number): string => {
     const dt = new Date(`${d}T00:00:00Z`)
     dt.setUTCDate(dt.getUTCDate() + n)
@@ -982,23 +984,35 @@ function inferMissingHolidays(events: any[]): void {
   const endsOrCloses = (t: string) => /\b(end|ends|close|closes|last day)\b/i.test(t)
   const isPeriodTitle = (t: string) => !endsOrCloses(t) && !/\b(start|begin|open|half.?term|holiday|break|return|back)\b/i.test(t)
 
-  const defs: Array<[(t: string) => boolean, (t: string) => boolean, string]> = [
-    [
-      t => /\bsummer\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
-      t => /\b(autumn|michaelmas)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
-      'Summer Holiday',
-    ],
-    [
-      t => /\b(autumn|michaelmas|christmas|winter)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
-      t => /\b(spring|lent|january)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
-      'Christmas Holiday',
-    ],
-    [
-      t => /\b(spring|lent)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)),
-      t => /\bsummer\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t),
-      'Easter Holiday',
-    ],
-  ]
+  type Def = [(t: string) => boolean, (t: string) => boolean, string]
+  let defs: Def[]
+
+  if (locale === 'en-AU') {
+    defs = [
+      [t => /\bterm\s+1\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+2\b/i.test(t) || returnsOrOpens(t), 'Term 1 Holiday'],
+      [t => /\bterm\s+2\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+3\b/i.test(t) || returnsOrOpens(t), 'Term 2 Holiday'],
+      [t => /\bterm\s+3\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+4\b/i.test(t) || returnsOrOpens(t), 'Term 3 Holiday'],
+      [t => /\bterm\s+4\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+1\b/i.test(t) || returnsOrOpens(t), 'Summer Holiday'],
+    ]
+  } else if (locale === 'en-US') {
+    defs = [
+      [t => /\bfall\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\b(spring|second\s+semester)\b/i.test(t) || returnsOrOpens(t), 'Winter Break'],
+      [t => /\b(spring|second\s+semester)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bfall\b/i.test(t) || returnsOrOpens(t), 'Summer Break'],
+    ]
+  } else if (locale === 'en-IE') {
+    defs = [
+      [t => /\bsummer\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bautumn\b/i.test(t) || /\bin.?service/i.test(t) || returnsOrOpens(t), 'Summer Holiday'],
+      [t => /\b(autumn|christmas|winter)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\b(spring|january)\b/i.test(t) || /\bin.?service/i.test(t) || returnsOrOpens(t), 'Christmas Holiday'],
+      [t => /\bspring\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bsummer\b/i.test(t) || /\bin.?service/i.test(t) || returnsOrOpens(t), 'Easter Holiday'],
+    ]
+  } else {
+    // en-GB — original behavior unchanged
+    defs = [
+      [t => /\bsummer\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\b(autumn|michaelmas)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t), 'Summer Holiday'],
+      [t => /\b(autumn|michaelmas|christmas|winter)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\b(spring|lent|january)\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t), 'Christmas Holiday'],
+      [t => /\b(spring|lent)\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bsummer\b/i.test(t) || /\binset\b/i.test(t) || returnsOrOpens(t), 'Easter Holiday'],
+    ]
+  }
 
   for (const [isTermEnd, isNextStart, holidayName] of defs) {
     for (const e of sorted) {
@@ -1051,12 +1065,19 @@ function deduplicateOverlapping(events: any[]): any[] {
 }
 
 // Returns false for events where school is open (term start/end, parents evenings, sports days etc.)
-function isSchoolClosedEvent(title: string): boolean {
+function isSchoolClosedEvent(title: string, locale: string): boolean {
   const lc = title.toLowerCase()
   if (/\b(term (starts?|begins?|opens?|returns?|ends?|closes?)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
   if (/\b(pupils? (return|in school|back)|students? (return|back)|all year groups? in school|year \d+ in school)\b/.test(lc)) return false
   if (/\b(parents?' evening|open evening|information evening|sports day|prize giving|graduation|speech day)\b/.test(lc)) return false
-  if (/\b(exam(ination)?|assessment|ppe|gcse|a.?level)\b/.test(lc) && !/\b(holiday|break|closed)\b/.test(lc)) return false
+  // Locale-specific exam types to exclude (unless the event is also a holiday/closure)
+  const hasClosedKeyword = /\b(holiday|break|closed)\b/.test(lc)
+  if (!hasClosedKeyword) {
+    if (locale === 'en-AU' && /\b(hsc|vce|naplan|atar)\b/.test(lc)) return false
+    if (locale === 'en-US' && /\b(ap\s+exam|sat|act|state\s+test(?:ing)?|standardized\s+test)\b/.test(lc)) return false
+    if (locale === 'en-IE' && /\b(leaving\s+cert|junior\s+cert|lc\s+exam)\b/.test(lc)) return false
+    if (locale === 'en-GB' && /\b(exam(ination)?|assessment|ppe|gcse|a.?level)\b/.test(lc)) return false
+  }
   return true
 }
 
@@ -1112,6 +1133,7 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
 
 async function cleanTermDateDuplicates(familyId: string): Promise<void> {
   const patterns = [
+    // UK
     '%half term%', '%half-term%',
     '%end of term%', '%last day of term%', '%first day of term%',
     '%term start%', '%term end%', '%term begin%',
@@ -1119,6 +1141,15 @@ async function cleanTermDateDuplicates(familyId: string): Promise<void> {
     '%inset day%',
     '%christmas holid%', '%easter holid%', '%summer holid%',
     '%spring holid%', '%autumn holid%',
+    // AU
+    '%term 1 holid%', '%term 2 holid%', '%term 3 holid%', '%term 4 holid%',
+    '%pupil-free%', '%pupil free%', '%student-free%', '%student free%',
+    // US
+    '%fall break%', '%spring break%', '%winter break%',
+    '%thanksgiving break%',
+    '%pd day%', '%professional development day%', '%teacher work day%',
+    // IE
+    '%midterm break%', '%mid-term break%', '%in-service day%',
   ]
   const { error } = await supabase
     .from('family_events')
@@ -1142,8 +1173,9 @@ async function generateDiagnosis(homepageUrl: string, errorMessage: string, diag
   if (diagnostic.links_found?.length) lines.push(`Links found on homepage (${diagnostic.links_found.length}): ${diagnostic.links_found.slice(0, 10).join(', ')}`)
   if (diagnostic.content_preview) lines.push(`Page content preview:\n${diagnostic.content_preview}`)
 
+  const schoolLabel = getLocaleConfig(locale).schoolTypeLabel
   return callClaude(
-    `You are analysing why an automated scraper failed to extract UK school term dates.
+    `You are analysing why an automated scraper failed to extract term dates from a ${schoolLabel} website.
 
 ${lines.join('\n')}
 

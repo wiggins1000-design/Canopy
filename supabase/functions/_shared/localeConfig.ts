@@ -2,12 +2,20 @@
 // Mirrors src/config/regions/ — keep in sync when adding new locales.
 
 export interface LocaleConfig {
-  termDateRegex:   RegExp
-  contentKeywords: string[]
-  urlKeywords:     string[]
-  commonPaths:     string[]
-  claudeVariant:   'uk' | 'us' | 'au' | 'ie'
-  yearGroupSystem: 'uk' | 'us' | 'au' | 'ie'
+  termDateRegex:      RegExp
+  contentKeywords:    string[]
+  urlKeywords:        string[]
+  commonPaths:        string[]
+  claudeVariant:      'uk' | 'us' | 'au' | 'ie'
+  yearGroupSystem:    'uk' | 'us' | 'au' | 'ie'
+  /** Regex: bullet lines matching this are kept by stripUrls; others are dropped */
+  bulletFilter:       RegExp
+  /** Regex: anchor point for findDatesSection — content before the first match is discarded */
+  sectionHeadingRegex: RegExp
+  /** Human-readable list of document types to exclude in findDocumentLinksViaClaude prompt */
+  docExcludeTerms:    string
+  /** School type label for Claude prompts */
+  schoolTypeLabel:    string
 }
 
 export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
@@ -23,6 +31,10 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'uk',
     yearGroupSystem: 'uk',
+    bulletFilter: /\b(inset\s*day|half.?term|bank\s+holiday|christmas|easter|summer\s+holid|school\s+term\s+dates?|break\s+up|academic\s+year)\b/i,
+    sectionHeadingRegex: /(?:ACADEMIC YEAR|School\s+Term\s+Dates?|Term\s+Dates?\s*\n|(?:Autumn|Spring|Summer)\s+Term)\s+20\d\d/i,
+    docExcludeTerms: 'GCSE/A-level schedules, PPE schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
+    schoolTypeLabel: 'UK school',
   },
 
   'en-US': {
@@ -36,6 +48,10 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'us',
     yearGroupSystem: 'us',
+    bulletFilter: /\b(fall\s+break|spring\s+break|winter\s+break|summer\s+break|thanksgiving\s+break|pd\s+day|professional\s+development|teacher\s+work\s+day|no\s+school|school\s+clos|early\s+release|semester|school\s+year)\b/i,
+    sectionHeadingRegex: /(?:Academic\s+Calendar|School\s+Year(?:\s+Calendar)?|Fall\s+Semester|Spring\s+Semester|(?:20\d\d[–\-]\d{2,4})\s+(?:Academic|School))/i,
+    docExcludeTerms: 'AP/SAT/ACT exam schedules, graduation programs, prospectuses, policies, or handbooks (unless they also contain school closure dates)',
+    schoolTypeLabel: 'US school district',
   },
 
   'en-AU': {
@@ -48,6 +64,10 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'au',
     yearGroupSystem: 'au',
+    bulletFilter: /\b(term\s+[1-4]|pupil.?free|student.?free|school\s+holid|term\s+holid|summer\s+holid|school\s+term|end\s+of\s+term|start\s+of\s+term)\b/i,
+    sectionHeadingRegex: /(?:Term\s+[1-4]|School\s+Terms?|Term\s+Dates?|Academic\s+(?:Year|Calendar)|School\s+Calendar)\s*(?:20\d\d|–|-)/i,
+    docExcludeTerms: 'HSC/VCE/NAPLAN exam schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
+    schoolTypeLabel: 'Australian school',
   },
 
   'en-IE': {
@@ -60,6 +80,10 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'ie',
     yearGroupSystem: 'ie',
+    bulletFilter: /\b(midterm\s+break|mid.?term|in.?service|school\s+holid|christmas|easter|summer\s+holid|bank\s+holiday|school\s+term\s+dates?)\b/i,
+    sectionHeadingRegex: /(?:ACADEMIC YEAR|School\s+Term\s+Dates?|Term\s+Dates?|(?:Autumn|Spring|Summer)\s+Term)\s*(?:20\d\d)?/i,
+    docExcludeTerms: 'Leaving Cert/Junior Cert exam schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
+    schoolTypeLabel: 'Irish school',
   },
 }
 
