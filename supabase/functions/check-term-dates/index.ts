@@ -372,6 +372,31 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
     console.log(`Trying candidate: ${candidateUrl}`)
     triedUrls.push(candidateUrl)
 
+    // Candidate page is itself a PDF — read it natively via Claude's document API
+    // rather than routing through the HTML text pipeline (which can't handle scanned pages).
+    if (isPdfUrl(candidateUrl)) {
+      console.log(`Candidate is a PDF, extracting via Claude document API: ${candidateUrl}`)
+      const pdfResult = await extractTermDatesFromPdf(candidateUrl, locale)
+      if (!pdfResult.pdfBase64) {
+        console.log(`Could not fetch PDF ${candidateUrl} — trying next candidate…`)
+        continue
+      }
+      const contentHash = await hashContent(pdfResult.pdfBase64)
+      if (contentHash === existingHash) return { unchanged: true }
+
+      let termDates = pdfResult.termDates
+      inferMissingHolidays(termDates, locale)
+      termDates = termDates.filter((e: any) => e.title && isSchoolClosedEvent(e.title, locale))
+      termDates = deduplicateOverlapping(termDates)
+      console.log(`Total events for KB from PDF ${candidateUrl}: ${termDates.length}`)
+
+      if (termDates.length > 0) {
+        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName }
+      }
+      console.log(`No dates from PDF ${candidateUrl} — trying next candidate…`)
+      continue
+    }
+
     const termDatesContent = await fetchPage(candidateUrl, locale)
     console.log(`Content length: ${termDatesContent?.length ?? 0}`)
 
@@ -406,6 +431,10 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       if (uniqueDocLinks.length > 0) {
         const pdfResults = await Promise.all(
           uniqueDocLinks.map(async (docUrl: string) => {
+            if (isPdfUrl(docUrl)) {
+              const result = await extractTermDatesFromPdf(docUrl, locale)
+              return { termDates: result.termDates, schoolName: result.schoolName, url: docUrl }
+            }
             const docContent = await fetchPage(docUrl, locale)
             if (!docContent) return { termDates: [], schoolName: null, url: docUrl }
             const result = await extractTermDates(docContent, locale)
@@ -578,7 +607,10 @@ async function fetchDirect(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Direct fetch OK for ${url}: ${text.length} chars, type: ${contentType}`)
-    return text.slice(0, 60000)
+    // 200k covers large component-framework pages (tabbed academic-year pickers etc.)
+    // where the dates table sits well past the old 60k cap. findDatesSection trims
+    // this down to the relevant section before it ever reaches Claude.
+    return text.slice(0, 200000)
   } catch (e) {
     console.log(`Direct fetch threw for ${url}:`, e)
     return null
@@ -621,7 +653,9 @@ async function fetchViaJina(url: string): Promise<string | null> {
     }
     const text = await res.text()
     console.log(`Jina fetched ${url}: ${text.length} chars`)
-    return text.slice(0, 30000)
+    // Raised from 30k, but kept more conservative than the direct-fetch cap since
+    // Jina is a third-party API that may bill by content processed.
+    return text.slice(0, 100000)
   } catch (e) {
     console.error(`Jina fetch failed for ${url}:`, e)
     return null
@@ -956,6 +990,76 @@ ${content.slice(0, 15000)}`,
   }
 }
 
+function isPdfUrl(url: string): boolean {
+  const u = url.toLowerCase()
+  return u.endsWith('.pdf') || u.includes('.pdf?') || u.includes('type=pdf')
+}
+
+// Fetch a PDF's raw bytes and base64-encode for Claude's document API.
+// Claude's PDF support handles scanned/image pages via vision — this replaces the
+// old Jina-text-extraction path, which returned nothing for image-only PDFs.
+async function fetchPdfBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Canopy/1.0; +https://canopy.app)' },
+      signal: AbortSignal.timeout(20000),
+      redirect: 'follow',
+    })
+    if (!res.ok) { console.log(`PDF fetch returned ${res.status} for ${url}`); return null }
+    const buf = new Uint8Array(await res.arrayBuffer())
+    // Claude's document API caps PDFs at 32MB — leave headroom for base64 overhead.
+    if (buf.byteLength > 30 * 1024 * 1024) { console.log(`PDF too large (${buf.byteLength} bytes) for ${url}, skipping`); return null }
+    let binary = ''
+    const chunkSize = 0x8000
+    for (let i = 0; i < buf.length; i += chunkSize) binary += String.fromCharCode(...buf.subarray(i, i + chunkSize))
+    return btoa(binary)
+  } catch (e) {
+    console.error(`fetchPdfBase64 failed for ${url}:`, e)
+    return null
+  }
+}
+
+async function extractTermDatesFromPdf(pdfUrl: string, locale: string): Promise<{ termDates: any[], schoolName: string | null, pdfBase64: string | null }> {
+  const pdfBase64 = await fetchPdfBase64(pdfUrl)
+  if (!pdfBase64) return { termDates: [], schoolName: null, pdfBase64: null }
+
+  const variant = getLocaleConfig(locale).claudeVariant
+  const systemPrompt = CLAUDE_EXTRACTION_PROMPTS[variant]
+
+  const res = await callClaudeWithDocument(
+    `${systemPrompt}
+
+This is a PDF — it may be a native text document or a scanned/photographed page. Read any dates visible anywhere in the document, including tables, calendars and images, not just selectable text.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "school_name": "name of the school or null",
+  "events": [
+    { "title": "descriptive title", "date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD or null (use for multi-day periods)" }
+  ]
+}
+
+Additional rules:
+- Include ALL dates shown — past, present and future
+- For multi-day periods always set end_date
+- Use the academic year context to infer the year for any dates missing it`,
+    pdfBase64,
+    4096
+  )
+
+  console.log('Claude PDF raw response:', res)
+  if (!res) return { termDates: [], schoolName: null, pdfBase64 }
+
+  try {
+    const json = JSON.parse(res.replace(/```json\n?|\n?```/g, '').trim())
+    return { termDates: json.events ?? [], schoolName: json.school_name ?? null, pdfBase64 }
+  } catch (e) {
+    console.error('Failed to parse Claude PDF term dates response:', e)
+    console.error('Raw response was:', res)
+    return { termDates: [], schoolName: null, pdfBase64 }
+  }
+}
+
 // Post-merge: infer holidays that span the gap between two term-end/term-start events.
 // UK: infers Summer/Christmas/Easter from Autumn/Spring/Summer term labels.
 // AU:  infers Term 1–4 Holidays from Term N end → Term N+1 start.
@@ -1245,6 +1349,47 @@ async function callClaude(prompt: string, maxTokens: number): Promise<string | n
     return data.content?.[0]?.text ?? null
   } catch (e: any) {
     console.error('callClaude fetch threw:', e?.name, e?.message)
+    return null
+  }
+}
+
+// Same as callClaude but attaches a base64 PDF as a document content block —
+// Claude reads it with vision, so scanned/image-only PDFs work as well as text ones.
+async function callClaudeWithDocument(prompt: string, pdfBase64: string, maxTokens: number): Promise<string | null> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) { console.error('ANTHROPIC_API_KEY not set'); return null }
+  console.log(`callClaudeWithDocument: ${maxTokens} tokens, pdf ~${Math.round(pdfBase64.length * 0.75 / 1024)}KB`)
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      signal: AbortSignal.timeout(45000),
+      body: JSON.stringify({
+        model:       'claude-haiku-4-5-20251001',
+        max_tokens:  maxTokens,
+        temperature: 0,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+            { type: 'text', text: prompt },
+          ],
+        }],
+      }),
+    })
+    console.log(`callClaudeWithDocument: response status ${res.status}`)
+    if (!res.ok) {
+      console.error('Claude error:', await res.text())
+      return null
+    }
+    const data = await res.json()
+    return data.content?.[0]?.text ?? null
+  } catch (e: any) {
+    console.error('callClaudeWithDocument fetch threw:', e?.name, e?.message)
     return null
   }
 }
