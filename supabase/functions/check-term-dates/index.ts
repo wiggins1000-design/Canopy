@@ -32,6 +32,21 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
+// Schools are processed in bounded batches rather than all at once — each school can now
+// hold up to 200k chars of fetched text or a 30MB PDF in memory (native PDF extraction +
+// raised content caps), and running 50 in parallel exceeded the edge function's worker
+// memory limit (HTTP 546). Applies to both test mode and the production cron/manual paths.
+const SCHOOL_BATCH_SIZE = 6
+
+async function processInBatches<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    results.push(...await Promise.all(batch.map(fn)))
+  }
+  return results
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -71,15 +86,13 @@ Deno.serve(async (req) => {
     const testUrls: string[] = (body.test_urls as string[]).map(normalizeUrl)
     const testLocale: string | undefined = body.locale  // optional locale override for US schools
     console.log(`Test mode: processing ${testUrls.length} URLs${testLocale ? ` (locale: ${testLocale})` : ''}`)
-    const results = await Promise.allSettled(
-      testUrls.map(async (url) => {
-        console.log(`Test-processing: ${url}`)
-        const result = await processSchool(url, [], true, testLocale)
-          .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
-        return { url, ...result }
-      })
-    )
-    return new Response(JSON.stringify({ ok: true, results: results.map(r => r.status === 'fulfilled' ? r.value : { error: (r as any).reason?.message }) }), {
+    const results = await processInBatches(testUrls, SCHOOL_BATCH_SIZE, async (url) => {
+      console.log(`Test-processing: ${url}`)
+      const result = await processSchool(url, [], true, testLocale)
+        .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
+      return { url, ...result }
+    })
+    return new Response(JSON.stringify({ ok: true, results }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
@@ -159,14 +172,12 @@ Deno.serve(async (req) => {
   // forceRefresh is only true for the monthly cron (targetFamilyId is null in cron mode).
   // Manual sync uses cached KB data when available; only scrapes if KB is empty.
 
-  const results = await Promise.all(
-    Object.entries(urlToFamilies).map(async ([homepageUrl, familyIds]) => {
-      console.log(`Processing school: ${homepageUrl} (${familyIds.size} families)`)
-      const result = await processSchool(homepageUrl, [...familyIds], forceRefresh)
-        .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
-      return { homepageUrl, ...result }
-    })
-  )
+  const results = await processInBatches(Object.entries(urlToFamilies), SCHOOL_BATCH_SIZE, async ([homepageUrl, familyIds]) => {
+    console.log(`Processing school: ${homepageUrl} (${familyIds.size} families)`)
+    const result = await processSchool(homepageUrl, [...familyIds], forceRefresh)
+      .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
+    return { homepageUrl, ...result }
+  })
 
   return new Response(JSON.stringify({ ok: true, results }), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
