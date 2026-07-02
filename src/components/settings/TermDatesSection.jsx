@@ -959,7 +959,7 @@ export default function TermDatesSection({ onNewDates }) {
                     onChange={e => setAddTitle(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-canopy-green"
                   >
-                    {HOLIDAY_TITLES.map(t => <option key={t}>{t}</option>)}
+                    {holidayTitles.map(t => <option key={t}>{t}</option>)}
                     <option value="Other">Other…</option>
                   </select>
                   {addTitle === 'Other' && (
