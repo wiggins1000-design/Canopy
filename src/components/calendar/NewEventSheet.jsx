@@ -131,12 +131,16 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
   async function toggleNativeRecording() {
     setError(null)
     try {
+      console.log('[voice] checking availability…')
       const { available } = await SpeechRecognition.available()
+      console.log('[voice] available:', available)
       if (!available) {
         setError('Voice input is not available on this device.')
         return
       }
+      console.log('[voice] requesting permissions…')
       const perms = await SpeechRecognition.requestPermissions()
+      console.log('[voice] permissions result:', JSON.stringify(perms))
       if (perms.speechRecognition !== 'granted') {
         setError('Microphone access is needed for voice input — check Settings.')
         return
@@ -144,7 +148,9 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
 
       setRecording(true)
       setTranscript('')
+      console.log('[voice] starting recognition…')
       const result = await SpeechRecognition.start({ language: 'en-GB', partialResults: false, popup: false })
+      console.log('[voice] result:', JSON.stringify(result))
       setRecording(false)
 
       const text = result?.matches?.[0]
@@ -154,9 +160,12 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
       } else {
         setError('Could not hear anything — please try again.')
       }
-    } catch {
+    } catch (e) {
+      // TEMP diagnostic: surface the real failure instead of a generic message while we
+      // track down why no permission prompt appears. Revert to a plain message once fixed.
+      console.error('[voice] native path threw:', e)
       setRecording(false)
-      setError('Could not hear anything — please try again.')
+      setError(`Voice failed: ${e?.message ?? e?.code ?? JSON.stringify(e) ?? 'unknown error'}`)
     }
   }
 
