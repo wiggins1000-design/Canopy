@@ -234,9 +234,17 @@ function SchoolCalendarModal({ school, onClose }) {
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
-  const calendarDays = useMemo(() => (
-    getCalendarMonthDays(year, month).map(({ date, current }) => ({ date, dateStr: formatDate(date), current }))
-  ), [year, month])
+  // Always pad to 6 rows (42 cells) — getCalendarMonthDays returns 5 rows (35) for months
+  // that fit, which otherwise makes the modal resize between months.
+  const calendarDays = useMemo(() => {
+    const days = getCalendarMonthDays(year, month).map(({ date, current }) => ({ date, dateStr: formatDate(date), current }))
+    while (days.length < 42) {
+      const prev = days[days.length - 1].date
+      const next = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 1)
+      days.push({ date: next, dateStr: formatDate(next), current: false })
+    }
+    return days
+  }, [year, month])
 
   const termDaysMap = useMemo(() => {
     if (!termDates) return new Map()

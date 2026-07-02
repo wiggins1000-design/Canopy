@@ -50,6 +50,14 @@ export const MOCK_MEMBER = {
 // scripts run. This is enough for Supabase JS v2 to consider the user
 // authenticated without making any auth network calls.
 export async function injectSession(page) {
+  // The app registers a PWA service worker even in dev mode (devOptions.enabled in
+  // vite.config.js). A live SW can intercept fetch() at a layer that competes with
+  // page.route() mocking, causing intermittent hangs/timeouts unrelated to test logic.
+  // Neutering registration before any page script runs avoids that entirely.
+  await page.addInitScript(() => {
+    if (navigator.serviceWorker) navigator.serviceWorker.register = () => Promise.resolve()
+  })
+
   const expiresAt = Math.floor(Date.now() / 1000) + 86400 // 24h from now
   await page.addInitScript(({ userId, email, expiresAt }) => {
     // Supabase JS v2 stores the session object directly (not wrapped in currentSession)
@@ -139,6 +147,10 @@ export async function setupMocks(page, overrides = {}) {
     // ── Edge functions ────────────────────────────────────────────────────────
     if (url.includes('/functions/v1/extract-school-info')) {
       const resp = overrides.extractSchoolInfo ?? { ok: false, error: 'Test mode — no real fetch' }
+      return route.fulfill(json(resp))
+    }
+    if (url.includes('/functions/v1/check-term-dates')) {
+      const resp = overrides.checkTermDates ?? { ok: true, results: [] }
       return route.fulfill(json(resp))
     }
     if (url.includes('/functions/v1/')) {
