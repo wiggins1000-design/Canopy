@@ -66,8 +66,14 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
       {/* PE / sport day reminder */}
       {peNames.length > 0 && (
         <div className="mt-2 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex items-center gap-2">
-          <svg className="w-4 h-4 text-sky-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M2 17.5c0-.83.67-1.5 1.5-1.5H4v-2.2c0-.5.2-.98.57-1.32l4.2-3.9a2 2 0 011.5-.58l1.9.1c.4.02.77.2 1.04.48l2.6 2.7c.32.33.76.52 1.22.52H19a3 3 0 013 3V18a1 1 0 01-1 1H3a1 1 0 01-1-1v-.5z" />
+          <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" fill="white" stroke="black" strokeWidth="1.4" />
+            <polygon points="12,7.2 15.2,9.5 14,13.2 10,13.2 8.8,9.5" fill="black" />
+            <line x1="12" y1="7.2" x2="12" y2="3.6" stroke="black" strokeWidth="1.1" />
+            <line x1="15.2" y1="9.5" x2="18.8" y2="7.9" stroke="black" strokeWidth="1.1" />
+            <line x1="14" y1="13.2" x2="16.1" y2="16.9" stroke="black" strokeWidth="1.1" />
+            <line x1="10" y1="13.2" x2="7.9" y2="16.9" stroke="black" strokeWidth="1.1" />
+            <line x1="8.8" y1="9.5" x2="5.2" y2="7.9" stroke="black" strokeWidth="1.1" />
           </svg>
           <p className="text-sm font-medium text-sky-800">
             {regionConfig.pe.label} day — {peNames.join(' & ')} need{peNames.length === 1 ? 's' : ''} {regionConfig.pe.kit}

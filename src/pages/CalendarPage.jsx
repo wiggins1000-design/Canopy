@@ -7,7 +7,6 @@ import { useFamilyEvents } from '../hooks/useFamilyEvents'
 import { useTermDates } from '../hooks/useTermDates'
 import { useBirthdays } from '../hooks/useBirthdays'
 import { usePeDays } from '../hooks/usePeDays'
-import { useLocale } from '../hooks/useLocale'
 import { formatDate } from '../lib/scheduleEngine'
 import { shortSchoolName } from '../lib/termDatesUtils'
 import CalendarGrid from '../components/calendar/CalendarGrid'
@@ -39,11 +38,13 @@ export default function CalendarPage() {
     birthdayDates.get(dateStr).push(name)
   }
   const peDaysList = usePeDays()
-  const regionConfig = useLocale()
   // PE is a recurring weekly pattern (day-of-week), not specific dates — match it
   // against whichever dates are actually on screen for the current month view.
+  // Skip any day already marked as a term-dates closure (holiday or INSET/PD day) -
+  // school isn't in session, so there's no PE regardless of the usual weekday pattern.
   const peDates = new Map()
   for (const day of calendarDays) {
+    if (termDays.has(day.dateStr)) continue
     const weekday = day.date.toLocaleDateString('en-US', { weekday: 'long' })
     const kids = peDaysList.filter((p) => p.peDays.includes(weekday)).map((p) => p.name)
     if (kids.length) peDates.set(day.dateStr, kids)
@@ -253,7 +254,6 @@ export default function CalendarPage() {
             termDays={showSchoolDates ? termDays : null}
             birthdayDates={birthdayDates}
             peDates={peDates}
-            peKitLabel={regionConfig.pe.kit}
           />
 
           {/* Inline day detail */}

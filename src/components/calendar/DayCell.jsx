@@ -21,7 +21,7 @@ const SCHOOL_STRIP = [
 ]
 const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, peNames, peKitLabel }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, peNames }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -72,9 +72,9 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
       )}
 
       {peNames?.length > 0 && (
-        <ShoeIcon
-          className="absolute top-0.5 right-0.5 w-3 h-3 text-sky-600"
-          title={`${peNames.join(' & ')} — pack ${peKitLabel ?? 'PE kit'}`}
+        <BallIcon
+          className="absolute top-0.5 right-0.5 w-3 h-3"
+          title={`${peNames.map((n) => n.split(' ')[0]).join(' & ')} - PE`}
         />
       )}
 
@@ -98,11 +98,19 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
 
 // PE / sport day flag — same "small icon on the day cell" pattern as the mortarboard
 // toggle uses for term dates, just scoped to this one cell instead of a page-level toggle.
-function ShoeIcon({ className, title }) {
+// Black-and-white football rather than a coloured icon so it reads clearly against
+// any custody-colour day background.
+function BallIcon({ className, title }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <svg className={className} viewBox="0 0 24 24">
       {title && <title>{title}</title>}
-      <path d="M2 17.5c0-.83.67-1.5 1.5-1.5H4v-2.2c0-.5.2-.98.57-1.32l4.2-3.9a2 2 0 011.5-.58l1.9.1c.4.02.77.2 1.04.48l2.6 2.7c.32.33.76.52 1.22.52H19a3 3 0 013 3V18a1 1 0 01-1 1H3a1 1 0 01-1-1v-.5z" />
+      <circle cx="12" cy="12" r="10" fill="white" stroke="black" strokeWidth="1.4" />
+      <polygon points="12,7.2 15.2,9.5 14,13.2 10,13.2 8.8,9.5" fill="black" />
+      <line x1="12" y1="7.2" x2="12" y2="3.6" stroke="black" strokeWidth="1.1" />
+      <line x1="15.2" y1="9.5" x2="18.8" y2="7.9" stroke="black" strokeWidth="1.1" />
+      <line x1="14" y1="13.2" x2="16.1" y2="16.9" stroke="black" strokeWidth="1.1" />
+      <line x1="10" y1="13.2" x2="7.9" y2="16.9" stroke="black" strokeWidth="1.1" />
+      <line x1="8.8" y1="9.5" x2="5.2" y2="7.9" stroke="black" strokeWidth="1.1" />
     </svg>
   )
 }
