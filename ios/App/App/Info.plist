@@ -51,6 +51,10 @@
 <string>Canopy uses your camera to scan expense receipts.</string>
 <key>NSPhotoLibraryUsageDescription</key>
 <string>Canopy accesses your photo library to attach receipts to expenses.</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>Canopy uses your microphone to add calendar events by voice.</string>
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>Canopy uses speech recognition to turn your voice into a calendar event.</string>
 
 </dict>
 </plist>

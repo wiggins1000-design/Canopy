@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { supabase, sendPushNotification } from '../../lib/supabase'
+import { SpeechRecognition } from '@capacitor-community/speech-recognition'
+import { supabase, sendPushNotification, isNativePlatform } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
 import { formatDate } from '../../lib/scheduleEngine'
@@ -83,20 +84,26 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
 
   // ── Voice capture ─────────────────────────────────────────────────────────
 
-  function toggleRecording() {
+  async function toggleRecording() {
     if (recording) {
-      recognitionRef.current?.stop()
+      if (isNativePlatform()) await SpeechRecognition.stop()
+      else recognitionRef.current?.stop()
       setRecording(false)
       return
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) {
+    if (isNativePlatform()) {
+      await toggleNativeRecording()
+      return
+    }
+
+    const SpeechRecognitionWeb = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognitionWeb) {
       setError('Voice input is not supported in this browser. Try Chrome.')
       return
     }
 
-    const recognition = new SpeechRecognition()
+    const recognition = new SpeechRecognitionWeb()
     recognition.lang           = 'en-GB'
     recognition.continuous     = false
     recognition.interimResults = false
@@ -118,6 +125,39 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
     setRecording(true)
     setTranscript('')
     setError(null)
+  }
+
+  // Native iOS/Android path — Web Speech API doesn't exist in Capacitor's WKWebView on iOS.
+  async function toggleNativeRecording() {
+    setError(null)
+    try {
+      const { available } = await SpeechRecognition.available()
+      if (!available) {
+        setError('Voice input is not available on this device.')
+        return
+      }
+      const perms = await SpeechRecognition.requestPermissions()
+      if (perms.speechRecognition !== 'granted') {
+        setError('Microphone access is needed for voice input — check Settings.')
+        return
+      }
+
+      setRecording(true)
+      setTranscript('')
+      const result = await SpeechRecognition.start({ language: 'en-GB', partialResults: false, popup: false })
+      setRecording(false)
+
+      const text = result?.matches?.[0]
+      if (text) {
+        setTranscript(text)
+        await extractFromVoice(text)
+      } else {
+        setError('Could not hear anything — please try again.')
+      }
+    } catch {
+      setRecording(false)
+      setError('Could not hear anything — please try again.')
+    }
   }
 
   async function extractFromVoice(text) {
@@ -301,16 +341,16 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="min-w-0">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
               End date <span className="font-normal text-gray-400">(optional)</span>
             </label>
@@ -318,13 +358,13 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
+          <div className="min-w-0">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
               Start time <span className="font-normal text-gray-400">(optional)</span>
             </label>
@@ -332,10 +372,10 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
               type="time"
               value={time}
               onChange={(e) => { setTime(e.target.value); if (!e.target.value) setEndTime('') }}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
               End time <span className="font-normal text-gray-400">(optional)</span>
             </label>
@@ -344,7 +384,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               disabled={!time}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green disabled:bg-gray-50 disabled:text-gray-400"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green disabled:bg-gray-50 disabled:text-gray-400"
             />
           </div>
         </div>
