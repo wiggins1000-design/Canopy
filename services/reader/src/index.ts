@@ -151,7 +151,10 @@ async function fetchHtml(url: string): Promise<string> {
       return main?.innerText ?? ''
     })
 
-    return text.slice(0, 60000)
+    // 200k covers large component-framework pages (tabbed academic-year pickers etc.)
+    // where the dates table sits well past the old 60k cap. Downstream callers slice
+    // this down further before it ever reaches an LLM.
+    return text.slice(0, 200000)
   } finally {
     await page.close().catch(() => {})
   }
