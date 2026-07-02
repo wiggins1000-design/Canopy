@@ -46,6 +46,16 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return new Response('AI not configured', { status: 500, headers: CORS })
 
+  // Family member names, passed from the client so Claude can correct near-miss
+  // transcriptions/OCR (e.g. voice input mishearing "Isabelle" as something similar-sounding)
+  // to the actual spelling instead of whatever it guessed.
+  const knownNames: string[] = Array.isArray(body?.known_names)
+    ? body.known_names.filter((n: unknown) => typeof n === 'string' && n.trim()).slice(0, 20)
+    : []
+  const knownNamesLine = knownNames.length
+    ? `\nKnown family member names: ${knownNames.join(', ')}. If the text/image contains a name that sounds or looks similar to one of these, use the correct spelling from this list rather than a phonetic guess.`
+    : ''
+
   const SYSTEM_PROMPT = `You are a helpful assistant that extracts calendar event details from text or images.
 Today's date is ${today}.
 Return ONLY valid JSON — no markdown fences, no explanation:
@@ -58,7 +68,7 @@ Return ONLY valid JSON — no markdown fences, no explanation:
 }
 If you cannot determine a specific date, use today's date.
 If you cannot determine a time, use null.
-For voice notes like "football on Monday is now at 4:40" interpret relative days from today's date.`
+For voice notes like "football on Monday is now at 4:40" interpret relative days from today's date.${knownNamesLine}`
 
   let claudeMessages: any[]
 

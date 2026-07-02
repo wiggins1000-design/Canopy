@@ -15,6 +15,13 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
   const { user } = useAuth()
 
   const children = (family?.config?.children ?? []).filter((c) => c.name)
+  // Correctly-spelled names to bias transcription/OCR corrections toward —
+  // e.g. voice input mishearing "Isabelle" as something similar-sounding.
+  const knownNames = [...new Set([
+    ...children.map(c => c.name),
+    parentA?.display_name,
+    parentB?.display_name,
+  ].filter(Boolean))]
 
   const [title, setTitle]                   = useState('')
   const [date, setDate]                     = useState(initialDate ?? formatDate(new Date()))
@@ -68,7 +75,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey':        SUPABASE_ANON,
         },
-        body: JSON.stringify({ type: 'image', image_base64: base64, media_type: mimeType }),
+        body: JSON.stringify({ type: 'image', image_base64: base64, media_type: mimeType, known_names: knownNames }),
       })
       const json = await res.json()
       if (json.ok && json.event) {
@@ -181,7 +188,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey':        SUPABASE_ANON,
         },
-        body: JSON.stringify({ type: 'voice', transcript: text }),
+        body: JSON.stringify({ type: 'voice', transcript: text, known_names: knownNames }),
       })
       const json = await res.json()
       if (json.ok && json.event) {
