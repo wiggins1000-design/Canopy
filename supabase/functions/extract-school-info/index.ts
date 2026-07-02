@@ -37,6 +37,13 @@ const CLOSED_DAY_TITLE: Record<string, string> = {
   'en-IE': 'In-Service Day',
 }
 
+const SCHOOL_HOLIDAY_TITLE: Record<string, string> = {
+  'en-GB': 'School Holiday',
+  'en-US': 'School Break',
+  'en-AU': 'School Holiday',
+  'en-IE': 'School Holiday',
+}
+
 async function getFamilyLocale(familyId: string | undefined, schoolUrl?: string): Promise<string> {
   if (schoolUrl) {
     const fromUrl = getLocaleFromUrl(schoolUrl)
@@ -96,11 +103,24 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
       }
       const combined = validTexts.join('\n\n---\n\n')
       let termDates = await extractTermDates(combined, 4096, locale)
-      const inferred = [...inferSummerHolidays(combined, locale), ...inferInsetDays(combined, locale)]
+      const insetInferred = inferInsetDays(combined, locale)
       const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-      for (const d of inferred) {
+      for (const d of insetInferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
       }
+
+      // Gap-fill holidays against BOTH what was just extracted and whatever this family
+      // already has saved, so a holiday spanning two separate photo-upload sessions
+      // (e.g. term-end in an earlier photo, term-start in a later one) is still caught.
+      const existingSaved = await fetchExistingTermDates(family_id)
+      const gapHolidays = inferHolidayGaps([...existingSaved, ...termDates], locale)
+      const existingSavedKeys = new Set(existingSaved.map(e => `${e.title}||${e.date}`))
+      const alreadyIncludedKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+      for (const g of gapHolidays) {
+        const key = `${g.title}||${g.date}`
+        if (!existingSavedKeys.has(key) && !alreadyIncludedKeys.has(key)) termDates.push(g)
+      }
+
       termDates = deduplicateTermDates(termDates)
       console.log(`Multi-image: extracted ${termDates.length} term dates from ${validTexts.length} image${validTexts.length !== 1 ? 's' : ''}`)
       return respond({ ok: true, dates: termDates })
@@ -124,11 +144,21 @@ async function handleRequest(req: Request, body: Record<string, unknown>): Promi
       }
 
       let termDates = await extractTermDates(imageText, 4096, locale)
-      const inferred = [...inferSummerHolidays(imageText, locale), ...inferInsetDays(imageText, locale)]
+      const insetInferred = inferInsetDays(imageText, locale)
       const existingKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
-      for (const d of inferred) {
+      for (const d of insetInferred) {
         if (d.date && !existingKeys.has(`${d.title}||${d.date}`)) termDates.push(d)
       }
+
+      const existingSaved = await fetchExistingTermDates(family_id)
+      const gapHolidays = inferHolidayGaps([...existingSaved, ...termDates], locale)
+      const existingSavedKeys = new Set(existingSaved.map(e => `${e.title}||${e.date}`))
+      const alreadyIncludedKeys = new Set(termDates.map((e: any) => `${e.title}||${e.date}`))
+      for (const g of gapHolidays) {
+        const key = `${g.title}||${g.date}`
+        if (!existingSavedKeys.has(key) && !alreadyIncludedKeys.has(key)) termDates.push(g)
+      }
+
       termDates = deduplicateTermDates(termDates)
       console.log(`Image upload: extracted ${termDates.length} term dates`)
 
@@ -512,106 +542,67 @@ function _parseSections(text: string): Array<{term: string, year: number, lines:
   })
 }
 
-// Infer summer holiday from term boundaries — handles both full-date format
-// ("last day of term: 15 July 2026") and no-year format ("END OF TERM" with
-// the year from the section heading "Summer Term 2026").
-function inferSummerHolidays(allContent: string, locale = 'en-GB'): Array<{title: string, date: string, end_date: string}> {
-  // Section-based inference only works for UK/IE (term headings: "Autumn Term 2026", etc.)
-  if (locale !== 'en-GB' && locale !== 'en-IE') return []
-  const text = allContent.replace(/\*\*/g, ' ')
+// ── Generic holiday-gap inference ────────────────────────────────────────────
+// Locale- and season-independent: any "school closes" event followed later by a
+// "school reopens" event, with no already-labelled holiday covering that gap, is
+// treated as an inferred school holiday - regardless of which term or time of
+// year it falls in. Runs on structured {title, date, end_date} events (already
+// extracted from photos/text by Claude), not on raw text, so it works the same
+// way for a UK "END OF TERM" line, an Australian "Students Conclude - Term Two",
+// or a US "Last Day of School" - only the closing/opening *wording* differs.
+const _CLOSES_RE  = /\b(end|ends|ended|close|closes|closed|last\s+day|conclude|concludes|concluded|finish|finishes|breaks?\s+up)\b/i
+const _OPENS_RE   = /\b(start|starts|begin|begins|open|opens|reopen|reopens|return|returns|resume|resumes|commence|commences|back\s+to\s+school|first\s+day)\b/i
+const _HOLIDAY_RE = /\b(holiday|holidays|break|vacation)\b/i
+
+type GapEvent = { title: string, date: string, end_date: string | null }
+
+function _classifyForGap(e: GapEvent): 'closes' | 'opens' | 'holiday' | 'other' {
+  const t = e.title.toLowerCase()
+  if (e.end_date || _HOLIDAY_RE.test(t)) return 'holiday'
+  if (_CLOSES_RE.test(t)) return 'closes'
+  if (_OPENS_RE.test(t))  return 'opens'
+  return 'other'
+}
+
+// `events` should include both newly-extracted dates AND anything already saved
+// for this family, so a holiday spanning two separate photo-upload sessions
+// (e.g. "term ends" in an earlier photo, "term begins" in a later one) is still
+// caught. Returns only the newly-inferred gap holidays, not the input events.
+function inferHolidayGaps(events: GapEvent[], locale = 'en-GB'): Array<{title: string, date: string, end_date: string}> {
+  const holidayTitle = SCHOOL_HOLIDAY_TITLE[locale] ?? 'School Holiday'
+  const sorted   = [...events].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date))
+  const closes   = sorted.filter(e => _classifyForGap(e) === 'closes')
+  const opens    = sorted.filter(e => _classifyForGap(e) === 'opens')
+  const holidays = sorted.filter(e => _classifyForGap(e) === 'holiday')
+
+  const coveredByExisting = (start: string, end: string) =>
+    holidays.some(h => h.date <= end && (h.end_date ?? h.date) >= start)
+
   const results: Array<{title: string, date: string, end_date: string}> = []
   const seen = new Set<string>()
-
-  // ── Approach A: full-date patterns (works when dates include year) ─────────
-  const lastDays: string[] = []
-  for (const pat of [
-    /last\s+day\s+of\s+(?:the\s+)?(?:summer\s+)?term.{0,120}/gi,
-    /(?:summer\s+)?term\s+ends?.{0,80}/gi,
-  ]) {
-    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => lastDays.push(d))
+  for (const c of closes) {
+    const nextOpen = opens.filter(o => o.date > c.date).sort((a, b) => a.date.localeCompare(b.date))[0]
+    if (!nextOpen) continue
+    const gapStart = _shiftDay(c.date, 1)
+    const gapEnd   = _shiftDay(nextOpen.date, -1)
+    if (gapEnd < gapStart) continue // adjacent days, no real gap
+    if (coveredByExisting(gapStart, gapEnd)) continue
+    const key = `${gapStart}|${gapEnd}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    results.push({ title: holidayTitle, date: gapStart, end_date: gapEnd })
   }
-  const pupilFirstDays: string[] = []
-  for (const pat of [
-    /term\s+begins?\s+for\s+(?:all\s+)?pupils?.{0,80}/gi,
-    /pupils?\s+(?:return|back|re-?join).{0,80}/gi,
-    /children\s+return.{0,80}/gi,
-    /school\s+re-?opens?\s+for\s+pupils?.{0,80}/gi,
-    /(?:all\s+)?pupils?\s+start.{0,80}/gi,
-  ]) {
-    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => pupilFirstDays.push(d))
-  }
-  const termFirstDays: string[] = []
-  for (const pat of [
-    /(?:autumn\s+)?term\s+(?:begins?|starts?|commences?).{0,80}/gi,
-    /school\s+(?:opens?|starts?|begins?).{0,80}/gi,
-    /first\s+day\s+of\s+(?:the\s+)?(?:autumn\s+)?term.{0,80}/gi,
-  ]) {
-    for (const m of text.matchAll(pat)) _datesFromSnippet(m[0]).forEach(d => termFirstDays.push(d))
-  }
-  const firstDays = pupilFirstDays.length > 0 ? pupilFirstDays : termFirstDays
-  for (const lastDay of lastDays) {
-    const mo = parseInt(lastDay.split('-')[1])
-    if (mo < 6 || mo > 7) continue
-    const nextFirst = [...new Set(firstDays)].filter(d => d > lastDay).sort()[0]
-    if (!nextFirst) continue
-    const nextMo = parseInt(nextFirst.split('-')[1])
-    if (nextMo < 8 || nextMo > 9) continue
-    const key = `${lastDay}|${nextFirst}`
-    if (!seen.has(key)) { seen.add(key); results.push({ title: 'Summer Holiday', date: _shiftDay(lastDay, 1), end_date: _shiftDay(nextFirst, -1) }) }
-  }
-
-  // ── Approach B: section-based (for "END OF TERM" format with no year in dates) ─
-  const sections = _parseSections(text)
-  for (let si = 0; si < sections.length; si++) {
-    const s = sections[si]
-    if (s.term !== 'summer') continue
-
-    // Find the "END OF TERM" line in this summer section
-    let endDate: string | null = null
-    for (const line of s.lines) {
-      if (/end\s+of\s+term/i.test(line)) {
-        const dates = _datesFromSnippetWithYear(line, s.year)
-        if (dates.length > 0) { endDate = dates[0]; break }
-      }
-    }
-    // Also try "last day" phrasing
-    if (!endDate) {
-      for (const line of s.lines) {
-        if (/last\s+day/i.test(line)) {
-          const dates = _datesFromSnippetWithYear(line, s.year)
-          if (dates.length > 0) { endDate = dates[0]; break }
-        }
-      }
-    }
-    if (!endDate) continue
-
-    // Find the next autumn section to get the term start date
-    const nextAutumn = sections.find((ns, ni) => ni > si && ns.term === 'autumn')
-    if (!nextAutumn) continue
-
-    // Prefer "all students" lines, fall back to first date in section
-    let firstDate: string | null = null
-    for (const line of nextAutumn.lines) {
-      if (/all\s+students?/i.test(line) || /all\s+pupils?/i.test(line)) {
-        const dates = _datesFromSnippetWithYear(line, nextAutumn.year)
-        if (dates.length > 0) { firstDate = dates[0]; break }
-      }
-    }
-    if (!firstDate) {
-      // Fall back to the first date-bearing non-heading line
-      for (const line of nextAutumn.lines.slice(1)) {
-        const dates = _datesFromSnippetWithYear(line, nextAutumn.year)
-        if (dates.length > 0) { firstDate = dates[0]; break }
-      }
-    }
-    if (!firstDate || firstDate <= endDate) continue
-    const nextMo = parseInt(firstDate.split('-')[1])
-    if (nextMo < 8 || nextMo > 9) continue
-    const key = `${endDate}|${firstDate}`
-    if (!seen.has(key)) { seen.add(key); results.push({ title: 'Summer Holiday', date: _shiftDay(endDate, 1), end_date: _shiftDay(firstDate, -1) }) }
-  }
-
   return results
+}
+
+async function fetchExistingTermDates(familyId: string | undefined): Promise<GapEvent[]> {
+  if (!familyId) return []
+  const { data } = await supabase
+    .from('family_events')
+    .select('title, event_date, end_date')
+    .eq('family_id', familyId)
+    .eq('source', 'term_dates')
+  return (data ?? []).map((r: any) => ({ title: r.title as string, date: r.event_date as string, end_date: r.end_date as string | null }))
 }
 
 // Infer INSET / closure days — handles both "Staff Training Days: 1 Sep 2026"
