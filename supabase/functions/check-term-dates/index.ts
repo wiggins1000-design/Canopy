@@ -36,7 +36,7 @@ const supabase = createClient(
 // hold up to 200k chars of fetched text or a 30MB PDF in memory (native PDF extraction +
 // raised content caps), and running 50 in parallel exceeded the edge function's worker
 // memory limit (HTTP 546). Applies to both test mode and the production cron/manual paths.
-const SCHOOL_BATCH_SIZE = 6
+const SCHOOL_BATCH_SIZE = 3
 
 async function processInBatches<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = []

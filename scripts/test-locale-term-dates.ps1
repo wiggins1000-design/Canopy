@@ -334,33 +334,41 @@ function Invoke-TermDatesTest([string]$Market, [string[]]$Urls, [string]$Locale 
         return
     }
 
+    # Chunked client-side: one big request for 50 schools exceeds the edge function's
+    # execution time budget (each school can now involve native PDF extraction / large
+    # page fetches). Smaller chunks each get their own fresh time budget.
+    $chunkSize = 5
+    $chunks = for ($i = 0; $i -lt $Urls.Count; $i += $chunkSize) { , $Urls[$i..[Math]::Min($i + $chunkSize - 1, $Urls.Count - 1)] }
+
     Write-Host ""
-    Write-Host "[$Market] Invoking check-term-dates with $($Urls.Count) school(s)..." -ForegroundColor Yellow
+    Write-Host "[$Market] Invoking check-term-dates with $($Urls.Count) school(s) in $($chunks.Count) chunk(s) of up to $chunkSize..." -ForegroundColor Yellow
 
-    $bodyObj = @{ test_urls = $Urls }
-    if ($Locale -ne "") { $bodyObj.locale = $Locale }
+    foreach ($chunk in $chunks) {
+        $bodyObj = @{ test_urls = $chunk }
+        if ($Locale -ne "") { $bodyObj.locale = $Locale }
 
-    try {
-        $response = Invoke-RestMethod `
-            -Uri $FunctionUrl `
-            -Method POST `
-            -Headers @{
-                "x-webhook-token" = $WebhookToken
-                "Content-Type"    = "application/json"
-            } `
-            -Body ($bodyObj | ConvertTo-Json -Compress) `
-            -TimeoutSec 300
+        try {
+            $response = Invoke-RestMethod `
+                -Uri $FunctionUrl `
+                -Method POST `
+                -Headers @{
+                    "x-webhook-token" = $WebhookToken
+                    "Content-Type"    = "application/json"
+                } `
+                -Body ($bodyObj | ConvertTo-Json -Compress) `
+                -TimeoutSec 300
 
-        foreach ($result in $response.results) {
-            $url    = if ($result.url)        { $result.url }        else { "(unknown)" }
-            $status = if ($result.status)     { $result.status }     else { "unknown" }
-            $dates  = if ($result.totalDates) { $result.totalDates } elseif ($result.eventsAdded) { $result.eventsAdded } else { "?" }
-            $color  = if ($status -eq "ok") { "Green" } elseif ($status -eq "unchanged") { "Cyan" } else { "Red" }
-            Write-Host "  [$status] $url - $dates event(s)" -ForegroundColor $color
-            if ($result.error) { Write-Host "    Error: $($result.error)" -ForegroundColor Red }
+            foreach ($result in $response.results) {
+                $url    = if ($result.url)        { $result.url }        else { "(unknown)" }
+                $status = if ($result.status)     { $result.status }     else { "unknown" }
+                $dates  = if ($result.totalDates) { $result.totalDates } elseif ($result.eventsAdded) { $result.eventsAdded } else { "?" }
+                $color  = if ($status -eq "ok") { "Green" } elseif ($status -eq "unchanged") { "Cyan" } else { "Red" }
+                Write-Host "  [$status] $url - $dates event(s)" -ForegroundColor $color
+                if ($result.error) { Write-Host "    Error: $($result.error)" -ForegroundColor Red }
+            }
+        } catch {
+            Write-Error "[$Market] Chunk invoke failed: $_"
         }
-    } catch {
-        Write-Error "[$Market] Function invoke failed: $_"
     }
 }
 
