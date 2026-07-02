@@ -93,7 +93,7 @@ export default function ConfigPage() {
 
   useEffect(() => {
     if (!family?.config) return
-    setChangeoverTime(family.config.changeover_time ?? '')
+    setChangeoverTime(family.config.changeover_time ?? '08:30')
     setChangeoverLocation(family.config.changeover_location ?? '')
     setChildren(family.config.children ?? [])
     setPets(family.config.pets ?? [])
