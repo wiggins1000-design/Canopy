@@ -16,6 +16,7 @@ const enGB = {
   yearGroupLabel: 'Year',
   yearGroupSystem: 'uk',
   claudePromptVariant: 'uk',
+  pe: { label: 'PE', kit: 'PE kit' },
 }
 
 export default enGB

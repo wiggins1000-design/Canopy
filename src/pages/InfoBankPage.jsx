@@ -4,6 +4,7 @@ import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
 import { validateEmail, validateUrl } from '../lib/validationUtils'
 import { useSessionActivity } from '../context/SessionActivityContext'
+import { useLocale } from '../hooks/useLocale'
 import Button from '../components/ui/Button'
 import VaultSection from '../components/infobank/VaultSection'
 import AccountsSection from '../components/infobank/AccountsSection'
@@ -471,8 +472,17 @@ function normaliseUrl(url) {
   } catch { return url.toLowerCase().trim() }
 }
 
+const PE_WEEKDAYS = [
+  { key: 'Monday',    short: 'Mon' },
+  { key: 'Tuesday',   short: 'Tue' },
+  { key: 'Wednesday', short: 'Wed' },
+  { key: 'Thursday',  short: 'Thu' },
+  { key: 'Friday',    short: 'Fri' },
+]
+
 function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted, updatedAt }) {
-  const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '' }
+  const regionConfig = useLocale()
+  const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '', pe_days: [] }
   const [d, setD] = useState({ ...defaults, ...data })
   const [saved, setSaved] = useState(false)
   const [extracting, setExtracting] = useState(false)
@@ -721,6 +731,44 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
           <Field label="Class / Tutor Group" placeholder="e.g. Maple" {...f('class_name')} />
         </div>
         <Field label="Class teacher" placeholder="Mrs Taylor" {...f('teacher')} />
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+            {regionConfig.pe.label} days
+          </label>
+          <div className="flex gap-1.5 flex-wrap">
+            {PE_WEEKDAYS.map(({ key, short }) => {
+              const selected = (d.pe_days ?? []).includes(key)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={!isParent}
+                  onClick={() => {
+                    if (!isParent) return
+                    const current = d.pe_days ?? []
+                    const next = selected ? current.filter((x) => x !== key) : [...current, key]
+                    setD((p) => ({ ...p, pe_days: next }))
+                    setSaved(false)
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    selected
+                      ? 'border-canopy-mid bg-canopy-frost text-canopy-deep'
+                      : 'border-gray-200 bg-white text-gray-500'
+                  } ${!isParent ? 'opacity-60' : ''}`}
+                >
+                  {short}
+                </button>
+              )
+            })}
+          </div>
+          {(d.pe_days ?? []).length > 0 && (
+            <p className="text-xs text-gray-400">
+              Shows a reminder on the calendar to pack {regionConfig.pe.kit} on these days.
+            </p>
+          )}
+        </div>
+
         <TextArea label="Notes" placeholder="e.g. Gate code, parking notes…" rows={3} {...f('notes')} />
       </div>
 

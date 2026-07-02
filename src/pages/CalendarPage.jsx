@@ -6,6 +6,8 @@ import { useFamily } from '../context/FamilyContext'
 import { useFamilyEvents } from '../hooks/useFamilyEvents'
 import { useTermDates } from '../hooks/useTermDates'
 import { useBirthdays } from '../hooks/useBirthdays'
+import { usePeDays } from '../hooks/usePeDays'
+import { useLocale } from '../hooks/useLocale'
 import { formatDate } from '../lib/scheduleEngine'
 import { shortSchoolName } from '../lib/termDatesUtils'
 import CalendarGrid from '../components/calendar/CalendarGrid'
@@ -35,6 +37,16 @@ export default function CalendarPage() {
     const dateStr = `${viewDate.getFullYear()}-${mm}-${dd}`
     if (!birthdayDates.has(dateStr)) birthdayDates.set(dateStr, [])
     birthdayDates.get(dateStr).push(name)
+  }
+  const peDaysList = usePeDays()
+  const regionConfig = useLocale()
+  // PE is a recurring weekly pattern (day-of-week), not specific dates — match it
+  // against whichever dates are actually on screen for the current month view.
+  const peDates = new Map()
+  for (const day of calendarDays) {
+    const weekday = day.date.toLocaleDateString('en-US', { weekday: 'long' })
+    const kids = peDaysList.filter((p) => p.peDays.includes(weekday)).map((p) => p.name)
+    if (kids.length) peDates.set(day.dateStr, kids)
   }
   const [showSchoolDates, setShowSchoolDates] = useState(
     () => localStorage.getItem('canopy-show-school-dates') !== '0'
@@ -240,6 +252,8 @@ export default function CalendarPage() {
             eventDates={eventDates}
             termDays={showSchoolDates ? termDays : null}
             birthdayDates={birthdayDates}
+            peDates={peDates}
+            peKitLabel={regionConfig.pe.kit}
           />
 
           {/* Inline day detail */}
@@ -249,6 +263,7 @@ export default function CalendarPage() {
               dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
               birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
               termSchools={termDays?.get(selectedDay.dateStr) ?? null}
+              peNames={peDates.get(selectedDay.dateStr) ?? []}
               totalSchoolCount={totalSchoolCount}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}

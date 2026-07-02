@@ -15,6 +15,7 @@ const enAU = {
   yearGroupLabel: 'Year',
   yearGroupSystem: 'au',
   claudePromptVariant: 'au',
+  pe: { label: 'PE', kit: 'sport uniform' },
 }
 
 export default enAU

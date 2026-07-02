@@ -15,6 +15,7 @@ const enIE = {
   yearGroupLabel: 'Class',
   yearGroupSystem: 'ie',
   claudePromptVariant: 'ie',
+  pe: { label: 'PE', kit: 'PE kit' },
 }
 
 export default enIE

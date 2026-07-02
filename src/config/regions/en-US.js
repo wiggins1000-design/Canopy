@@ -15,6 +15,7 @@ const enUS = {
   yearGroupLabel: 'Grade',
   yearGroupSystem: 'us',
   claudePromptVariant: 'us',
+  pe: { label: 'PE', kit: 'PE clothes' },
 }
 
 export default enUS

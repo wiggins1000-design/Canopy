@@ -20,7 +20,7 @@ const SCHOOL_COLORS = [
   'text-orange-700 bg-orange-50 border-orange-200',
 ]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const regionConfig = useLocale()
   const [editingChangeover, setEditingChangeover] = useState(false)
@@ -59,6 +59,18 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
           <span className="text-base">🎂</span>
           <p className="text-sm font-medium text-yellow-800">
             {birthdayNames.join(' & ')}'s birthday!
+          </p>
+        </div>
+      )}
+
+      {/* PE / sport day reminder */}
+      {peNames.length > 0 && (
+        <div className="mt-2 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex items-center gap-2">
+          <svg className="w-4 h-4 text-sky-600 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M2 17.5c0-.83.67-1.5 1.5-1.5H4v-2.2c0-.5.2-.98.57-1.32l4.2-3.9a2 2 0 011.5-.58l1.9.1c.4.02.77.2 1.04.48l2.6 2.7c.32.33.76.52 1.22.52H19a3 3 0 013 3V18a1 1 0 01-1 1H3a1 1 0 01-1-1v-.5z" />
+          </svg>
+          <p className="text-sm font-medium text-sky-800">
+            {regionConfig.pe.label} day — {peNames.join(' & ')} need{peNames.length === 1 ? 's' : ''} {regionConfig.pe.kit}
           </p>
         </div>
       )}

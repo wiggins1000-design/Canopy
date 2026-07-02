@@ -21,7 +21,7 @@ const SCHOOL_STRIP = [
 ]
 const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, peNames, peKitLabel }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -71,6 +71,13 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         </svg>
       )}
 
+      {peNames?.length > 0 && (
+        <ShoeIcon
+          className="absolute top-0.5 right-0.5 w-3 h-3 text-sky-600"
+          title={`${peNames.join(' & ')} — pack ${peKitLabel ?? 'PE kit'}`}
+        />
+      )}
+
       {date.getDate()}
 
       {isTransition && changeoverTime && (
@@ -86,5 +93,16 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
       </div>
     </button>
+  )
+}
+
+// PE / sport day flag — same "small icon on the day cell" pattern as the mortarboard
+// toggle uses for term dates, just scoped to this one cell instead of a page-level toggle.
+function ShoeIcon({ className, title }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      {title && <title>{title}</title>}
+      <path d="M2 17.5c0-.83.67-1.5 1.5-1.5H4v-2.2c0-.5.2-.98.57-1.32l4.2-3.9a2 2 0 011.5-.58l1.9.1c.4.02.77.2 1.04.48l2.6 2.7c.32.33.76.52 1.22.52H19a3 3 0 013 3V18a1 1 0 01-1 1H3a1 1 0 01-1-1v-.5z" />
+    </svg>
   )
 }
