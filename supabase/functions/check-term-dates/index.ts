@@ -36,7 +36,7 @@ const supabase = createClient(
 // hold up to 200k chars of fetched text or a 30MB PDF in memory (native PDF extraction +
 // raised content caps), and running 50 in parallel exceeded the edge function's worker
 // memory limit (HTTP 546). Applies to both test mode and the production cron/manual paths.
-const SCHOOL_BATCH_SIZE = 3
+const SCHOOL_BATCH_SIZE = 6
 
 async function processInBatches<T, R>(items: T[], batchSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = []
@@ -1018,8 +1018,11 @@ async function fetchPdfBase64(url: string): Promise<string | null> {
     })
     if (!res.ok) { console.log(`PDF fetch returned ${res.status} for ${url}`); return null }
     const buf = new Uint8Array(await res.arrayBuffer())
-    // Claude's document API caps PDFs at 32MB — leave headroom for base64 overhead.
-    if (buf.byteLength > 30 * 1024 * 1024) { console.log(`PDF too large (${buf.byteLength} bytes) for ${url}, skipping`); return null }
+    // Claude's document API allows up to 32MB, but a genuine term-dates PDF is a handful
+    // of pages — a few hundred KB to a couple of MB. Anything past 8MB is almost certainly
+    // not a term-dates document, and was the main driver of peak memory when several
+    // schools' PDFs were processed concurrently in one batch.
+    if (buf.byteLength > 8 * 1024 * 1024) { console.log(`PDF too large (${buf.byteLength} bytes) for ${url}, skipping`); return null }
     let binary = ''
     const chunkSize = 0x8000
     for (let i = 0; i < buf.length; i += chunkSize) binary += String.fromCharCode(...buf.subarray(i, i + chunkSize))
