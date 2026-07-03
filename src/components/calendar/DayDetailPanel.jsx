@@ -76,7 +76,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
             <line x1="8.8" y1="9.5" x2="5.2" y2="7.9" stroke="black" strokeWidth="1.1" />
           </svg>
           <p className="text-sm font-medium text-sky-800">
-            {regionConfig.pe.label} day — {peNames.join(' & ')} need{peNames.length === 1 ? 's' : ''} {regionConfig.pe.kit}
+            {peNames.map((n) => n.split(' ')[0]).join(' & ')} - {regionConfig.pe.kit}
           </p>
         </div>
       )}
