@@ -1,9 +1,15 @@
 // Pure functions shared by useTermDates hook and TermDatesSection component.
 // No React, no Supabase — safe to import in tests without any mocking.
 
+// "inset" equivalents across locales — a single day where school is closed to
+// students but staff attend (UK: INSET/Baker/occasional day, US: PD day/teacher
+// workday/in-service/non-student day/records day, AU: pupil-free/student-free/
+// curriculum day/school development day, IE: in-service day).
+const INSET_RE = /\b(inset|baker\s+day|occasional\s+day|pd\s+day|professional\s+development|teacher\s+work\s?day|non.?student\s+day|records?\s+day|pupil.?free|student.?free|curriculum\s+day|school\s+development\s+day|staff\s+development|in.?service)\b/
+
 export function classifyTermEvent(title, endDate) {
   const lower = (title ?? '').toLowerCase()
-  if (lower.includes('inset')) return 'inset'
+  if (INSET_RE.test(lower)) return 'inset'
   if (endDate) return 'holiday'
   // Single-day events with no end_date: bank holidays and explicit closed days
   if (lower.includes('bank holiday') || lower.includes('closed')) return 'holiday'

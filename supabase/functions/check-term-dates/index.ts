@@ -1185,8 +1185,11 @@ function deduplicateOverlapping(events: any[]): any[] {
 // Returns false for events where school is open (term start/end, parents evenings, sports days etc.)
 function isSchoolClosedEvent(title: string, locale: string): boolean {
   const lc = title.toLowerCase()
-  if (/\b(term (starts?|begins?|opens?|returns?|ends?|closes?)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
-  if (/\b(pupils? (return|in school|back)|students? (return|back)|all year groups? in school|year \d+ in school)\b/.test(lc)) return false
+  if (/\b(term (starts?|begins?|opens?|returns?|ends?|closes?|commences?|concludes?)|back to school|school (re)?open(s)?)\b/.test(lc)) return false
+  // AU phrasing puts the verb before "Term N" rather than after "term": "Students Commence -
+  // Term One" / "Students Conclude - Term Two" - not caught by the pattern above.
+  if (/\b(commences?|concludes?)\b.*\bterm\s+(one|two|three|four|[1-4])\b/.test(lc)) return false
+  if (/\b(pupils? (return|in school|back)|students? (return|back|commence|conclude)|all year groups? in school|year \d+ in school)\b/.test(lc)) return false
   if (/\b(parents?' evening|open evening|information evening|sports day|prize giving|graduation|speech day)\b/.test(lc)) return false
   // Locale-specific exam types to exclude (unless the event is also a holiday/closure)
   const hasClosedKeyword = /\b(holiday|break|closed)\b/.test(lc)

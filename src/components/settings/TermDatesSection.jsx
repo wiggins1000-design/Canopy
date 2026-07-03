@@ -6,8 +6,12 @@ import { useLocale } from '../../hooks/useLocale'
 import Button from '../ui/Button'
 import BottomSheet from '../ui/BottomSheet'
 
+// Kept in sync with classifyTermEvent in termDatesUtils.js (used for the calendar's
+// coloured strips) — see that file's INSET_RE for the full cross-locale keyword list.
+const CLASSIFY_INSET_RE = /\b(inset|baker\s+day|occasional\s+day|pd\s+day|professional\s+development|teacher\s+work\s?day|non.?student\s+day|records?\s+day|pupil.?free|student.?free|curriculum\s+day|school\s+development\s+day|staff\s+development|in.?service)\b/
+
 function classify(ev) {
-  if (ev.title.toLowerCase().includes('inset')) return 'inset'
+  if (CLASSIFY_INSET_RE.test(ev.title.toLowerCase())) return 'inset'
   if (ev.end_date) return 'holiday'
   return 'other'
 }

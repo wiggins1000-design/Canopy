@@ -38,8 +38,8 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
   },
 
   'en-US': {
-    termDateRegex: /fall\s+break|spring\s+break|winter\s+break|summer\s+break|thanksgiving\s+break|pd\s+day|professional\s+development\s+day|teacher\s+work\s+day|no\s+school|early\s+release|semester\s+start|semester\s+end|fall\s+semester|spring\s+semester/i,
-    contentKeywords: ['semester', 'break', 'vacation', 'academic', 'calendar', 'pd day', 'school year'],
+    termDateRegex: /fall\s+break|spring\s+break|winter\s+break|summer\s+break|thanksgiving\s+break|pd\s+day|professional\s+development\s+day|teacher\s+work\s?day|in.?service\s+day|non.?student\s+day|records?\s+day|no\s+school|early\s+release|semester\s+start|semester\s+end|fall\s+semester|spring\s+semester/i,
+    contentKeywords: ['semester', 'break', 'vacation', 'academic', 'calendar', 'pd day', 'school year', 'in-service', 'workday'],
     urlKeywords: ['academic-calendar', 'school-calendar', 'calendar', 'school-year', 'important-dates'],
     commonPaths: [
       '/calendar', '/academic-calendar', '/school-calendar',
@@ -48,15 +48,15 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'us',
     yearGroupSystem: 'us',
-    bulletFilter: /\b(fall\s+break|spring\s+break|winter\s+break|summer\s+break|thanksgiving\s+break|pd\s+day|professional\s+development|teacher\s+work\s+day|no\s+school|school\s+clos|early\s+release|semester|school\s+year)\b/i,
+    bulletFilter: /\b(fall\s+break|spring\s+break|winter\s+break|summer\s+break|thanksgiving\s+break|pd\s+day|professional\s+development|teacher\s+work\s?day|in.?service\s+day|non.?student\s+day|records?\s+day|no\s+school|school\s+clos|early\s+release|semester|school\s+year)\b/i,
     sectionHeadingRegex: /(?:Academic\s+Calendar|School\s+Year(?:\s+Calendar)?|Fall\s+Semester|Spring\s+Semester|(?:20\d\d[–\-]\d{2,4})\s+(?:Academic|School))/i,
     docExcludeTerms: 'AP/SAT/ACT exam schedules, graduation programs, prospectuses, policies, or handbooks (unless they also contain school closure dates)',
     schoolTypeLabel: 'US school district',
   },
 
   'en-AU': {
-    termDateRegex: /term\s+[1-4]|pupil.?free\s+day|student.?free\s+day|school\s+holiday|school\s+term|end\s+of\s+term|start\s+of\s+term|term\s+dates/i,
-    contentKeywords: ['term', 'holiday', 'pupil-free', 'school holiday', 'term dates'],
+    termDateRegex: /term\s+[1-4]|pupil.?free\s+day|student.?free\s+day|curriculum\s+day|school\s+development\s+day|school\s+holiday|school\s+term|end\s+of\s+term|start\s+of\s+term|term\s+dates/i,
+    contentKeywords: ['term', 'holiday', 'pupil-free', 'school holiday', 'term dates', 'curriculum day', 'student-free'],
     urlKeywords: ['term-dates', 'school-calendar', 'calendar', 'key-dates', 'dates'],
     commonPaths: [
       '/term-dates', '/calendar', '/school-calendar',
@@ -64,7 +64,7 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     ],
     claudeVariant: 'au',
     yearGroupSystem: 'au',
-    bulletFilter: /\b(term\s+[1-4]|pupil.?free|student.?free|school\s+holid|term\s+holid|summer\s+holid|school\s+term|end\s+of\s+term|start\s+of\s+term)\b/i,
+    bulletFilter: /\b(term\s+[1-4]|pupil.?free|student.?free|curriculum\s+day|school\s+development\s+day|school\s+holid|term\s+holid|summer\s+holid|school\s+term|end\s+of\s+term|start\s+of\s+term)\b/i,
     sectionHeadingRegex: /(?:Term\s+[1-4]|School\s+Terms?|Term\s+Dates?|Academic\s+(?:Year|Calendar)|School\s+Calendar)\s*(?:20\d\d|–|-)/i,
     docExcludeTerms: 'HSC/VCE/NAPLAN exam schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
     schoolTypeLabel: 'Australian school',
@@ -205,17 +205,27 @@ export const CLOSED_DAY_PATTERNS: Record<string, RegExp[]> = {
     /\binset\b/i,
     /\btraining\b/i,
     /occasional\s+day/i,
+    /staff\s+development\s+day/i,
+    /school\s+development\s+day/i,
+    /baker\s+day/i,
     /school\s+closed\s+to\s+(?:students?|pupils?)/i,
   ],
   'en-US': [
     /professional\s+development/i,
     /\bpd\s+day\b/i,
-    /teacher\s+work\s+day/i,
+    // \s? (not \s+) so this also matches "workday" as one word, not just "work day"
+    /teacher\s+work\s?day/i,
+    /in.?service\s+day/i,
+    /staff\s+development\s+day/i,
+    /non.?student\s+day/i,
+    /records?\s+day/i,
     /school\s+closed/i,
   ],
   'en-AU': [
     /pupil.?free\s+day/i,
     /student.?free\s+day/i,
+    /curriculum\s+day/i,
+    /school\s+development\s+day/i,
     /school\s+closed/i,
   ],
   'en-IE': [
