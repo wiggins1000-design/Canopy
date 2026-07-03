@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       .from('schedule_changes')
       .select('*')
       .eq('family_id', familyId)
-      .eq('status', 'approved')
+      .eq('status', 'accepted')
       .gte('start_date', cutoff.toISOString().split('T')[0])
       .order('start_date')
 
