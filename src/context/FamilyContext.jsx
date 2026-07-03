@@ -127,6 +127,17 @@ export function FamilyProvider({ children }) {
     return { error }
   }, [family])
 
+  // Silently capture the device's timezone once, so server-side jobs (e.g. the
+  // evening reminder) know what "8pm" actually means for this family. Never
+  // overwrites a value the family already has.
+  useEffect(() => {
+    if (!family?.id || family.config?.timezone) return
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (tz) updateFamilyConfig({ timezone: tz })
+    } catch { /* Intl unsupported — server falls back to a locale-based default */ }
+  }, [family?.id, family?.config?.timezone, updateFamilyConfig])
+
   const updateMemberFeatures = useCallback(async (features) => {
     const { error } = await supabase.rpc('update_member_features', { p_features: features })
     if (!error) {

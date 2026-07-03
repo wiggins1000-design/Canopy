@@ -47,6 +47,10 @@ export default function ConfigPage() {
   const [phoneSaved, setPhoneSaved] = useState(false)
   const [phoneError, setPhoneError] = useState(null)
 
+  const [reminderTime, setReminderTime] = useState('20:00')
+  const [reminderSaving, setReminderSaving] = useState(false)
+  const [reminderSaved, setReminderSaved] = useState(false)
+
   const [pushEnabled, setPushEnabled]   = useState(false)
   const [pushLoading, setPushLoading]   = useState(false)
   const [pushSupported, setPushSupported] = useState(true)
@@ -97,6 +101,7 @@ export default function ConfigPage() {
     setChangeoverLocation(family.config.changeover_location ?? '')
     setChildren(family.config.children ?? [])
     setPets(family.config.pets ?? [])
+    setReminderTime(family.config.evening_reminder_time ?? '20:00')
   }, [family?.config])
 
   useEffect(() => {
@@ -253,6 +258,14 @@ export default function ConfigPage() {
     } finally {
       setPushLoading(false)
     }
+  }
+
+  async function saveReminderTime() {
+    setReminderSaving(true)
+    await updateFamilyConfig({ evening_reminder_time: reminderTime })
+    setReminderSaved(true)
+    setReminderSaving(false)
+    setTimeout(() => setReminderSaved(false), 2500)
   }
 
   async function savePhone() {
@@ -954,6 +967,21 @@ export default function ConfigPage() {
           onToggle={togglePush}
           isNative={isNativePlatform()}
         />
+        <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold text-gray-500">Evening reminder</p>
+          <p className="text-xs text-gray-400">Each evening, whichever parent has the children gets a reminder of tomorrow's events (including PE days).</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(e) => setReminderTime(e.target.value)}
+              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green bg-white"
+            />
+            <Button className="flex-1 py-2.5 text-sm" loading={reminderSaving} onClick={saveReminderTime}>
+              {reminderSaved ? '✓ Saved' : 'Save time'}
+            </Button>
+          </div>
+        </div>
         <div className="border-t border-gray-100 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-gray-500">SMS — urgent notices</p>
           <p className="text-xs text-gray-400">Receive an SMS when an urgent notice is posted. Include country code, e.g. +44. Leave blank to opt out.</p>
