@@ -215,8 +215,11 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     const ageMs   = cached?.last_fetched_at
       ? Date.now() - new Date(cached.last_fetched_at).getTime()
       : Infinity
-    // Also re-scrape if the cache exists but has no dates (previous scrape failed silently)
-    const isStale = ageMs > 30 * 24 * 60 * 60 * 1000 || !((cached as any)?.term_dates?.length)
+    // Also re-scrape if the cache exists but has no dates (previous scrape failed silently).
+    // 60 days rather than 30: term dates are typically published a year ahead and rarely
+    // change, and any sync (manual or cron) that actually scrapes a school resets
+    // last_fetched_at, so a family syncing recently naturally skips the next cron pass.
+    const isStale = ageMs > 60 * 24 * 60 * 60 * 1000 || !((cached as any)?.term_dates?.length)
 
     let termDates: any[] = (cached as any)?.term_dates ?? []
     let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
