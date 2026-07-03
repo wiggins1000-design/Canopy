@@ -157,8 +157,8 @@ Deno.serve(async (req) => {
   }
 
   // ── Cron housekeeping ─────────────────────────────────────────────────────
-  const forceRefresh = !targetFamilyId
-  if (forceRefresh) {
+  const isCronRun = !targetFamilyId
+  if (isCronRun) {
     const { error: archiveErr } = await supabase.rpc('archive_old_notifications')
     if (archiveErr) console.error('archive_old_notifications error:', archiveErr)
     else console.log('archive_old_notifications: done')
@@ -169,12 +169,17 @@ Deno.serve(async (req) => {
   }
 
   // ── Process all schools in parallel ──────────────────────────────────────
-  // forceRefresh is only true for the monthly cron (targetFamilyId is null in cron mode).
-  // Manual sync uses cached KB data when available; only scrapes if KB is empty.
+  // Cron used to force a full re-scrape + re-extraction of every school every month
+  // regardless of cache freshness (forceRefresh=true also nulled out the content-hash
+  // check, so even byte-identical pages re-ran the full Claude pipeline). That cost
+  // scales with total schools in the system for no benefit - term dates don't change
+  // month to month. Cron now respects the same 30-day staleness + unchanged-hash
+  // short-circuit as an on-demand family sync; only genuinely stale/new/changed
+  // schools actually hit Claude.
 
   const results = await processInBatches(Object.entries(urlToFamilies), SCHOOL_BATCH_SIZE, async ([homepageUrl, familyIds]) => {
     console.log(`Processing school: ${homepageUrl} (${familyIds.size} families)`)
-    const result = await processSchool(homepageUrl, [...familyIds], forceRefresh)
+    const result = await processSchool(homepageUrl, [...familyIds], false)
       .catch((e: any) => ({ status: 'error', error: e?.message ?? 'Unknown error' }))
     return { homepageUrl, ...result }
   })
