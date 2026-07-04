@@ -1,16 +1,21 @@
 // Canopy — Supabase Edge Function: process-email
 //
-// Receives inbound emails via Postmark webhook, analyses them with Claude Haiku,
-// and creates calendar events / notice posts / saves documents automatically.
+// Receives inbound emails via a Cloudflare Email Worker (Cloudflare Email Routing
+// forwards mail for canopy-app.app to a Worker, which POSTs the parsed message here),
+// analyses them with Claude Haiku, and creates calendar events / notice posts / saves
+// documents automatically. The request body shape matches Postmark's inbound webhook
+// format (From/Subject/TextBody/HtmlBody/Attachments) since that's what the Worker emits,
+// but no Postmark account/service is actually involved — the Worker itself lives in the
+// Cloudflare dashboard, not in this repo.
 //
 // ── Setup ────────────────────────────────────────────────────────────────────
-// 1. Configure MX record for canopy-app.app to point to Postmark inbound servers
-// 2. In Postmark, set inbound webhook URL → this function:
+// 1. Cloudflare Email Routing for canopy-app.app forwards to the Email Worker
+// 2. The Worker POSTs to this function's URL with an x-webhook-token header:
 //    https://<project>.supabase.co/functions/v1/process-email
 // 3. Set these secrets in Supabase dashboard → Edge Functions → Secrets:
 //
 //   ANTHROPIC_API_KEY      = sk-ant-...  (from console.anthropic.com)
-//   EMAIL_WEBHOOK_TOKEN    = any-random-secret  (set same value in Postmark webhook settings)
+//   EMAIL_WEBHOOK_TOKEN    = any-random-secret  (must match the value the Cloudflare Worker sends)
 //   SUPABASE_URL           = (auto-injected)
 //   SUPABASE_SERVICE_ROLE_KEY = (auto-injected)
 //

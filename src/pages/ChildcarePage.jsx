@@ -9,8 +9,9 @@ import Button from '../components/ui/Button'
 function formatHours(h) {
   const n = Number(h)
   if (!n) return '0h'
-  const whole = Math.floor(n)
-  const mins  = Math.round((n - whole) * 60)
+  let whole   = Math.floor(n)
+  let mins    = Math.round((n - whole) * 60)
+  if (mins === 60) { whole += 1; mins = 0 } // rounding can carry a full minute into the next hour
   if (mins === 0) return `${whole}h`
   if (whole === 0) return `${mins}m`
   return `${whole}h ${mins}m`
