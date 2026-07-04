@@ -9,6 +9,7 @@ function detectDefaultLocale() {
   if (lang.startsWith('en-AU')) return 'en-AU'
   if (lang.startsWith('en-IE')) return 'en-IE'
   if (lang.startsWith('en-US')) return 'en-US'
+  if (lang.startsWith('en-NZ')) return 'en-NZ'
   return 'en-GB'
 }
 

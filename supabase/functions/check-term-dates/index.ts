@@ -1113,7 +1113,8 @@ function inferMissingHolidays(events: any[], locale: string): void {
   type Def = [(t: string) => boolean, (t: string) => boolean, string]
   let defs: Def[]
 
-  if (locale === 'en-AU') {
+  if (locale === 'en-AU' || locale === 'en-NZ') {
+    // NZ also uses Term 1-4 naming, same inference pattern as AU
     defs = [
       [t => /\bterm\s+1\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+2\b/i.test(t) || returnsOrOpens(t), 'Term 1 Holiday'],
       [t => /\bterm\s+2\b/i.test(t) && (endsOrCloses(t) || isPeriodTitle(t)), t => /\bterm\s+3\b/i.test(t) || returnsOrOpens(t), 'Term 2 Holiday'],
@@ -1206,6 +1207,7 @@ function isSchoolClosedEvent(title: string, locale: string): boolean {
     if (locale === 'en-US' && /\b(ap\s+exam|sat|act|state\s+test(?:ing)?|standardized\s+test)\b/.test(lc)) return false
     if (locale === 'en-IE' && /\b(leaving\s+cert|junior\s+cert|lc\s+exam)\b/.test(lc)) return false
     if (locale === 'en-GB' && /\b(exam(ination)?|assessment|ppe|gcse|a.?level)\b/.test(lc)) return false
+    if (locale === 'en-NZ' && /\b(ncea)\b/.test(lc)) return false
   }
   return true
 }

@@ -4,14 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const LOCALES = [
-  { code: null,    label: 'All',       flag: '' },
-  { code: 'en-GB', label: 'UK',        flag: '🇬🇧' },
-  { code: 'en-AU', label: 'Australia', flag: '🇦🇺' },
-  { code: 'en-IE', label: 'Ireland',   flag: '🇮🇪' },
-  { code: 'en-US', label: 'US',        flag: '🇺🇸' },
+  { code: null,    label: 'All',         flag: '' },
+  { code: 'en-GB', label: 'UK',          flag: '🇬🇧' },
+  { code: 'en-AU', label: 'Australia',   flag: '🇦🇺' },
+  { code: 'en-IE', label: 'Ireland',     flag: '🇮🇪' },
+  { code: 'en-US', label: 'US',          flag: '🇺🇸' },
+  { code: 'en-NZ', label: 'New Zealand', flag: '🇳🇿' },
 ]
 
-const LOCALE_FLAG = { 'en-GB': '🇬🇧', 'en-AU': '🇦🇺', 'en-IE': '🇮🇪', 'en-US': '🇺🇸' }
+const LOCALE_FLAG = { 'en-GB': '🇬🇧', 'en-AU': '🇦🇺', 'en-IE': '🇮🇪', 'en-US': '🇺🇸', 'en-NZ': '🇳🇿' }
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate()

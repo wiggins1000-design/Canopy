@@ -8,6 +8,7 @@ const SEGMENTS = [
   { id: 'locale_en-AU', label: '🇦🇺 Australia users', description: 'Parents with region set to Australia' },
   { id: 'locale_en-IE', label: '🇮🇪 Ireland users',   description: 'Parents with region set to Ireland' },
   { id: 'locale_en-US', label: '🇺🇸 US users',        description: 'Parents with region set to United States' },
+  { id: 'locale_en-NZ', label: '🇳🇿 New Zealand users', description: 'Parents with region set to New Zealand' },
 ]
 
 export default function AdminBroadcastPage() {

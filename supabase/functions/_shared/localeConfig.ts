@@ -6,8 +6,8 @@ export interface LocaleConfig {
   contentKeywords:    string[]
   urlKeywords:        string[]
   commonPaths:        string[]
-  claudeVariant:      'uk' | 'us' | 'au' | 'ie'
-  yearGroupSystem:    'uk' | 'us' | 'au' | 'ie'
+  claudeVariant:      'uk' | 'us' | 'au' | 'ie' | 'nz'
+  yearGroupSystem:    'uk' | 'us' | 'au' | 'ie' | 'nz'
   /** Regex: bullet lines matching this are kept by stripUrls; others are dropped */
   bulletFilter:       RegExp
   /** Regex: anchor point for findDatesSection — content before the first match is discarded */
@@ -85,6 +85,22 @@ export const LOCALE_CONFIGS: Record<string, LocaleConfig> = {
     docExcludeTerms: 'Leaving Cert/Junior Cert exam schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
     schoolTypeLabel: 'Irish school',
   },
+
+  'en-NZ': {
+    termDateRegex: /term\s+[1-4]|teacher.?only\s+day|staff.?only\s+day|school\s+holiday|school\s+term|end\s+of\s+term|start\s+of\s+term|term\s+dates/i,
+    contentKeywords: ['term', 'holiday', 'teacher only day', 'school holiday', 'term dates'],
+    urlKeywords: ['term-dates', 'school-calendar', 'calendar', 'key-dates', 'dates'],
+    commonPaths: [
+      '/term-dates', '/term-dates/', '/calendar', '/school-calendar',
+      '/parents/term-dates', '/key-dates',
+    ],
+    claudeVariant: 'nz',
+    yearGroupSystem: 'nz',
+    bulletFilter: /\b(term\s+[1-4]|teacher.?only\s+day|staff.?only\s+day|school\s+holid|term\s+holid|summer\s+holid|school\s+term|end\s+of\s+term|start\s+of\s+term)\b/i,
+    sectionHeadingRegex: /(?:Term\s+[1-4]|School\s+Terms?|Term\s+Dates?|Academic\s+(?:Year|Calendar)|School\s+Calendar)\s*(?:20\d\d|–|-)/i,
+    docExcludeTerms: 'NCEA exam schedules, prospectuses, policies, or handbooks (unless they also contain holiday dates)',
+    schoolTypeLabel: 'New Zealand school',
+  },
 }
 
 export function getLocaleConfig(locale: string): LocaleConfig {
@@ -96,6 +112,7 @@ export function getLocaleFromUrl(url: string): string | null {
   if (/\.co\.uk|\.sch\.uk|\.ac\.uk|\.org\.uk|\.me\.uk/.test(url)) return 'en-GB'
   if (/\.com\.au|\.edu\.au|\.vic\.edu\.au|\.nsw\.edu\.au|\.qld\.edu\.au|\.sa\.edu\.au|\.wa\.edu\.au/.test(url)) return 'en-AU'
   if (/\.ie(\/|$)/.test(url)) return 'en-IE'
+  if (/\.school\.nz|\.ac\.nz|\.govt\.nz/.test(url)) return 'en-NZ'
   return null
 }
 
@@ -149,6 +166,17 @@ Rules:
 - Use "In-Service Day" as the title for staff training days
 - Dates must be YYYY-MM-DD
 - Return ONLY valid JSON`,
+
+  nz: `Extract all dated events from this New Zealand school calendar. Include everything: term start/end dates, holidays between terms, teacher-only days, public holidays that affect school.
+
+Return JSON: { "events": [ { "title": string, "date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD or null" } ] }
+
+Rules:
+- New Zealand schools have 4 terms per year (Term 1–4). Term 1 start and Term 4 end dates vary by school; Terms 2 and 3 are usually fixed nationally
+- Include Teacher Only Days (also called Staff Only Days)
+- Holiday titles: "Term 1 Holiday", "Term 2 Holiday", "Term 3 Holiday", "Summer Holiday" etc.
+- Dates must be YYYY-MM-DD
+- Return ONLY valid JSON`,
 }
 
 // ── Year group normalisation ─────────────────────────────────────────────────
@@ -199,6 +227,16 @@ export function deriveKeyStage(yearGroup: string | undefined, locale: string): s
     return null
   }
 
+  if (system === 'nz') {
+    // NZ has no separate reception/foundation year — Year 1 is the entry year.
+    const m = lower.match(/year\s*(\d+)|^y(\d+)$/)
+    const y = m ? parseInt(m[1] ?? m[2]) : bareNum
+    if (y == null) return null
+    if (y <= 6)  return 'Primary'
+    if (y <= 8)  return 'Intermediate'
+    return 'Secondary'
+  }
+
   return null
 }
 
@@ -233,6 +271,12 @@ export const CLOSED_DAY_PATTERNS: Record<string, RegExp[]> = {
   ],
   'en-IE': [
     /in.?service\s+day/i,
+    /school\s+closed/i,
+  ],
+  'en-NZ': [
+    /teacher.?only\s+day/i,
+    /staff.?only\s+day/i,
+    /professional\s+development\s+day/i,
     /school\s+closed/i,
   ],
 }

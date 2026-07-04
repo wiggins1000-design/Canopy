@@ -376,7 +376,7 @@ function buildSchoolInfoPrompt(content: string, pageUrl: string, origin: string,
     : 'principal full name'
   const termDatesHints = locale === 'en-US'
     ? "'academic calendar', 'school calendar', 'school year', 'important dates', 'calendar'"
-    : locale === 'en-AU'
+    : (locale === 'en-AU' || locale === 'en-NZ')
     ? "'term dates', 'school calendar', 'key dates', 'terms', 'calendar'"
     : "'term dates', 'term times', 'school calendar', 'holidays', 'academic year'"
 

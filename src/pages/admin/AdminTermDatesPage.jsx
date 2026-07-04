@@ -7,11 +7,12 @@ import CalendarGrid from '../../components/calendar/CalendarGrid'
 import FailureAnalysisPanel from '../../components/admin/FailureAnalysisPanel'
 
 const LOCALES = [
-  { code: 'all',   label: 'All',       flag: '' },
-  { code: 'en-GB', label: 'UK',        flag: '🇬🇧' },
-  { code: 'en-AU', label: 'Australia', flag: '🇦🇺' },
-  { code: 'en-IE', label: 'Ireland',   flag: '🇮🇪' },
-  { code: 'en-US', label: 'US',        flag: '🇺🇸' },
+  { code: 'all',   label: 'All',         flag: '' },
+  { code: 'en-GB', label: 'UK',          flag: '🇬🇧' },
+  { code: 'en-AU', label: 'Australia',   flag: '🇦🇺' },
+  { code: 'en-IE', label: 'Ireland',     flag: '🇮🇪' },
+  { code: 'en-US', label: 'US',          flag: '🇺🇸' },
+  { code: 'en-NZ', label: 'New Zealand', flag: '🇳🇿' },
 ]
 
 export default function AdminTermDatesPage() {
