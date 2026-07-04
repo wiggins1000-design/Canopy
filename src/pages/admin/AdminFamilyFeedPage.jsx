@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
+import FailureAnalysisPanel from '../../components/admin/FailureAnalysisPanel'
 
 const STATUS_LABEL = {
   success:               'Success',
@@ -94,6 +95,8 @@ export default function AdminFamilyFeedPage() {
         <StatCard label="Errors (30d)"    value={loading ? null : stats?.error_30d}   colour="red" />
         <StatCard label="Skipped (30d)"   value={loading ? null : stats?.skipped_30d} />
       </div>
+
+      <FailureAnalysisPanel type="familyfeed" />
 
       {loading ? (
         <div className="flex justify-center py-16">

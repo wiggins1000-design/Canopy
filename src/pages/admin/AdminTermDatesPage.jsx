@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { getCalendarMonthDays, formatDate } from '../../lib/scheduleEngine'
 import { buildTermDaysMap } from '../../lib/termDatesUtils'
 import CalendarGrid from '../../components/calendar/CalendarGrid'
+import FailureAnalysisPanel from '../../components/admin/FailureAnalysisPanel'
 
 const LOCALES = [
   { code: 'all',   label: 'All',       flag: '' },
@@ -92,6 +93,8 @@ export default function AdminTermDatesPage() {
         <StatCard label="Synced OK"     value={loading ? null : ok.length}      colour="green" />
         <StatCard label="Failed"        value={loading ? null : failed.length}   colour="red" />
       </div>
+
+      <FailureAnalysisPanel type="term_dates" />
 
       {loading ? (
         <div className="flex justify-center py-16">
