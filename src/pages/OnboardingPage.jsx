@@ -53,7 +53,7 @@ export default function OnboardingPage() {
           {step === 'choose' && (
             <>
               <Button className="w-full py-3" onClick={() => setStep('create')}>
-                Create a new platform
+                Create a Canopy family
               </Button>
               <Button variant="secondary" className="w-full py-3" onClick={() => setStep('join')}>
                 Join with an invite code
