@@ -8,6 +8,13 @@ import { Sentry } from './sentry'
 const ENTITLEMENT_ID = 'subscriber'
 
 let configured = false
+// initRevenueCat() is called from FamilyContext as soon as family.id loads, but
+// PaywallOverlay (a descendant) fetches the offering in its own effect around the
+// same time — React fires child effects before parent effects on the same commit,
+// so getCurrentOffering() would otherwise race ahead of configure() finishing and
+// permanently give up (its caller never retries). Sharing the in-flight promise
+// lets any caller await the same configure() attempt instead of racing it.
+let configuringPromise = null
 
 // No-ops entirely on web/PWA (Apple/Google IAP only exists in the native app) and
 // if no API key is set yet — mirrors the Sentry init pattern so this is safe to
@@ -27,17 +34,22 @@ export async function initRevenueCat(familyId) {
     Sentry.captureMessage('RevenueCat init skipped: no API key configured', 'warning')
     return
   }
-  try {
-    // appUserID = family.id, not the individual parent's user id — "both parents
-    // included, one price" means whichever parent purchases unlocks the whole
-    // family, checked here by keying RevenueCat's identity to the family itself.
-    await Purchases.configure({ apiKey, appUserID: familyId })
-    configured = true
-    Sentry.captureMessage('RevenueCat configured successfully', 'info')
-  } catch (e) {
-    console.error('RevenueCat configure failed:', e)
-    Sentry.captureException(e, { tags: { context: 'revenuecat_configure' } })
-  }
+  if (configuringPromise) return configuringPromise
+
+  configuringPromise = (async () => {
+    try {
+      // appUserID = family.id, not the individual parent's user id — "both parents
+      // included, one price" means whichever parent purchases unlocks the whole
+      // family, checked here by keying RevenueCat's identity to the family itself.
+      await Purchases.configure({ apiKey, appUserID: familyId })
+      configured = true
+      Sentry.captureMessage('RevenueCat configured successfully', 'info')
+    } catch (e) {
+      console.error('RevenueCat configure failed:', e)
+      Sentry.captureException(e, { tags: { context: 'revenuecat_configure' } })
+    }
+  })()
+  await configuringPromise
 }
 
 export function isRevenueCatReady() {
@@ -45,7 +57,19 @@ export function isRevenueCatReady() {
 }
 
 export async function getCurrentOffering() {
-  if (!configured) return null
+  // PaywallOverlay's effect can fire before FamilyContext's initRevenueCat() call
+  // has even started (child effects run before parent effects on the same React
+  // commit) — configuringPromise may still be null at that instant, not just
+  // pending. Poll briefly for it to appear before giving up, rather than only
+  // awaiting it if it already exists.
+  for (let i = 0; i < 25 && !configuringPromise && !configured; i++) {
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  if (configuringPromise) await configuringPromise
+  if (!configured) {
+    Sentry.captureMessage('RevenueCat getOfferings skipped: not configured', 'warning')
+    return null
+  }
   try {
     const offerings = await Purchases.getOfferings()
     if (!offerings.current) {
