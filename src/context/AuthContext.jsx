@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase, registerPushSubscription } from '../lib/supabase'
+import { setSentryUser } from '../lib/sentry'
 
 const AuthContext = createContext(null)
 
@@ -14,6 +15,8 @@ export function AuthProvider({ children }) {
   // before we know whether 2FA is required.
   const holdingSessionFor2FA = useRef(false)
   const heldSession = useRef(null)
+
+  useEffect(() => { setSentryUser(user?.id ?? null) }, [user])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

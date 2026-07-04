@@ -427,8 +427,12 @@ async function handleRequest(req: Request): Promise<Response> {
       })
       if (res.ok) {
         const raw = await res.text()
+        // Real newsletters can be long — a real Reddam House weekly newsletter tested at
+        // 54K+ chars with its "Dates to diarise" section (the actual events) starting well
+        // past the old 12K cap, so nothing after it was ever seen by Claude. Haiku's context
+        // window has ample room for a much larger cap.
         const text = isJs
-          ? raw.slice(0, 12000)
+          ? raw.slice(0, 40000)
           : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000)
         linkContent += `\n\nPage content from ${url}:\n${text}`
       }

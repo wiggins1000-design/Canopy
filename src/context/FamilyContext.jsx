@@ -8,6 +8,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { setSentryLocale } from '../lib/sentry'
 
 const FamilyContext = createContext(null)
 
@@ -137,6 +138,8 @@ export function FamilyProvider({ children }) {
       if (tz) updateFamilyConfig({ timezone: tz })
     } catch { /* Intl unsupported — server falls back to a locale-based default */ }
   }, [family?.id, family?.config?.timezone, updateFamilyConfig])
+
+  useEffect(() => { setSentryLocale(family?.config?.locale) }, [family?.config?.locale])
 
   const updateMemberFeatures = useCallback(async (features) => {
     const { error } = await supabase.rpc('update_member_features', { p_features: features })
