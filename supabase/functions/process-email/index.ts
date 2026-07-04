@@ -19,6 +19,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import PostalMime from 'https://esm.sh/postal-mime@2.2.8'
+import JSZip from 'https://esm.sh/jszip@3.10.1'
 import { sendDebugAlert } from '../_shared/debugAlert.ts'
 import { getLocaleConfig, deriveKeyStage } from '../_shared/localeConfig.ts'
 
@@ -32,13 +33,96 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, locale: string): string {
   const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y.slice(2)}`
+  return locale === 'en-US' ? `${m}/${d}/${y.slice(2)}` : `${d}/${m}/${y.slice(2)}`
 }
 
 function isTermDateLike(title: string, locale: string): boolean {
   return getLocaleConfig(locale).termDateRegex.test(title)
+}
+
+function parseFromEmail(fromRaw: string): string {
+  return (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
+}
+
+// ── Admin diagnostics — logs every processed email to email_processing_log so
+// FamilyFeed health can be monitored from /admin/familyfeed, the same way
+// check-term-dates is monitored via school_calendars' scrape diagnostics.
+async function logEmailProcessing(opts: {
+  familyId:       string | null
+  fromEmail:      string
+  subject:        string
+  status:         'success' | 'error' | 'skipped_consent' | 'skipped_unrecognised'
+  eventsCreated?: number
+  eventsUpdated?: number
+  eventsSkipped?: number
+  docsSaved?:     number
+  noticeCreated?: boolean
+  errorStage?:    string
+  errorMessage?:  string
+}): Promise<void> {
+  try {
+    const diagnosis = opts.status === 'error'
+      ? await generateEmailDiagnosis(opts.errorStage, opts.errorMessage, opts.subject).catch(() => null)
+      : null
+
+    const { error } = await supabase.from('email_processing_log').insert({
+      family_id:      opts.familyId,
+      from_email:     opts.fromEmail,
+      subject:        opts.subject,
+      status:         opts.status,
+      events_created: opts.eventsCreated ?? 0,
+      events_updated: opts.eventsUpdated ?? 0,
+      events_skipped: opts.eventsSkipped ?? 0,
+      docs_saved:     opts.docsSaved ?? 0,
+      notice_created: opts.noticeCreated ?? false,
+      error_stage:    opts.errorStage ?? null,
+      error_message:  opts.errorMessage ?? null,
+      diagnosis,
+    })
+    if (error) console.error('logEmailProcessing insert failed:', error.message)
+  } catch (e) {
+    console.error('logEmailProcessing threw:', e)
+  }
+}
+
+// Short Claude-generated plain-English diagnosis for a failed email, mirroring
+// check-term-dates' generateDiagnosis. Only the failure stage/message and the
+// (low-sensitivity) subject line are sent — never email body/attachment content.
+async function generateEmailDiagnosis(stage: string | undefined, message: string | undefined, subject: string): Promise<string | null> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey || !message) return null
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({
+        model:      'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages:   [{
+          role: 'user',
+          content: `You are analysing why Canopy's FamilyFeed email processor failed on one email.
+
+Subject: ${subject}
+Failure stage: ${stage ?? 'unknown'}
+Error: ${message}
+
+In 1-2 sentences explain the likely root cause and what a developer could try to fix it.`,
+        }],
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.content?.[0]?.text ?? null
+  } catch {
+    return null
+  }
 }
 
 Deno.serve(async (req) => {
@@ -59,6 +143,15 @@ Deno.serve(async (req) => {
       error: err,
       input: { payload: rawPayload },
     })
+    const p = rawPayload as any
+    await logEmailProcessing({
+      familyId:     null,
+      fromEmail:    parseFromEmail(p?.From || p?.from || ''),
+      subject:      p?.Subject || '(no subject)',
+      status:       'error',
+      errorStage:   'uncaught_exception',
+      errorMessage: err instanceof Error ? `${err.message}\n${err.stack ?? ''}`.slice(0, 1000) : String(err).slice(0, 1000),
+    })
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: CORS })
   }
 })
@@ -77,12 +170,16 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const payload = await req.json()
 
+  const rawSubject: string = payload.Subject || '(no subject)'
+  // Strip Re:/Fwd:/Fw: chains (case-insensitive, repeated)
+  const subject: string    = rawSubject.replace(/^(\s*(re|fwd?)\s*:\s*)*/i, '').trim() || rawSubject.trim()
+
   // ── Identify family from sender (From: address) ───────────────────────────
   // familyfeed@canopy-app.app is a shared inbox — families are identified by
   // who forwards the email, not by a unique per-family address.
   // Only emails from registered addresses are processed; all others are dropped.
   const fromRaw: string = payload.From || payload.from || ''
-  const fromEmail = (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
+  const fromEmail = parseFromEmail(fromRaw)
 
   if (!fromEmail) {
     return new Response(JSON.stringify({ error: 'no from address' }), { status: 400, headers: CORS })
@@ -127,6 +224,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
   if (!familyId) {
     console.log('Unrecognised sender — dropping email from:', fromEmail)
+    await logEmailProcessing({ familyId: null, fromEmail, subject, status: 'skipped_unrecognised' })
     return new Response(JSON.stringify({ skipped: 'unrecognised sender' }), { status: 200, headers: CORS })
   }
 
@@ -138,6 +236,10 @@ async function handleRequest(req: Request): Promise<Response> {
   if (familyErr) console.error('Family lookup error:', familyErr.message)
 
   if (!family) {
+    await logEmailProcessing({
+      familyId, fromEmail, subject, status: 'error',
+      errorStage: 'family_lookup', errorMessage: familyErr?.message ?? 'family not found',
+    })
     return new Response(JSON.stringify({ skipped: 'family not found' }), { status: 200, headers: CORS })
   }
 
@@ -156,6 +258,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (!hasConsented) {
       await sendRejectionEmail({ to: fromEmail, originalSubject: subject })
         .catch((e) => console.error('Rejection email failed:', e))
+      await logEmailProcessing({ familyId, fromEmail, subject, status: 'skipped_consent' })
       return new Response(JSON.stringify({ skipped: 'consent not given' }), { status: 200, headers: CORS })
     }
   }
@@ -195,9 +298,6 @@ async function handleRequest(req: Request): Promise<Response> {
       }).join('\n')
     : ''
 
-  const rawSubject: string  = payload.Subject || '(no subject)'
-  // Strip Re:/Fwd:/Fw: chains (case-insensitive, repeated)
-  const subject: string    = rawSubject.replace(/^(\s*(re|fwd?)\s*:\s*)*/i, '').trim() || rawSubject.trim()
   const attachments: any[] = payload.Attachments || []
 
   // Detect raw MIME emails (Cloudflare Worker forwards the full raw email as TextBody)
@@ -223,16 +323,22 @@ async function handleRequest(req: Request): Promise<Response> {
     .replace(/Content-Transfer-Encoding: base64[\s\S]{0,50000}/gi, '[encoded content removed]')
     .slice(0, 12000)
 
-  // ── Save document attachments to storage ─────────────────────────────────
+  // ── Save document attachments to storage, and extract readable content ────
+  // School newsletters often arrive as PDF/Word attachments rather than inline text,
+  // so events need to be extracted from attachment content, not just the email body.
   const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  const MAX_ATTACHMENT_PDF_BYTES = 8 * 1024 * 1024
+  const MAX_PDF_ATTACHMENTS = 3
   let docsSaved = 0
+  const pdfBlocks: any[] = []
+  let attachmentTextContent = ''
 
   for (const att of attachments) {
     if (!att.Content || !att.Name) continue
     const isImage = IMAGE_TYPES.includes(att.ContentType)
+    const ext = (att.Name.split('.').pop() || '').toLowerCase()
 
     const bytes = Uint8Array.from(atob(att.Content), (c) => c.charCodeAt(0))
-    const ext   = att.Name.split('.').pop()
     const path  = `${family.id}/${crypto.randomUUID()}.${ext}`
 
     const { error: uploadErr } = await supabase.storage
@@ -251,32 +357,79 @@ async function handleRequest(req: Request): Promise<Response> {
       })
       docsSaved++
     }
+
+    const isPdf  = att.ContentType === 'application/pdf' || ext === 'pdf'
+    const isDocx = att.ContentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || ext === 'docx'
+    const isDoc  = att.ContentType === 'application/msword' || ext === 'doc'
+    const isHtml = att.ContentType === 'text/html' || ext === 'html' || ext === 'htm'
+
+    if (isPdf) {
+      if (pdfBlocks.length >= MAX_PDF_ATTACHMENTS) {
+        console.log(`Already have ${MAX_PDF_ATTACHMENTS} PDF attachments, skipping content extraction: ${att.Name}`)
+      } else if (bytes.length > MAX_ATTACHMENT_PDF_BYTES) {
+        console.log(`Attachment PDF too large (${bytes.length} bytes), skipping content extraction: ${att.Name}`)
+      } else {
+        pdfBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: att.Content } })
+      }
+    } else if (isDocx) {
+      const text = await extractDocxText(att.Content)
+      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content:\n${text.slice(0, 8000)}`
+    } else if (isDoc) {
+      const text = extractLegacyDocText(bytes)
+      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content (best-effort text extraction from legacy .doc format):\n${text.slice(0, 8000)}`
+    } else if (isHtml) {
+      const text = new TextDecoder().decode(bytes).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content:\n${text.slice(0, 8000)}`
+    }
   }
+  attachmentTextContent = attachmentTextContent.slice(0, 16000)
 
   // ── Fetch content from URLs in the email body ────────────────────────────
-  // Sway pages are JS-rendered so we route them through Jina AI reader.
-  // Extract URLs from plain text AND from HTML href attributes (Sway links
-  // are often only in the HTML body, not the plain-text version).
+  // Some newsletter builders (Microsoft Sway, Smore — the latter very common with
+  // US schools) render their pages client-side in JS, so a plain fetch returns an
+  // near-empty shell; route those through Jina AI reader instead. Direct links to a
+  // PDF (e.g. Peachjar-style flyer distribution, common in the US) must be handled
+  // as a document, not fetched as text — text-decoding raw PDF bytes just produces
+  // binary garbage.
+  // Extract URLs from plain text AND from HTML href attributes (links used by JS
+  // newsletter builders are often only in the HTML body, not the plain-text version).
   const textUrls  = textBody.match(/https?:\/\/[^\s)>\]"]+/g) ?? []
   const hrefUrls  = (rawHtml.match(/href="(https?:\/\/[^"]+)"/gi) ?? [])
     .map((m: string) => m.slice(6, -1))  // strip href=" and "
   const urls = [...new Set([...textUrls, ...hrefUrls])].slice(0, 2)
   let linkContent = ''
-
+  const isJsRenderedNewsletter = (url: string) => /sway\.(cloud\.microsoft|office\.com)\/|smore\.com\/|peachjar\.com\//i.test(url)
+  const isPdfLink = (url: string) => /\.pdf(\?|$)/i.test(url)
 
   for (const url of urls) {
     try {
-      const isSway = /sway\.(cloud\.microsoft|office\.com)\//i.test(url)
-      const fetchUrl = isSway ? `https://r.jina.ai/${url}` : url
+      if (isPdfLink(url)) {
+        if (pdfBlocks.length >= MAX_PDF_ATTACHMENTS) continue
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'Canopy-EmailBot/1.0' },
+          signal: AbortSignal.timeout(15000),
+        })
+        if (!res.ok) continue
+        const buf = new Uint8Array(await res.arrayBuffer())
+        if (buf.byteLength > MAX_ATTACHMENT_PDF_BYTES) { console.log(`Linked PDF too large (${buf.byteLength} bytes), skipping: ${url}`); continue }
+        let binary = ''
+        const chunkSize = 0x8000
+        for (let i = 0; i < buf.length; i += chunkSize) binary += String.fromCharCode(...buf.subarray(i, i + chunkSize))
+        pdfBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: btoa(binary) } })
+        continue
+      }
+
+      const isJs = isJsRenderedNewsletter(url)
+      const fetchUrl = isJs ? `https://r.jina.ai/${url}` : url
       const res = await fetch(fetchUrl, {
         headers: { 'User-Agent': 'Canopy-EmailBot/1.0' },
-        signal: AbortSignal.timeout(isSway ? 20000 : 5000),
+        signal: AbortSignal.timeout(isJs ? 20000 : 8000),
       })
       if (res.ok) {
         const raw = await res.text()
-        const text = isSway
+        const text = isJs
           ? raw.slice(0, 12000)
-          : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 2000)
+          : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000)
         linkContent += `\n\nPage content from ${url}:\n${text}`
       }
     } catch (e) {
@@ -332,7 +485,7 @@ Extract all calendar events, appointments and important dates from this email. A
 
 Subject: ${subject}
 Body:
-${textBody}${linkContent}
+${textBody}${linkContent}${attachmentTextContent}${pdfBlocks.length > 0 ? '\n\nOne or more PDF attachments are also included below as documents — read any dates visible anywhere in them, including tables, calendars and images, not just selectable text.' : ''}
 
 Today's date: ${today}. ${dateFormatHint}${childrenContext}${existingEventsContext}
 
@@ -354,17 +507,16 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- ALWAYS include events that are whole-school, all-students, all-pupils, all-year-groups, or where no specific year group or class is mentioned — these apply to everyone
-- ALWAYS include parent-facing events: coffee mornings, BBQs, open days, parents evening, school fairs, community events
-- ALWAYS include events where parents are expected to attend or be aware of regardless of year group — sports days, class assemblies, performances, non-uniform days, charity days, school photos
-- If an event explicitly names a specific year group, key stage (KS1/KS2/KS3/KS4/KS5/EYFS), or class, only include it if it matches one of the children's year group, key stage, or class name — skip it otherwise
+- FIRST check whether the event's title or description names ONE specific year group, key stage/grade band (as shown for the children above), or class (e.g. "Year 6 Residential", "Reception Sports Day", "KS2 Assembly", "3rd Grade Field Trip"). If it does, only include it when that year group/key stage/class matches one of the children above — skip it otherwise, even if it sounds important. This overrides every other rule below — a trip, residential, leavers' event, class assembly, performance, or coffee morning that is explicitly for one year group is not relevant to a family with no child in that year group
+- Only treat an event as relevant to everyone when it is genuinely whole-school, all-students, all-pupils, all-year-groups, or names no year group/class at all — e.g. whole-school photos, a non-uniform day, flu vaccinations for all years, INSET/training/PD days, a whole-school fair or fete
+- ALWAYS include parent-facing events that are not tied to one year group: general parents' evenings, open days, whole-school coffee mornings, school fairs, community events
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
-- If the email mentions a specific year group, key stage, or class that matches one of the children above, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
+- If the event matches one of the children's year group, key stage, or class, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
 - Compare each extracted event against the existing calendar events list. If an event matches (same or very similar title on the same date), set existing_id to its id
 - If it matches and the email adds genuinely new detail not already in the existing notes, set additional_notes to only that new information
 - If it matches but adds nothing new, set existing_id and leave additional_notes as null (pure duplicate — will be silently skipped)
-- For tagged_children: use ALL children in the family for whole-school, all-pupils, all-year-groups events, or any event where no specific year group or class is mentioned. Use only the matching child for year/class-specific events. Use an empty array [] for parent-only events (parents evenings, coffee mornings, school fairs, etc.)
+- For tagged_children: use ALL children in the family for whole-school events or events with no year group mentioned. Use only the matching child/children for year/class-specific events. Use an empty array [] for parent-only events not tied to any child (parents evenings, coffee mornings, school fairs, etc.)
 - notice_post should only be set if there is genuinely important information not captured by the events`
 
   const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -374,16 +526,24 @@ Rules:
       'anthropic-version': '2023-06-01',
       'content-type':      'application/json',
     },
+    signal: AbortSignal.timeout(45000),
     body: JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 8192,
-      messages:   [{ role: 'user', content: prompt }],
+      messages:   [{
+        role:    'user',
+        content: pdfBlocks.length > 0 ? [...pdfBlocks, { type: 'text', text: prompt }] : prompt,
+      }],
     }),
   })
 
   if (!aiRes.ok) {
     const err = await aiRes.text()
     console.error('Claude error:', err)
+    await logEmailProcessing({
+      familyId, fromEmail, subject, status: 'error',
+      errorStage: 'claude_call', errorMessage: err.slice(0, 1000),
+    })
     return new Response(JSON.stringify({ error: 'AI error', detail: err }), { status: 502, headers: CORS })
   }
 
@@ -391,13 +551,16 @@ Rules:
   const aiText: string = aiData.content?.[0]?.text ?? '{}'
 
   let parsed: { events?: any[], notice_post?: string | null } = {}
+  let jsonParseError: string | null = null
   try {
     // Strip markdown code fences if Claude wrapped the response
     const stripped = aiText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
     const match = stripped.match(/\{[\s\S]*\}/)
     if (match) parsed = JSON.parse(match[0])
-  } catch {
+    else jsonParseError = `No JSON object found in AI response: ${aiText.slice(0, 500)}`
+  } catch (e: any) {
     console.error('Failed to parse AI JSON:', aiText)
+    jsonParseError = `${e?.message ?? 'parse error'} — raw response: ${aiText.slice(0, 500)}`
   }
 
   // ── Create / update / skip calendar events ───────────────────────────────
@@ -433,8 +596,8 @@ Rules:
         if (!error) {
           eventsUpdated++
           const time = ev.time ? ` at ${ev.time}` : ''
-          const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date)}` : ''
-          updatedEventLines.push(`• ${ev.title} — ${fmtDate(ev.date)}${end}${time}`)
+          const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date, locale)}` : ''
+          updatedEventLines.push(`• ${ev.title} — ${fmtDate(ev.date, locale)}${end}${time}`)
         }
       } else {
         // Pure duplicate — already on the calendar, nothing to add
@@ -459,8 +622,8 @@ Rules:
       if (!error) {
         eventsCreated++
         const time = ev.time ? ` at ${ev.time}` : ''
-        const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date)}` : ''
-        newEventLines.push(`• ${ev.title} — ${fmtDate(ev.date)}${end}${time}`)
+        const end  = ev.end_date && ev.end_date !== ev.date ? ` – ${fmtDate(ev.end_date, locale)}` : ''
+        newEventLines.push(`• ${ev.title} — ${fmtDate(ev.date, locale)}${end}${time}`)
       }
     }
   }
@@ -517,6 +680,14 @@ Rules:
     docsSaved,
   }).catch((e) => console.error('Feedback email failed:', e))
 
+  await logEmailProcessing({
+    familyId, fromEmail, subject,
+    status:         jsonParseError ? 'error' : 'success',
+    errorStage:     jsonParseError ? 'json_parse' : undefined,
+    errorMessage:   jsonParseError ?? undefined,
+    eventsCreated, eventsUpdated, eventsSkipped, docsSaved, noticeCreated,
+  })
+
   return new Response(JSON.stringify({
     ok:              true,
     events_created:  eventsCreated,
@@ -525,6 +696,36 @@ Rules:
     docs_saved:      docsSaved,
     notice_created:  noticeCreated,
   }), { status: 200, headers: CORS })
+}
+
+// ── Word (.docx) attachment text extraction ─────────────────────────────────
+// .docx is a zip of XML parts — unzip and strip tags from the main document body.
+async function extractDocxText(base64: string): Promise<string> {
+  try {
+    const zip = await JSZip.loadAsync(base64, { base64: true })
+    const xml = await zip.file('word/document.xml')?.async('string')
+    if (!xml) return ''
+    return xml
+      .replace(/<\/w:p>/g, '\n')       // paragraph end -> newline, before tags are stripped
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/[ \t]+/g, ' ')
+      .trim()
+  } catch (e) {
+    console.error('extractDocxText failed:', e)
+    return ''
+  }
+}
+
+// Legacy binary .doc has no lightweight parser available in Deno — best-effort
+// "strings"-style extraction of printable text runs from the OLE compound file.
+// Word stores paragraph text as contiguous ASCII/Latin-1 runs even without a full
+// parse, so this recovers most readable content, just without structure/formatting.
+function extractLegacyDocText(bytes: Uint8Array): string {
+  let raw = ''
+  for (let i = 0; i < bytes.length; i++) raw += String.fromCharCode(bytes[i])
+  const runs = raw.match(/[ -~]{4,}/g) ?? []
+  return runs.join(' ').replace(/\s+/g, ' ').trim()
 }
 
 // ── Feedback email ─────────────────────────────────────────────────────────────

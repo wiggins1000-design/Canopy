@@ -157,13 +157,16 @@ export function deriveKeyStage(yearGroup: string | undefined, locale: string): s
   if (!yearGroup) return null
   const lower = yearGroup.toLowerCase().trim()
   const system = getLocaleConfig(locale).yearGroupSystem
+  // Year group is free text (Info Bank field, or AI-extracted from a school site) and is
+  // sometimes stored as a bare number ("3") rather than "Year 3" — fall back to that.
+  const bareNum = /^\d+$/.test(lower) ? parseInt(lower) : null
 
   if (system === 'uk') {
     if (/nursery|reception|eyfs|\bfs\b|\bfs1\b|\bfs2\b/.test(lower)) return 'EYFS'
     if (/sixth.?form|year\s*1[23]|y1[23]/.test(lower)) return 'KS5'
     const m = lower.match(/year\s*(\d+)|^y(\d+)$/)
-    if (!m) return null
-    const y = parseInt(m[1] ?? m[2])
+    const y = m ? parseInt(m[1] ?? m[2]) : bareNum
+    if (y == null) return null
     if (y <= 2)  return 'KS1'
     if (y <= 6)  return 'KS2'
     if (y <= 9)  return 'KS3'
@@ -174,8 +177,8 @@ export function deriveKeyStage(yearGroup: string | undefined, locale: string): s
   if (system === 'us') {
     if (/kindergarten|^k$/.test(lower)) return 'K'
     const m = lower.match(/grade\s*(\d+)|^(\d+)(st|nd|rd|th)?\s*grade/i)
-    if (!m) return null
-    const g = parseInt(m[1] ?? m[2])
+    const g = m ? parseInt(m[1] ?? m[2]) : bareNum
+    if (g == null) return null
     if (g <= 5)  return 'Elementary'
     if (g <= 8)  return 'Middle School'
     return 'High School'
@@ -184,8 +187,8 @@ export function deriveKeyStage(yearGroup: string | undefined, locale: string): s
   if (system === 'au') {
     if (/prep|kindergarten|foundation/.test(lower)) return 'Foundation'
     const m = lower.match(/year\s*(\d+)|^y(\d+)$/)
-    if (!m) return null
-    const y = parseInt(m[1] ?? m[2])
+    const y = m ? parseInt(m[1] ?? m[2]) : bareNum
+    if (y == null) return null
     if (y <= 6)  return 'Primary'
     return 'Secondary'
   }

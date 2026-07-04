@@ -37,6 +37,14 @@ export default function AdminLayout() {
             Term Dates
           </NavLink>
           <NavLink
+            to="/admin/familyfeed"
+            className={({ isActive }) =>
+              `text-xs font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-400 hover:text-white'}`
+            }
+          >
+            FamilyFeed
+          </NavLink>
+          <NavLink
             to="/admin/broadcast"
             className={({ isActive }) =>
               `text-xs font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-400 hover:text-white'}`

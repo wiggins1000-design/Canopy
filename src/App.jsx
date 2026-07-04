@@ -19,6 +19,7 @@ const AdminLoginPage      = lazy(() => import('./pages/admin/AdminLoginPage'))
 const AdminDashboardPage  = lazy(() => import('./pages/admin/AdminDashboardPage'))
 const AdminFamilyPage     = lazy(() => import('./pages/admin/AdminFamilyPage'))
 const AdminTermDatesPage  = lazy(() => import('./pages/admin/AdminTermDatesPage'))
+const AdminFamilyFeedPage = lazy(() => import('./pages/admin/AdminFamilyFeedPage'))
 const AdminBroadcastPage  = lazy(() => import('./pages/admin/AdminBroadcastPage'))
 const CalendarPage        = lazy(() => import('./pages/CalendarPage'))
 const NoticeBoardPage     = lazy(() => import('./pages/NoticeBoardPage'))
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="dashboard" element={<AdminDashboardPage />} />
               <Route path="family/:id" element={<AdminFamilyPage />} />
               <Route path="term-dates" element={<AdminTermDatesPage />} />
+              <Route path="familyfeed" element={<AdminFamilyFeedPage />} />
               <Route path="broadcast" element={<AdminBroadcastPage />} />
             </Route>
 
