@@ -1,4 +1,8 @@
+import { useState, useEffect } from 'react'
 import { useSubscription } from '../../hooks/useSubscription'
+import { useFamily } from '../../context/FamilyContext'
+import { isNativePlatform } from '../../lib/supabase'
+import { getCurrentOffering, purchasePackage, restorePurchases, hasActiveEntitlement, isRevenueCatReady } from '../../lib/revenuecat'
 
 const FEATURES = [
   'Shared calendar with custody schedule',
@@ -11,8 +15,61 @@ const FEATURES = [
 
 export default function PaywallOverlay() {
   const { needsPaywall, isCancelled } = useSubscription()
+  const { reload } = useFamily()
+  const [offering, setOffering] = useState(null)
+  const [purchasing, setPurchasing] = useState(null) // 'monthly' | 'annual' | 'restore' | null
+  const [error, setError] = useState(null)
+  const [unlockedLocally, setUnlockedLocally] = useState(false)
 
-  if (!needsPaywall) return null
+  const native = isNativePlatform()
+
+  useEffect(() => {
+    if (!needsPaywall || !native) return
+    getCurrentOffering().then(setOffering)
+  }, [needsPaywall, native])
+
+  if (!needsPaywall || unlockedLocally) return null
+
+  async function handlePurchase(pkg, key) {
+    setError(null)
+    setPurchasing(key)
+    try {
+      const customerInfo = await purchasePackage(pkg)
+      if (hasActiveEntitlement(customerInfo)) {
+        // Don't wait on the RevenueCat webhook round-trip to update families.subscription_status —
+        // unlock immediately client-side, then quietly resync the canonical DB state in the background.
+        setUnlockedLocally(true)
+        reload()
+      }
+    } catch (e) {
+      if (e?.userCancelled) { setPurchasing(null); return }
+      setError('Something went wrong with the purchase. Please try again.')
+      console.error('Purchase failed:', e)
+    }
+    setPurchasing(null)
+  }
+
+  async function handleRestore() {
+    setError(null)
+    setPurchasing('restore')
+    try {
+      const customerInfo = await restorePurchases()
+      if (hasActiveEntitlement(customerInfo)) {
+        setUnlockedLocally(true)
+        reload()
+      } else {
+        setError('No active subscription found for this Apple/Google account.')
+      }
+    } catch (e) {
+      setError('Could not restore purchases. Please try again.')
+      console.error('Restore failed:', e)
+    }
+    setPurchasing(null)
+  }
+
+  const monthlyPkg = offering?.monthly ?? null
+  const annualPkg  = offering?.annual ?? null
+  const canPurchase = native && isRevenueCatReady() && (monthlyPkg || annualPkg)
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-y-auto">
@@ -37,23 +94,46 @@ export default function PaywallOverlay() {
             <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-canopy-deep text-white text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">Best value</span>
             <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2 mt-1">Annual</p>
             <div className="flex items-end justify-center gap-1 mb-0.5">
-              <span className="text-5xl font-bold text-gray-900">£119.99</span>
+              <span className="text-5xl font-bold text-gray-900">
+                {annualPkg?.product.priceString ?? '£119.99'}
+              </span>
               <span className="text-gray-400 mb-1.5">/year</span>
             </div>
-            <p className="text-center text-xs text-canopy-deep font-semibold mb-1">Save £35.89 — over 2 months free</p>
-            <p className="text-center text-xs text-gray-400">Both parents included</p>
+            <p className="text-center text-xs text-gray-400 mb-3">Both parents included</p>
+            {canPurchase && annualPkg && (
+              <button
+                onClick={() => handlePurchase(annualPkg, 'annual')}
+                disabled={purchasing !== null}
+                className="w-full py-2.5 rounded-xl bg-canopy-deep text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {purchasing === 'annual' ? 'Processing…' : 'Subscribe annually'}
+              </button>
+            )}
           </div>
 
           {/* Monthly */}
           <div className="rounded-3xl border-2 border-canopy-light bg-white p-5">
             <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2">Monthly</p>
             <div className="flex items-end justify-center gap-1 mb-1">
-              <span className="text-5xl font-bold text-gray-900">£12.99</span>
+              <span className="text-5xl font-bold text-gray-900">
+                {monthlyPkg?.product.priceString ?? '£12.99'}
+              </span>
               <span className="text-gray-400 mb-1.5">/month</span>
             </div>
-            <p className="text-center text-xs text-gray-400">Both parents included</p>
+            <p className="text-center text-xs text-gray-400 mb-3">Both parents included</p>
+            {canPurchase && monthlyPkg && (
+              <button
+                onClick={() => handlePurchase(monthlyPkg, 'monthly')}
+                disabled={purchasing !== null}
+                className="w-full py-2.5 rounded-xl bg-white border-2 border-canopy-mid text-canopy-deep text-sm font-semibold disabled:opacity-50"
+              >
+                {purchasing === 'monthly' ? 'Processing…' : 'Subscribe monthly'}
+              </button>
+            )}
           </div>
         </div>
+
+        {error && <p className="text-sm text-red-600 text-center mb-4">{error}</p>}
 
         <ul className="w-full space-y-2.5 mb-6">
           {FEATURES.map((f) => (
@@ -66,10 +146,20 @@ export default function PaywallOverlay() {
           ))}
         </ul>
 
-        <div className="w-full rounded-2xl bg-gray-50 border border-gray-200 px-5 py-4 text-center">
-          <p className="text-sm font-semibold text-gray-700 mb-1">Subscribe via the App Store or Google Play</p>
-          <p className="text-xs text-gray-400">Open the Canopy app on your phone to subscribe. Cancel anytime.</p>
-        </div>
+        {canPurchase ? (
+          <button
+            onClick={handleRestore}
+            disabled={purchasing !== null}
+            className="text-sm text-canopy-mid font-medium hover:underline disabled:opacity-50"
+          >
+            {purchasing === 'restore' ? 'Restoring…' : 'Restore purchases'}
+          </button>
+        ) : (
+          <div className="w-full rounded-2xl bg-gray-50 border border-gray-200 px-5 py-4 text-center">
+            <p className="text-sm font-semibold text-gray-700 mb-1">Subscribe via the App Store or Google Play</p>
+            <p className="text-xs text-gray-400">Open the Canopy app on your phone to subscribe. Cancel anytime.</p>
+          </div>
+        )}
       </div>
     </div>
   )

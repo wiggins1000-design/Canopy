@@ -9,6 +9,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { setSentryLocale } from '../lib/sentry'
+import { initRevenueCat } from '../lib/revenuecat'
 
 const FamilyContext = createContext(null)
 
@@ -140,6 +141,8 @@ export function FamilyProvider({ children }) {
   }, [family?.id, family?.config?.timezone, updateFamilyConfig])
 
   useEffect(() => { setSentryLocale(family?.config?.locale) }, [family?.config?.locale])
+
+  useEffect(() => { if (family?.id) initRevenueCat(family.id) }, [family?.id])
 
   const updateMemberFeatures = useCallback(async (features) => {
     const { error } = await supabase.rpc('update_member_features', { p_features: features })

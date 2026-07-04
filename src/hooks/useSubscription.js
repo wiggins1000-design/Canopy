@@ -18,9 +18,15 @@ export function useSubscription() {
     ? Math.max(1, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)))
     : 0
 
-  // Past-due gets a short grace period — still accessible but shows a warning
-  const hasAccess   = true
-  const needsPaywall = false // disabled until RevenueCat is integrated
+  // Past-due gets a short grace period — still accessible but shows a warning.
+  const hasAccess = isActive || isTrialing || isPastDue
+
+  // Explicit kill-switch: the paywall stays off even with real subscription data
+  // flowing in until this is deliberately turned on (set VITE_PAYWALL_ENABLED=true),
+  // so RevenueCat/webhook wiring can be tested live without risking locking out
+  // real families the moment this code ships.
+  const paywallEnabled = import.meta.env.VITE_PAYWALL_ENABLED === 'true'
+  const needsPaywall = paywallEnabled && !hasAccess
 
   return {
     status,
