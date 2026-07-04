@@ -181,7 +181,7 @@ Rules:
 
 // ── Year group normalisation ─────────────────────────────────────────────────
 
-export function deriveKeyStage(yearGroup: string | undefined, locale: string): string | null {
+export function deriveKeyStage(yearGroup: string | undefined, locale: string, ageHint?: number): string | null {
   if (!yearGroup) return null
   const lower = yearGroup.toLowerCase().trim()
   const system = getLocaleConfig(locale).yearGroupSystem
@@ -224,6 +224,14 @@ export function deriveKeyStage(yearGroup: string | undefined, locale: string): s
   if (system === 'ie') {
     if (/junior\s+infants|senior\s+infants|[1-6](st|nd|rd|th)?\s+class/.test(lower)) return 'Primary'
     if (/[1-6](st|nd|rd|th)?\s+year/.test(lower)) return 'Secondary'
+    // A bare number ("3") is genuinely ambiguous here — unlike UK/US/AU/NZ's single
+    // continuous scale, Ireland has two separate 1-6 scales ("class" for primary,
+    // "year" for secondary) that both restart at 1, so the digit alone doesn't say
+    // which. Only resolve it if we know the child's age (primary ends around 12);
+    // otherwise leave it null rather than guess wrong.
+    if (bareNum != null && ageHint != null) {
+      return ageHint < 12 ? 'Primary' : 'Secondary'
+    }
     return null
   }
 

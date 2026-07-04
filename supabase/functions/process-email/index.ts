@@ -641,6 +641,33 @@ async function handleRequest(req: Request): Promise<Response> {
     schoolByChild[row.child_name] = row.data
   }
 
+  // Ireland only: a bare-numeric year group ("3") is ambiguous between "3rd class"
+  // (primary) and "3rd year" (secondary) — resolving it needs the child's age, which
+  // no other locale's year-group system requires (see deriveKeyStage).
+  const dobByChild: Record<string, string> = {}
+  if (locale === 'en-IE') {
+    const { data: personalRows } = await supabase
+      .from('info_bank')
+      .select('child_name, data')
+      .eq('family_id', family.id)
+      .eq('section', 'personal')
+    for (const row of personalRows ?? []) {
+      if (row.data?.dob) dobByChild[row.child_name] = row.data.dob
+    }
+  }
+
+  function ageFromDob(dob: string | undefined): number | undefined {
+    if (!dob) return undefined
+    const birth = new Date(dob)
+    if (isNaN(birth.getTime())) return undefined
+    const now = new Date()
+    let age = now.getFullYear() - birth.getFullYear()
+    const hasHadBirthdayThisYear = now.getMonth() > birth.getMonth() ||
+      (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate())
+    if (!hasHadBirthdayThisYear) age--
+    return age
+  }
+
   const childrenContext = familyChildren.length > 0
     ? '\nChildren in this family:\n' + familyChildren
         .map((c: any) => {
@@ -649,7 +676,7 @@ async function handleRequest(req: Request): Promise<Response> {
           const className = school.class_name || c.class_name
           const parts = [c.name]
           if (yearGroup) parts.push(yearGroup)
-          const ks = deriveKeyStage(yearGroup, locale)
+          const ks = deriveKeyStage(yearGroup, locale, ageFromDob(dobByChild[c.name]))
           if (ks) parts.push(ks)
           if (className) parts.push(`${className} class`)
           return `- ${parts.join(', ')}`
