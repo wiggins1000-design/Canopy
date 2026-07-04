@@ -2,7 +2,9 @@ import { Purchases } from '@revenuecat/purchases-capacitor'
 import { isNativePlatform } from './supabase'
 
 // Must match the entitlement identifier configured in the RevenueCat dashboard.
-const ENTITLEMENT_ID = 'premium'
+// Named "subscriber" not "premium" — Canopy has no free tier, so "premium" would
+// wrongly imply an upgrade from some base level that doesn't exist.
+const ENTITLEMENT_ID = 'subscriber'
 
 let configured = false
 
