@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useExpenses } from '../hooks/useExpenses'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../hooks/useLocale'
 import NewExpenseSheet from '../components/expenses/NewExpenseSheet'
 import { supabase } from '../lib/supabase'
 
@@ -26,8 +27,11 @@ const CATEGORY_COLOURS = {
   other:     'bg-gray-100 text-gray-600',
 }
 
-function formatPounds(pence) {
-  return `£${(Math.abs(pence) / 100).toFixed(2)}`
+function formatMoney(pence, regionConfig) {
+  return new Intl.NumberFormat(regionConfig.locale, {
+    style: 'currency',
+    currency: regionConfig.currency.code,
+  }).format(Math.abs(pence) / 100)
 }
 
 function groupByMonth(expenses) {
@@ -71,6 +75,7 @@ export default function ExpensesPage() {
   const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
   const { family, member, members, isParent, parentA, parentB } = useFamily()
   const { user } = useAuth()
+  const regionConfig = useLocale()
   const navigate = useNavigate()
   const [tab, setTab] = useState('outstanding')
   const [showNew, setShowNew] = useState(false)
@@ -127,7 +132,7 @@ export default function ExpensesPage() {
         const allHaveRate = childcareLogs.length > 0 && [...new Set(childcareLogs.map((l) => l.logged_by))].every((id) => (rates[id] ?? 0) > 0)
         const paWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
         const pbWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
-        const fmt      = (p) => `£${p.toFixed(2)}`
+        const fmt      = (p) => formatMoney(p * 100, regionConfig)
 
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 space-y-3">
@@ -188,7 +193,7 @@ export default function ExpensesPage() {
                     return (
                       <div key={log.id} className="flex items-center justify-between text-xs">
                         <span className="text-amber-800">
-                          {new Date(log.log_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {new Date(log.log_date + 'T00:00:00').toLocaleDateString(regionConfig.locale, { weekday: 'short', day: 'numeric', month: 'short' })}
                           {carerName && isParent ? ` · ${carerName}` : ''}
                           {` · ${log.paying_parent === 'parent_a' ? paName : pbName} paying`}
                         </span>
@@ -223,7 +228,7 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className={`text-lg font-bold ${balancePence > 0 ? 'text-canopy-deep' : 'text-amber-800'}`}>
-                  {formatPounds(balancePence)}
+                  {formatMoney(balancePence, regionConfig)}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {balancePence > 0
@@ -284,7 +289,7 @@ export default function ExpensesPage() {
             </p>
             <div className="space-y-2">
               {items.map((e) => (
-                <ExpenseCard key={e.id} expense={e} members={members} userId={user?.id} otherName={otherName} />
+                <ExpenseCard key={e.id} expense={e} members={members} userId={user?.id} otherName={otherName} regionConfig={regionConfig} />
               ))}
             </div>
           </div>
@@ -313,7 +318,7 @@ export default function ExpensesPage() {
   )
 }
 
-function ExpenseCard({ expense, members, userId, otherName }) {
+function ExpenseCard({ expense, members, userId, otherName, regionConfig }) {
   const paidByMe = expense.paid_by === userId
   const payer    = members.find((m) => m.user_id === expense.paid_by)
   const owedPence = Math.round(expense.amount_pence * expense.split_pct / 100)
@@ -348,10 +353,10 @@ function ExpenseCard({ expense, members, userId, otherName }) {
           </div>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-gray-900">{formatPounds(expense.amount_pence)}</p>
+          <p className="text-sm font-bold text-gray-900">{formatMoney(expense.amount_pence, regionConfig)}</p>
           {expense.split_pct > 0 && (
             <p className={`text-xs mt-0.5 font-medium ${paidByMe ? 'text-canopy-mid' : 'text-amber-600'}`}>
-              {paidByMe ? `${otherName} owes ${formatPounds(owedPence)}` : `You owe ${formatPounds(owedPence)}`}
+              {paidByMe ? `${otherName} owes ${formatMoney(owedPence, regionConfig)}` : `You owe ${formatMoney(owedPence, regionConfig)}`}
             </p>
           )}
           {expense.split_pct === 0 && (

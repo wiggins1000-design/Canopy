@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, toStoragePath } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
+import { useLocale } from '../../hooks/useLocale'
 import { tagById } from '../../lib/noticeTags'
 
 const AUTHOR_STYLES = {
@@ -17,6 +18,7 @@ const ROLE_DISC_COLOUR = {
 
 export default function PostCard({ post, reads = new Set(), onVisible }) {
   const { members, isParent } = useFamily()
+  const regionConfig = useLocale()
   const [signedImageUrl, setSignedImageUrl] = useState(null)
   const [signedFileUrl, setSignedFileUrl]   = useState(null)
   const cardRef = useRef(null)
@@ -79,7 +81,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
             {author?.display_name ?? 'External'}
           </span>
           <span className="text-xs text-gray-400">
-            {new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(post.created_at))}
+            {new Intl.DateTimeFormat(regionConfig.locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(post.created_at))}
           </span>
         </div>
 

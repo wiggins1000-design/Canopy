@@ -424,7 +424,7 @@ function MedicalSection({ data, isParent, onSave, memberConsents, onConsent, upd
       <div className="space-y-3">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
           <p className="text-sm font-semibold text-amber-900">Consent required</p>
-          <p className="text-sm text-amber-800">Medical information — including GP details, allergies, and medications — is <strong>special category data</strong> under UK law (UK GDPR) and requires your explicit consent before it can be stored.</p>
+          <p className="text-sm text-amber-800">Medical information — including GP details, allergies, and medications — is <strong>sensitive personal data</strong> and requires your explicit consent before it can be stored.</p>
           <p className="text-sm text-amber-800">This information is private to your family and is never shared with third parties or used for advertising.</p>
           <Button className="w-full py-3" loading={consenting} onClick={giveConsent}>
             I consent to storing medical information

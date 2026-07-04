@@ -318,6 +318,14 @@ async function handleRequest(req: Request): Promise<Response> {
         .join('\n')
     : ''
 
+  // Ambiguous numeric dates (e.g. "3/4/2026") are read differently depending on region -
+  // US convention is MM/DD, everywhere else here (UK/Ireland/Australia) is DD/MM. Without
+  // this hint Claude has to guess from context alone, which fails for genuinely ambiguous
+  // dates like "3/4" or "5/6".
+  const dateFormatHint = locale === 'en-US'
+    ? 'Numeric dates in the source (e.g. "3/4/2026") follow US convention: MM/DD/YYYY.'
+    : 'Numeric dates in the source (e.g. "3/4/2026") follow UK/AU/IE convention: DD/MM/YYYY.'
+
   const prompt = `You are a calendar assistant for Canopy, a family organisation app.
 
 Extract all calendar events, appointments and important dates from this email. Also decide if there is any important information that should be posted as a notice to both parents.
@@ -326,7 +334,7 @@ Subject: ${subject}
 Body:
 ${textBody}${linkContent}
 
-Today's date: ${today}${childrenContext}${existingEventsContext}
+Today's date: ${today}. ${dateFormatHint}${childrenContext}${existingEventsContext}
 
 Respond with ONLY valid JSON — no markdown, no explanation:
 {
@@ -658,7 +666,7 @@ async function sendRejectionEmail(opts: { to: string; originalSubject: string })
           <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
             <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#92400e;">Why do we ask?</p>
             <p style="margin:0;font-size:13px;color:#78350f;line-height:1.6;">
-              FamilyFeed uses AI to read your emails and extract dates, events, and notices. Because emails can contain personal information, UK data protection law requires us to record your explicit agreement before processing them. This is a one-time step per account.
+              FamilyFeed uses AI to read your emails and extract dates, events, and notices. Because emails can contain personal information, data protection law requires us to record your explicit agreement before processing them. This is a one-time step per account.
             </p>
           </div>
 

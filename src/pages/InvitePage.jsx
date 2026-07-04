@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
+import { useLocale } from '../hooks/useLocale'
 import { supabase } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -9,6 +10,7 @@ import Badge from '../components/ui/Badge'
 export default function InvitePage() {
   const { family, members, userRole, isParent, parentA, parentB, generateInvite, updateFamilyConfig } = useFamily()
   const { signOut, user } = useAuth()
+  const regionConfig = useLocale()
   const [inviteCode, setInviteCode] = useState(null)
   const [inviteRole, setInviteRole] = useState(null)
   const [generating, setGenerating] = useState(null) // 'parent_b' | 'third_party' | null
@@ -169,7 +171,7 @@ export default function InvitePage() {
                       <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">Hourly rate</label>
                       <div className="flex gap-2">
                         <div className="relative flex-1">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">£</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">{regionConfig.currency.symbol}</span>
                           <input
                             type="number"
                             min="0"
