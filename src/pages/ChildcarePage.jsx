@@ -54,6 +54,7 @@ export default function ChildcarePage() {
 
   const [activeTab, setActiveTab] = useState(isChildcare ? 'log' : 'summary')
   const [logs,      setLogs]      = useState([])
+  const [bills,     setBills]     = useState([])
   const [loading,   setLoading]   = useState(true)
 
   // Log form
@@ -64,6 +65,12 @@ export default function ChildcarePage() {
   const [saving,       setSaving]       = useState(false)
   const [saved,        setSaved]        = useState(false)
   const [deleting,     setDeleting]     = useState(null)
+  const [logError,     setLogError]     = useState(null)
+
+  // Bills
+  const [billCreating, setBillCreating] = useState(null)
+  const [billUpdating, setBillUpdating] = useState(null)
+  const [billError,    setBillError]    = useState(null)
 
   // Summary
   const [period,     setPeriod]     = useState('this_month')
@@ -83,11 +90,24 @@ export default function ChildcarePage() {
     return fresh
   }, [family?.id])
 
+  const loadBills = useCallback(async () => {
+    if (!family?.id) return []
+    const { data } = await supabase
+      .from('childcare_bills')
+      .select('*')
+      .eq('family_id', family.id)
+      .order('created_at', { ascending: false })
+    const fresh = data ?? []
+    setBills(fresh)
+    return fresh
+  }, [family?.id])
+
   useEffect(() => {
     loadLogs().then((fresh) => {
       populateForm(today, fresh)
     })
-  }, [loadLogs]) // eslint-disable-line react-hooks/exhaustive-deps
+    loadBills()
+  }, [loadLogs, loadBills]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function populateForm(date, currentLogs) {
     const myLogs = currentLogs.filter((l) => l.logged_by === member?.user_id)
@@ -113,6 +133,7 @@ export default function ChildcarePage() {
     const parsedHours = parseFloat(hours)
     if (!parsedHours || parsedHours <= 0 || parsedHours > 24 || !payingParent) return
     setSaving(true)
+    setLogError(null)
     const { error } = await supabase.rpc('upsert_childcare_log', {
       p_date:          logDate,
       p_hours:         parsedHours,
@@ -124,16 +145,54 @@ export default function ChildcarePage() {
       setTimeout(() => setSaved(false), 2500)
       const fresh = await loadLogs()
       populateForm(logDate, fresh)
+    } else {
+      setLogError(error.message)
     }
     setSaving(false)
   }
 
   async function deleteLog(logId) {
     setDeleting(logId)
-    await supabase.rpc('delete_childcare_log', { p_log_id: logId })
+    setLogError(null)
+    const { error } = await supabase.rpc('delete_childcare_log', { p_log_id: logId })
+    if (error) setLogError(error.message)
     const fresh = await loadLogs()
     populateForm(logDate, fresh)
     setDeleting(null)
+  }
+
+  async function createBill(carerId) {
+    setBillCreating(carerId)
+    setBillError(null)
+    const { error } = await supabase.rpc('create_childcare_bill', {
+      p_carer_id: carerId,
+      p_from:     periodFrom,
+      p_to:       periodTo,
+    })
+    if (error) setBillError(error.message)
+    await Promise.all([loadLogs(), loadBills()])
+    setBillCreating(null)
+  }
+
+  async function toggleBillPaid(bill) {
+    setBillUpdating(bill.id)
+    setBillError(null)
+    const { error } = await supabase.rpc('set_childcare_bill_paid', {
+      p_bill_id: bill.id,
+      p_paid:    bill.status !== 'paid',
+    })
+    if (error) setBillError(error.message)
+    await loadBills()
+    setBillUpdating(null)
+  }
+
+  async function removeBill(billId) {
+    setBillUpdating(billId)
+    setBillError(null)
+    const { error } = await supabase.rpc('delete_childcare_bill', { p_bill_id: billId })
+    if (error) setBillError(error.message)
+    await Promise.all([loadLogs(), loadBills()])
+    setBillUpdating(null)
   }
 
   const myLogs = logs.filter((l) => l.logged_by === member?.user_id)
@@ -158,6 +217,7 @@ export default function ChildcarePage() {
     const totalHrs  = paHours + pbHours
     const ratePence = rates[carerId] ?? 0
     const hasRate   = ratePence > 0
+    const unbilledHours = carerLogs.filter((l) => !l.bill_id).reduce((s, l) => s + Number(l.hours_decimal), 0)
     return {
       carerId,
       carerName:  members.find((m) => m.user_id === carerId)?.display_name ?? 'Unknown',
@@ -168,6 +228,7 @@ export default function ChildcarePage() {
       pbWages:    hasRate ? (pbHours  * ratePence / 100) : null,
       totalWages: hasRate ? (totalHrs * ratePence / 100) : null,
       hasRate,
+      unbilledHours,
     }
   })
 
@@ -226,26 +287,32 @@ export default function ChildcarePage() {
         <h1 className="text-xl font-bold text-gray-900">Childcare</h1>
       </div>
 
-      {/* Tabs — only shown to childcare members */}
-      {isChildcare && (
-        <div className="flex gap-1.5">
-          {[{ id: 'log', label: 'Log hours' }, { id: 'summary', label: 'Summary' }].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === t.id ? 'bg-canopy-mid text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-1.5">
+        {[
+          ...(isChildcare ? [{ id: 'log', label: 'Log hours' }] : []),
+          { id: 'summary', label: 'Summary' },
+          { id: 'bills', label: 'Bills' },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              activeTab === t.id ? 'bg-canopy-mid text-white' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Log form ─────────────────────────────────────────── */}
       {activeTab === 'log' && isChildcare && (
         <div className="space-y-3">
+
+          {logError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{logError}</p>
+          )}
 
           {/* Date */}
           <div>
@@ -360,13 +427,17 @@ export default function ChildcarePage() {
                       {log.notes ? ` · ${log.notes}` : ''}
                     </p>
                   </button>
-                  <button
-                    onClick={() => deleteLog(log.id)}
-                    disabled={deleting === log.id}
-                    className="shrink-0 text-xs text-red-400 hover:underline disabled:opacity-50 py-1"
-                  >
-                    {deleting === log.id ? '…' : 'Delete'}
-                  </button>
+                  {log.bill_id ? (
+                    <span className="shrink-0 text-xs text-gray-400 py-1">Billed</span>
+                  ) : (
+                    <button
+                      onClick={() => deleteLog(log.id)}
+                      disabled={deleting === log.id}
+                      className="shrink-0 text-xs text-red-400 hover:underline disabled:opacity-50 py-1"
+                    >
+                      {deleting === log.id ? '…' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -375,8 +446,12 @@ export default function ChildcarePage() {
       )}
 
       {/* ── Summary ──────────────────────────────────────────── */}
-      {(activeTab === 'summary' || !isChildcare) && (
+      {activeTab === 'summary' && (
         <div className="space-y-4">
+
+          {billError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{billError}</p>
+          )}
 
           {/* Period selector */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
@@ -476,6 +551,15 @@ export default function ChildcarePage() {
                           {formatHours(c.totalHours)}{c.totalWages !== null ? ` = ${fmt(c.totalWages)}` : ''}
                         </span>
                       </div>
+                      {isParent && c.hasRate && c.unbilledHours > 0 && (
+                        <button
+                          onClick={() => createBill(c.carerId)}
+                          disabled={billCreating === c.carerId}
+                          className="w-full py-1.5 rounded-lg text-xs font-semibold bg-canopy-mid text-white hover:bg-canopy-deep transition-colors disabled:opacity-50"
+                        >
+                          {billCreating === c.carerId ? 'Creating bill…' : `Create bill for ${formatHours(c.unbilledHours)} unbilled`}
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -500,6 +584,7 @@ export default function ChildcarePage() {
                         {isParent && <>{memberName(log.logged_by)} · </>}
                         {log.paying_parent === 'parent_a' ? paName : pbName} paying
                         {log.notes ? ` · ${log.notes}` : ''}
+                        {log.bill_id ? ' · Billed' : ''}
                       </p>
                     </div>
                   )
@@ -510,6 +595,71 @@ export default function ChildcarePage() {
             <div className="text-center py-10 text-sm text-gray-400">
               No childcare hours logged for this period.
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Bills ────────────────────────────────────────────── */}
+      {activeTab === 'bills' && (
+        <div className="space-y-3">
+          {billError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{billError}</p>
+          )}
+
+          {bills.length === 0 ? (
+            <div className="text-center py-10 text-sm text-gray-400">
+              No bills created yet. Create one from a carer's breakdown in Summary.
+            </div>
+          ) : (
+            bills.map((bill) => (
+              <div key={bill.id} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{memberName(bill.carer_id)}</p>
+                    <p className="text-xs text-gray-500">{formatLogDate(bill.period_from)} – {formatLogDate(bill.period_to)}</p>
+                  </div>
+                  <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    bill.status === 'paid' ? 'bg-canopy-mist text-canopy-deep' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {bill.status === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{formatHours(bill.total_hours)}</span>
+                  <span className="font-bold text-gray-900">
+                    {bill.total_amount_pence != null ? fmt(bill.total_amount_pence / 100) : '— (no rate set)'}
+                  </span>
+                </div>
+
+                {(bill.pa_hours > 0 && bill.pb_hours > 0) && (
+                  <p className="text-xs text-gray-400">
+                    {paName}: {formatHours(bill.pa_hours)} · {pbName}: {formatHours(bill.pb_hours)}
+                  </p>
+                )}
+
+                {isParent && (
+                  <div className="flex gap-2 pt-1 border-t border-gray-100">
+                    <button
+                      onClick={() => toggleBillPaid(bill)}
+                      disabled={billUpdating === bill.id}
+                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors disabled:opacity-50 mt-1"
+                    >
+                      {billUpdating === bill.id ? '…' : bill.status === 'paid' ? 'Mark as unpaid' : 'Mark as paid'}
+                    </button>
+                    {bill.status === 'unpaid' && (
+                      <button
+                        onClick={() => removeBill(bill.id)}
+                        disabled={billUpdating === bill.id}
+                        className="shrink-0 text-xs text-red-400 hover:underline disabled:opacity-50 mt-1 px-2"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}
