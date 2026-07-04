@@ -174,6 +174,37 @@ async function extractRawEventsFromPdf(pdfBase64: string, dateFormatHint: string
   ])
 }
 
+// Fetches a linked page's text content, with a retry for JS-rendered newsletter pages
+// (Sway/Smore/Peachjar via Jina) if the result looks suspiciously thin. Found via a real
+// incident 2026-07-04: a Sway page that fetched fine moments later returned a near-empty
+// render on the actual run, and Stage A silently produced one fake placeholder event
+// instead of ~13 real ones — likely a stale/incomplete cached response from Jina for a
+// URL fetched again shortly after a previous request. X-No-Cache forces a fresh render.
+async function fetchPageTextWithSanityRetry(url: string, isJs: boolean): Promise<string | null> {
+  const attempt = async (noCache: boolean): Promise<string | null> => {
+    const fetchUrl = isJs ? `https://r.jina.ai/${url}` : url
+    const headers: Record<string, string> = { 'User-Agent': 'Canopy-EmailBot/1.0' }
+    if (isJs && noCache) headers['X-No-Cache'] = 'true'
+    const res = await fetch(fetchUrl, { headers, signal: AbortSignal.timeout(isJs ? 20000 : 8000) })
+    if (!res.ok) return null
+    const raw = await res.text()
+    // Real newsletters can be long — a real Reddam House weekly newsletter tested at
+    // 54K+ chars, so Haiku's context window has ample room for a much larger cap than
+    // the original 12K.
+    return isJs
+      ? raw.slice(0, 40000)
+      : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 30000)
+  }
+
+  let text = await attempt(false)
+  if (isJs && (!text || text.trim().length < 3000)) {
+    console.log(`Suspiciously thin content (${text?.length ?? 0} chars) for ${url}, retrying with X-No-Cache`)
+    const retryText = await attempt(true)
+    if (retryText && retryText.trim().length > (text?.trim().length ?? 0)) text = retryText
+  }
+  return text
+}
+
 // ── Admin diagnostics — logs every processed email to email_processing_log so
 // FamilyFeed health can be monitored from /admin/familyfeed, the same way
 // check-term-dates is monitored via school_calendars' scrape diagnostics.
@@ -185,6 +216,7 @@ async function logEmailProcessing(opts: {
   eventsCreated?: number
   eventsUpdated?: number
   eventsSkipped?: number
+  candidateEventsCount?: number
   docsSaved?:     number
   noticeCreated?: boolean
   errorStage?:    string
@@ -201,6 +233,7 @@ async function logEmailProcessing(opts: {
       subject:        opts.subject,
       status:         opts.status,
       events_created: opts.eventsCreated ?? 0,
+      candidate_events_count: opts.candidateEventsCount ?? 0,
       events_updated: opts.eventsUpdated ?? 0,
       events_skipped: opts.eventsSkipped ?? 0,
       docs_saved:     opts.docsSaved ?? 0,
@@ -576,25 +609,14 @@ async function handleRequest(req: Request): Promise<Response> {
       }
 
       const isJs = isJsRenderedNewsletter(url)
-      const fetchUrl = isJs ? `https://r.jina.ai/${url}` : url
-      const res = await fetch(fetchUrl, {
-        headers: { 'User-Agent': 'Canopy-EmailBot/1.0' },
-        signal: AbortSignal.timeout(isJs ? 20000 : 8000),
-      })
-      if (res.ok) {
-        const raw = await res.text()
-        // Real newsletters can be long — a real Reddam House weekly newsletter tested at
-        // 54K+ chars with its "Dates to diarise" section (the actual events) starting well
-        // past the old 12K cap, so nothing after it was ever seen by Claude. Haiku's context
-        // window has ample room for a much larger cap.
-        const text = isJs
-          ? raw.slice(0, 40000)
-          : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 30000)
-        if (text.trim()) {
-          const hash = await sha256Hex(text)
-          const events = await getRawEventsCached(hash, isJs ? 'jsrendered_page' : 'plain_page', url, () => extractRawEventsFromText(text, dateFormatHint))
-          candidateEvents.push(...events)
+      const text = await fetchPageTextWithSanityRetry(url, isJs)
+      if (text && text.trim()) {
+        const hash = await sha256Hex(text)
+        const events = await getRawEventsCached(hash, isJs ? 'jsrendered_page' : 'plain_page', url, () => extractRawEventsFromText(text, dateFormatHint))
+        if (events.length <= 1 && text.length > 5000) {
+          console.log(`Suspiciously few events (${events.length}) extracted from ${text.length} chars at ${url} — content may have been thin/stale on fetch`)
         }
+        candidateEvents.push(...events)
       }
     } catch (e) {
       console.error(`Failed to fetch URL ${url}:`, e)
@@ -854,6 +876,7 @@ ${yearGroupRule}
     errorStage:     jsonParseError ? 'json_parse' : undefined,
     errorMessage:   jsonParseError ?? undefined,
     eventsCreated, eventsUpdated, eventsSkipped, docsSaved, noticeCreated,
+    candidateEventsCount: candidateEvents.length,
   })
 
   return new Response(JSON.stringify({

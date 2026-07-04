@@ -138,8 +138,12 @@ function LogRow({ row, isExpanded, onToggle }) {
           </p>
           {row.status === 'success' && (
             <p className="text-slate-400 text-xs mt-1">
+              {row.candidate_events_count > 0 ? `${row.candidate_events_count} candidates found · ` : ''}
               {row.events_created} created · {row.events_updated} updated · {row.events_skipped} skipped
               {row.docs_saved > 0 ? ` · ${row.docs_saved} attachment${row.docs_saved > 1 ? 's' : ''}` : ''}
+              {row.candidate_events_count > 0 && row.events_created === 0 && row.events_updated === 0 && row.events_skipped === 0 && (
+                <span className="text-amber-500 font-semibold"> — worth checking why nothing survived</span>
+              )}
             </p>
           )}
         </div>
