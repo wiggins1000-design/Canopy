@@ -952,6 +952,31 @@ export default function ConfigPage() {
                 <Button variant="secondary" loading={emailAdding} onClick={addEmail} className="shrink-0">Add</Button>
               </div>
               {emailError && <p className="text-sm text-red-600">{emailError}</p>}
+
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                <p className="text-xs font-semibold text-gray-500">Which events to add</p>
+                <p className="text-xs text-gray-400">School newsletters often cover several year groups. Choose whether FamilyFeed should add everything it finds, or only events relevant to your children.</p>
+                <label className="flex items-start gap-2 text-sm text-gray-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="familyfeed_event_scope"
+                    checked={(family?.config?.familyfeed_event_scope ?? 'relevant') === 'relevant'}
+                    onChange={() => updateFamilyConfig({ familyfeed_event_scope: 'relevant' })}
+                    className="mt-0.5"
+                  />
+                  <span>Only events relevant to my children <span className="text-gray-400">(recommended)</span></span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-gray-800 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="familyfeed_event_scope"
+                    checked={family?.config?.familyfeed_event_scope === 'all'}
+                    onChange={() => updateFamilyConfig({ familyfeed_event_scope: 'all' })}
+                    className="mt-0.5"
+                  />
+                  <span>All events found in the email or attachment</span>
+                </label>
+              </div>
             </div>
           )}
         </div>

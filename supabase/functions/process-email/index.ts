@@ -479,6 +479,17 @@ async function handleRequest(req: Request): Promise<Response> {
     ? 'Numeric dates in the source (e.g. "3/4/2026") follow US convention: MM/DD/YYYY.'
     : 'Numeric dates in the source (e.g. "3/4/2026") follow UK/AU/IE convention: DD/MM/YYYY.'
 
+  // Per-family choice (Settings → FamilyFeed → "Which events to add"): only events
+  // matching one of the children (default), or every event found regardless of
+  // year group/class match.
+  const eventScope: 'relevant' | 'all' = (family.config as any)?.familyfeed_event_scope === 'all' ? 'all' : 'relevant'
+
+  const yearGroupRule = eventScope === 'all'
+    ? `- Note whether the event's title or description names a specific year group, key stage/grade band (as shown for the children above), or class, and tag the matching child if so — but include the event either way, even if no child matches. This family has chosen to see every event found, not just ones relevant to their children.`
+    : `- FIRST check whether the event's title or description names ONE specific year group, key stage/grade band (as shown for the children above), or class (e.g. "Year 6 Residential", "Reception Sports Day", "KS2 Assembly", "3rd Grade Field Trip"). If it does, only include it when that year group/key stage/class matches one of the children above — skip it otherwise, even if it sounds important. This overrides every other rule below — a trip, residential, leavers' event, class assembly, performance, or coffee morning that is explicitly for one year group is not relevant to a family with no child in that year group
+- Only treat an event as relevant to everyone when it is genuinely whole-school, all-students, all-pupils, all-year-groups, or names no year group/class at all — e.g. whole-school photos, a non-uniform day, flu vaccinations for all years, INSET/training/PD days, a whole-school fair or fete
+- ALWAYS include parent-facing events that are not tied to one year group: general parents' evenings, open days, whole-school coffee mornings, school fairs, community events`
+
   const prompt = `You are a calendar assistant for Canopy, a family organisation app.
 
 Extract all calendar events, appointments and important dates from this email. Also decide if there is any important information that should be posted as a notice to both parents.
@@ -507,9 +518,7 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- FIRST check whether the event's title or description names ONE specific year group, key stage/grade band (as shown for the children above), or class (e.g. "Year 6 Residential", "Reception Sports Day", "KS2 Assembly", "3rd Grade Field Trip"). If it does, only include it when that year group/key stage/class matches one of the children above — skip it otherwise, even if it sounds important. This overrides every other rule below — a trip, residential, leavers' event, class assembly, performance, or coffee morning that is explicitly for one year group is not relevant to a family with no child in that year group
-- Only treat an event as relevant to everyone when it is genuinely whole-school, all-students, all-pupils, all-year-groups, or names no year group/class at all — e.g. whole-school photos, a non-uniform day, flu vaccinations for all years, INSET/training/PD days, a whole-school fair or fete
-- ALWAYS include parent-facing events that are not tied to one year group: general parents' evenings, open days, whole-school coffee mornings, school fairs, community events
+${yearGroupRule}
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
 - If the event matches one of the children's year group, key stage, or class, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
