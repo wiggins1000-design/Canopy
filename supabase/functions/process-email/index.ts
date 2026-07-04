@@ -46,6 +46,134 @@ function parseFromEmail(fromRaw: string): string {
   return (fromRaw.match(/<([^>]+)>/)?.[1] ?? fromRaw.trim()).toLowerCase()
 }
 
+type RawEvent = {
+  title:      string
+  date:       string
+  end_date:   string | null
+  time:       string | null
+  notes:      string | null
+  applies_to: string | null
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// ── FamilyFeed content-extraction cache ─────────────────────────────────────
+// Many families forward identical content (a school-wide newsletter, the same
+// PDF, the same Sway link). Extracting raw dated events from a document is the
+// expensive step; deciding which of those events matter to one family is cheap.
+// This caches the expensive step by content hash so a second family forwarding
+// the same content skips straight to the cheap per-family step.
+async function getCachedRawEvents(hash: string): Promise<RawEvent[] | null> {
+  const { data } = await supabase
+    .from('familyfeed_content_cache')
+    .select('id, raw_events, hit_count')
+    .eq('content_hash', hash)
+    .maybeSingle()
+  if (!data) return null
+  await supabase.from('familyfeed_content_cache')
+    .update({ hit_count: (data.hit_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+    .eq('id', data.id)
+  return data.raw_events as RawEvent[]
+}
+
+async function cacheRawEvents(hash: string, sourceType: string, sourceLabel: string, events: RawEvent[]): Promise<void> {
+  const { error } = await supabase.from('familyfeed_content_cache').insert({
+    content_hash: hash,
+    source_type:  sourceType,
+    source_label: sourceLabel.slice(0, 500),
+    raw_events:   events,
+  })
+  // 23505 = unique violation — another concurrent request cached the same content first, benign
+  if (error && (error as any).code !== '23505') console.error('cacheRawEvents insert failed:', error.message)
+}
+
+async function getRawEventsCached(
+  hash: string, sourceType: string, sourceLabel: string, extractFn: () => Promise<RawEvent[]>,
+): Promise<RawEvent[]> {
+  const cached = await getCachedRawEvents(hash)
+  if (cached) {
+    console.log(`Content cache hit — ${sourceType} ${sourceLabel}`)
+    return cached
+  }
+  const events = await extractFn()
+  await cacheRawEvents(hash, sourceType, sourceLabel, events)
+  return events
+}
+
+// Stage A extraction — deliberately family-agnostic (no children/existing-events
+// context) so the result is safe to cache and reuse across any family that
+// forwards this exact content. Extracts everything, unfiltered; per-family
+// relevance filtering happens in Stage B.
+function extractionPrompt(dateFormatHint: string, isPdf: boolean): string {
+  const today = new Date().toISOString().split('T')[0]
+  return `You are extracting every dated event mentioned in a school ${isPdf ? 'PDF document (it may be a native text document or a scanned/photographed page — read any dates visible anywhere, including tables, calendars and images, not just selectable text)' : 'communication'}. Do not filter anything out for relevance — extract ALL events with a specific date, even ones that seem to apply to only one year group, class, or a small group of students. Relevance filtering happens in a separate step later.
+
+Today's date: ${today}. ${dateFormatHint}
+
+Respond with ONLY valid JSON — no markdown, no explanation:
+{
+  "events": [
+    {
+      "title": "short clear title — do not invent or assume a specific child's name",
+      "date": "YYYY-MM-DD",
+      "end_date": "YYYY-MM-DD or null",
+      "time": "HH:MM or null",
+      "notes": "any extra detail or null",
+      "applies_to": "the specific year group, key stage, or class named for this event (e.g. 'Year 6', 'KS2', 'Reception'), or null if it applies to the whole school / no group is mentioned"
+    }
+  ]
+}
+
+Rules:
+- Extract EVERY event with a specific date, no matter how minor
+- Use the current year if no year is given
+- If a date range is mentioned, create one event with start + end_date
+- Dates must be YYYY-MM-DD
+- Return ONLY valid JSON`
+}
+
+async function callExtractionClaude(content: string | any[]): Promise<RawEvent[]> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key':         Deno.env.get('ANTHROPIC_API_KEY')!,
+      'anthropic-version': '2023-06-01',
+      'content-type':      'application/json',
+    },
+    signal: AbortSignal.timeout(45000),
+    body: JSON.stringify({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages:   [{ role: 'user', content }],
+    }),
+  })
+  if (!res.ok) { console.error('Extraction Claude error:', await res.text()); return [] }
+  const data = await res.json()
+  const text: string = data.content?.[0]?.text ?? '{}'
+  try {
+    const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    const match = stripped.match(/\{[\s\S]*\}/)
+    return match ? (JSON.parse(match[0]).events ?? []) : []
+  } catch (e) {
+    console.error('Extraction parse error:', e)
+    return []
+  }
+}
+
+async function extractRawEventsFromText(content: string, dateFormatHint: string): Promise<RawEvent[]> {
+  return callExtractionClaude(`${extractionPrompt(dateFormatHint, false)}\n\nContent:\n${content}`)
+}
+
+async function extractRawEventsFromPdf(pdfBase64: string, dateFormatHint: string): Promise<RawEvent[]> {
+  return callExtractionClaude([
+    { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+    { type: 'text', text: extractionPrompt(dateFormatHint, true) },
+  ])
+}
+
 // ── Admin diagnostics — logs every processed email to email_processing_log so
 // FamilyFeed health can be monitored from /admin/familyfeed, the same way
 // check-term-dates is monitored via school_calendars' scrape diagnostics.
@@ -245,6 +373,13 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const locale: string = (family.config as any)?.locale ?? 'en-GB'
 
+  // Ambiguous numeric dates (e.g. "3/4/2026") are read differently depending on region -
+  // US convention is MM/DD, everywhere else here (UK/Ireland/Australia) is DD/MM. Needed
+  // early since the (cacheable) extraction stage below uses it too.
+  const dateFormatHint = locale === 'en-US'
+    ? 'Numeric dates in the source (e.g. "3/4/2026") follow US convention: MM/DD/YYYY.'
+    : 'Numeric dates in the source (e.g. "3/4/2026") follow UK/AU/IE convention: DD/MM/YYYY.'
+
   // ── Check FamilyFeed consent ───────────────────────────────────────────────
   // Each parent must individually consent to AI processing of email content.
   if (authorId) {
@@ -321,17 +456,21 @@ async function handleRequest(req: Request): Promise<Response> {
   const textBody = rawBody
     .replace(/base64,[A-Za-z0-9+/=\s]{100,}/g, '[attachment removed]')
     .replace(/Content-Transfer-Encoding: base64[\s\S]{0,50000}/gi, '[encoded content removed]')
-    .slice(0, 12000)
+    .slice(0, 30000)
 
   // ── Save document attachments to storage, and extract readable content ────
   // School newsletters often arrive as PDF/Word attachments rather than inline text,
   // so events need to be extracted from attachment content, not just the email body.
+  // Extraction is the expensive step (large document → Claude) and is cacheable by
+  // content hash — many families forward the exact same attachment (a school-wide
+  // newsletter), so a second family forwarding identical bytes reuses the first
+  // family's extraction instead of paying for it again.
   const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
   const MAX_ATTACHMENT_PDF_BYTES = 8 * 1024 * 1024
-  const MAX_PDF_ATTACHMENTS = 3
+  const MAX_PDF_SOURCES = 3
   let docsSaved = 0
-  const pdfBlocks: any[] = []
-  let attachmentTextContent = ''
+  let pdfSourcesUsed = 0
+  const candidateEvents: RawEvent[] = []
 
   for (const att of attachments) {
     if (!att.Content || !att.Name) continue
@@ -364,25 +503,39 @@ async function handleRequest(req: Request): Promise<Response> {
     const isHtml = att.ContentType === 'text/html' || ext === 'html' || ext === 'htm'
 
     if (isPdf) {
-      if (pdfBlocks.length >= MAX_PDF_ATTACHMENTS) {
-        console.log(`Already have ${MAX_PDF_ATTACHMENTS} PDF attachments, skipping content extraction: ${att.Name}`)
+      if (pdfSourcesUsed >= MAX_PDF_SOURCES) {
+        console.log(`Already processed ${MAX_PDF_SOURCES} PDF sources, skipping: ${att.Name}`)
       } else if (bytes.length > MAX_ATTACHMENT_PDF_BYTES) {
         console.log(`Attachment PDF too large (${bytes.length} bytes), skipping content extraction: ${att.Name}`)
       } else {
-        pdfBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: att.Content } })
+        pdfSourcesUsed++
+        const hash = await sha256Hex(att.Content)
+        const events = await getRawEventsCached(hash, 'pdf', att.Name, () => extractRawEventsFromPdf(att.Content, dateFormatHint))
+        candidateEvents.push(...events)
       }
     } else if (isDocx) {
-      const text = await extractDocxText(att.Content)
-      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content:\n${text.slice(0, 8000)}`
+      const text = (await extractDocxText(att.Content)).slice(0, 20000)
+      if (text) {
+        const hash = await sha256Hex(text)
+        const events = await getRawEventsCached(hash, 'docx', att.Name, () => extractRawEventsFromText(text, dateFormatHint))
+        candidateEvents.push(...events)
+      }
     } else if (isDoc) {
-      const text = extractLegacyDocText(bytes)
-      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content (best-effort text extraction from legacy .doc format):\n${text.slice(0, 8000)}`
+      const text = extractLegacyDocText(bytes).slice(0, 20000)
+      if (text) {
+        const hash = await sha256Hex(text)
+        const events = await getRawEventsCached(hash, 'doc', att.Name, () => extractRawEventsFromText(text, dateFormatHint))
+        candidateEvents.push(...events)
+      }
     } else if (isHtml) {
-      const text = new TextDecoder().decode(bytes).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-      if (text) attachmentTextContent += `\n\nAttachment "${att.Name}" content:\n${text.slice(0, 8000)}`
+      const text = new TextDecoder().decode(bytes).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20000)
+      if (text) {
+        const hash = await sha256Hex(text)
+        const events = await getRawEventsCached(hash, 'html', att.Name, () => extractRawEventsFromText(text, dateFormatHint))
+        candidateEvents.push(...events)
+      }
     }
   }
-  attachmentTextContent = attachmentTextContent.slice(0, 16000)
 
   // ── Fetch content from URLs in the email body ────────────────────────────
   // Some newsletter builders (Microsoft Sway, Smore — the latter very common with
@@ -397,14 +550,13 @@ async function handleRequest(req: Request): Promise<Response> {
   const hrefUrls  = (rawHtml.match(/href="(https?:\/\/[^"]+)"/gi) ?? [])
     .map((m: string) => m.slice(6, -1))  // strip href=" and "
   const urls = [...new Set([...textUrls, ...hrefUrls])].slice(0, 2)
-  let linkContent = ''
   const isJsRenderedNewsletter = (url: string) => /sway\.(cloud\.microsoft|office\.com)\/|smore\.com\/|peachjar\.com\//i.test(url)
   const isPdfLink = (url: string) => /\.pdf(\?|$)/i.test(url)
 
   for (const url of urls) {
     try {
       if (isPdfLink(url)) {
-        if (pdfBlocks.length >= MAX_PDF_ATTACHMENTS) continue
+        if (pdfSourcesUsed >= MAX_PDF_SOURCES) continue
         const res = await fetch(url, {
           headers: { 'User-Agent': 'Canopy-EmailBot/1.0' },
           signal: AbortSignal.timeout(15000),
@@ -415,7 +567,11 @@ async function handleRequest(req: Request): Promise<Response> {
         let binary = ''
         const chunkSize = 0x8000
         for (let i = 0; i < buf.length; i += chunkSize) binary += String.fromCharCode(...buf.subarray(i, i + chunkSize))
-        pdfBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: btoa(binary) } })
+        const pdfBase64 = btoa(binary)
+        pdfSourcesUsed++
+        const hash = await sha256Hex(pdfBase64)
+        const events = await getRawEventsCached(hash, 'pdf', url, () => extractRawEventsFromPdf(pdfBase64, dateFormatHint))
+        candidateEvents.push(...events)
         continue
       }
 
@@ -433,8 +589,12 @@ async function handleRequest(req: Request): Promise<Response> {
         // window has ample room for a much larger cap.
         const text = isJs
           ? raw.slice(0, 40000)
-          : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 8000)
-        linkContent += `\n\nPage content from ${url}:\n${text}`
+          : raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 30000)
+        if (text.trim()) {
+          const hash = await sha256Hex(text)
+          const events = await getRawEventsCached(hash, isJs ? 'jsrendered_page' : 'plain_page', url, () => extractRawEventsFromText(text, dateFormatHint))
+          candidateEvents.push(...events)
+        }
       }
     } catch (e) {
       console.error(`Failed to fetch URL ${url}:`, e)
@@ -475,32 +635,28 @@ async function handleRequest(req: Request): Promise<Response> {
         .join('\n')
     : ''
 
-  // Ambiguous numeric dates (e.g. "3/4/2026") are read differently depending on region -
-  // US convention is MM/DD, everywhere else here (UK/Ireland/Australia) is DD/MM. Without
-  // this hint Claude has to guess from context alone, which fails for genuinely ambiguous
-  // dates like "3/4" or "5/6".
-  const dateFormatHint = locale === 'en-US'
-    ? 'Numeric dates in the source (e.g. "3/4/2026") follow US convention: MM/DD/YYYY.'
-    : 'Numeric dates in the source (e.g. "3/4/2026") follow UK/AU/IE convention: DD/MM/YYYY.'
-
   // Per-family choice (Settings → FamilyFeed → "Which events to add"): only events
   // matching one of the children (default), or every event found regardless of
   // year group/class match.
   const eventScope: 'relevant' | 'all' = (family.config as any)?.familyfeed_event_scope === 'all' ? 'all' : 'relevant'
 
   const yearGroupRule = eventScope === 'all'
-    ? `- Note whether the event's title or description names a specific year group, key stage/grade band (as shown for the children above), or class, and tag the matching child if so — but include the event either way, even if no child matches. This family has chosen to see every event found, not just ones relevant to their children.`
-    : `- FIRST check whether the event's title or description names ONE specific year group, key stage/grade band (as shown for the children above), or class (e.g. "Year 6 Residential", "Reception Sports Day", "KS2 Assembly", "3rd Grade Field Trip"). If it does, only include it when that year group/key stage/class matches one of the children above — skip it otherwise, even if it sounds important. This overrides every other rule below — a trip, residential, leavers' event, class assembly, performance, or coffee morning that is explicitly for one year group is not relevant to a family with no child in that year group
-- Only treat an event as relevant to everyone when it is genuinely whole-school, all-students, all-pupils, all-year-groups, or names no year group/class at all — e.g. whole-school photos, a non-uniform day, flu vaccinations for all years, INSET/training/PD days, a whole-school fair or fete
+    ? `- For each event (using the candidate list's "applies_to" field, or found directly in the body), tag the matching child if one applies — but include the event either way, even if no child matches. This family has chosen to see every event found, not just ones relevant to their children.`
+    : `- FIRST check whether the event names ONE specific year group, key stage/grade band (as shown for the children above), or class — via the candidate event's "applies_to" field, or mentioned directly in the body (e.g. "Year 6 Residential", "Reception Sports Day", "KS2 Assembly", "3rd Grade Field Trip"). If it does, only include it when that year group/key stage/class matches one of the children above — skip it otherwise, even if it sounds important. This overrides every other rule below — a trip, residential, leavers' event, class assembly, performance, or coffee morning that is explicitly for one year group is not relevant to a family with no child in that year group
+- Only treat an event as relevant to everyone when "applies_to" is null/whole-school, or it's genuinely all-students, all-pupils, all-year-groups — e.g. whole-school photos, a non-uniform day, flu vaccinations for all years, INSET/training/PD days, a whole-school fair or fete
 - ALWAYS include parent-facing events that are not tied to one year group: general parents' evenings, open days, whole-school coffee mornings, school fairs, community events`
+
+  const candidateEventsBlock = candidateEvents.length > 0
+    ? `\n\nCandidate events found in attachments/linked pages (extracted separately from ${candidateEvents.length} source(s) — not yet filtered for relevance to this family, and the same event may appear more than once if mentioned in multiple sources):\n${JSON.stringify(candidateEvents, null, 2)}`
+    : ''
 
   const prompt = `You are a calendar assistant for Canopy, a family organisation app.
 
-Extract all calendar events, appointments and important dates from this email. Also decide if there is any important information that should be posted as a notice to both parents.
+Decide which calendar events, appointments and important dates from this email are relevant to this specific family, using the children listed below. Also decide if there is any important information that should be posted as a notice to both parents.
 
 Subject: ${subject}
-Body:
-${textBody}${linkContent}${attachmentTextContent}${pdfBlocks.length > 0 ? '\n\nOne or more PDF attachments are also included below as documents — read any dates visible anywhere in them, including tables, calendars and images, not just selectable text.' : ''}
+Email body:
+${textBody}${candidateEventsBlock}
 
 Today's date: ${today}. ${dateFormatHint}${childrenContext}${existingEventsContext}
 
@@ -522,6 +678,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
+- Also read the email body itself for any dated events not already covered by the candidate events list (e.g. something mentioned only in the forwarding message itself)
+- If the same event appears more than once in the candidate list (e.g. mentioned in both an attachment and a linked page), only include it once
 ${yearGroupRule}
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
@@ -543,10 +701,7 @@ ${yearGroupRule}
     body: JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
       max_tokens: 8192,
-      messages:   [{
-        role:    'user',
-        content: pdfBlocks.length > 0 ? [...pdfBlocks, { type: 'text', text: prompt }] : prompt,
-      }],
+      messages:   [{ role: 'user', content: prompt }],
     }),
   })
 
