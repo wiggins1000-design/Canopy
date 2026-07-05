@@ -638,6 +638,19 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
     const { data: res, error } = invokeResult
     setExtracting(false)
     if (error || res?.error) {
+      // "Could not fetch school homepage" means the URL itself doesn't resolve to a real
+      // page — not worth keeping saved. (Distinct from the bot-blocked case, where the URL
+      // is correct but our scraper can't read it — that one should stay saved.) Without this,
+      // a bad URL persisted in Info Bank from the pre-save above (needed so extract-school-info
+      // can look it up) with only a transient error shown, then silently broke every future
+      // term-dates sync with no indication of what was actually wrong.
+      const badUrl = (res?.error ?? '').includes('Could not fetch school homepage')
+      if (badUrl) {
+        setD((prev) => ({ ...prev, school_url: originalSchoolUrl.current }))
+        await onSave({ ...d, school_url: originalSchoolUrl.current })
+        setExtractResult({ type: 'error', message: 'That doesn’t look like a valid school website address — double-check it and try again.' })
+        return
+      }
       setExtractResult({ type: 'error', message: res?.error ?? 'Could not extract school info. Check the URL is the school homepage.' })
       return
     }
