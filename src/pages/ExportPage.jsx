@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
+import { supabase, isNativePlatform } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { formatDate } from '../lib/scheduleEngine'
 import Button from '../components/ui/Button'
@@ -55,21 +57,37 @@ export default function ExportPage() {
       const json = await res.json()
       if (!json.ok) throw new Error(json.error ?? 'Export failed')
 
-      // Open HTML in a new window — user can File > Print > Save as PDF
-      const win = window.open('', '_blank')
-      if (win) {
-        win.document.write(json.html)
-        win.document.close()
-        setTimeout(() => win.print(), 500)
+      if (isNativePlatform()) {
+        // window.open('_blank') has no real "new tab" to open inside a Capacitor
+        // WKWebView, so the export previously silently did nothing on iOS/Android.
+        // Write the file into the app's cache and hand it to the native share
+        // sheet instead — this is what the banner below has always described
+        // (tap Share, then Print or Save to Files), it just wasn't wired up.
+        const fileName = `canopy-export-${formatDate(new Date())}.html`
+        const { uri } = await Filesystem.writeFile({
+          path: fileName,
+          data: json.html,
+          directory: Directory.Cache,
+          encoding: 'utf8',
+        })
+        await Share.share({ title: 'Canopy export', url: uri })
       } else {
-        // Fallback: download as .html file
-        const blob = new Blob([json.html], { type: 'text/html' })
-        const url  = URL.createObjectURL(blob)
-        const a    = document.createElement('a')
-        a.href     = url
-        a.download = `canopy-export-${formatDate(new Date())}.html`
-        a.click()
-        URL.revokeObjectURL(url)
+        // Web/PWA: open HTML in a new tab — user can File > Print > Save as PDF
+        const win = window.open('', '_blank')
+        if (win) {
+          win.document.write(json.html)
+          win.document.close()
+          setTimeout(() => win.print(), 500)
+        } else {
+          // Fallback if the popup was blocked: download as .html file
+          const blob = new Blob([json.html], { type: 'text/html' })
+          const url  = URL.createObjectURL(blob)
+          const a    = document.createElement('a')
+          a.href     = url
+          a.download = `canopy-export-${formatDate(new Date())}.html`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
       }
     } catch (e) {
       setError(e.message ?? 'Export failed')
@@ -154,7 +172,9 @@ export default function ExportPage() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
         <p className="text-xs text-amber-700">
-          {isIOS
+          {isNativePlatform()
+            ? <>A share sheet will open — choose <strong>Print</strong> or <strong>Save to Files</strong> to keep a copy.</>
+            : isIOS
             ? <>The export opens in a new tab. Tap the <strong>Share button</strong> (the box with an arrow) then choose <strong>Print</strong> or <strong>Save to Files</strong> to keep a copy.</>
             : isAndroid
             ? <>The export opens in a new tab. Tap the <strong>menu (⋮)</strong> in your browser then choose <strong>Share</strong> or <strong>Print</strong> to save as PDF.</>
