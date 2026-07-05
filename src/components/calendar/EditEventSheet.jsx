@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, sendPushNotification } from '../../lib/supabase'
+import { firstName } from '../../lib/childUtils'
 import { useFamily } from '../../context/FamilyContext'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
@@ -208,7 +209,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
                       selected ? 'bg-canopy-mid text-white border-canopy-mid' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-canopy-green'
                     }`}
                   >
-                    {c.name}
+                    {firstName(c.name)}
                   </button>
                 )
               })}

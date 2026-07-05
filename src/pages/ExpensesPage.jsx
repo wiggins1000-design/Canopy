@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../hooks/useLocale'
 import NewExpenseSheet from '../components/expenses/NewExpenseSheet'
 import { supabase } from '../lib/supabase'
+import { firstName } from '../lib/childUtils'
 
 const CATEGORY_LABELS = {
   education: 'Education',
@@ -117,13 +118,71 @@ export default function ExpensesPage() {
   const groups = groupByMonth(displayList)
   const otherName = otherParent?.display_name ?? 'Other parent'
 
+  const tabs = ['outstanding', 'history', ...(showChildcare ? ['childcare'] : [])]
+  const tabLabel = (t) =>
+    t === 'outstanding' ? `Outstanding${unsettled.length > 0 ? ` (${unsettled.length})` : ''}`
+    : t === 'history'   ? 'History'
+    : 'Childcare'
+
   return (
     <div className="px-4 pt-4 pb-24">
 
       <h1 className="text-xl font-bold text-gray-900 mb-3">Expenses</h1>
 
-      {/* Childcare hours */}
-      {showChildcare && (() => {
+      {/* Balance banner — expense-specific, hidden on the Childcare tab */}
+      {tab !== 'childcare' && !loading && (
+        <div className={`rounded-2xl px-4 py-3.5 mb-3 ${
+          balancePence > 0
+            ? 'bg-canopy-frost border border-canopy-mist'
+            : balancePence < 0
+            ? 'bg-amber-50 border border-amber-200'
+            : 'bg-gray-50 border border-gray-200'
+        }`}>
+          {balancePence === 0 ? (
+            <p className="text-sm font-semibold text-gray-500 text-center">All settled up</p>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className={`text-lg font-bold ${balancePence > 0 ? 'text-canopy-deep' : 'text-amber-800'}`}>
+                  {formatMoney(balancePence, regionConfig)}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {balancePence > 0
+                    ? `${otherName} owes you`
+                    : `You owe ${otherName}`}
+                  {unsettled.length > 0 && ` · ${unsettled.length} expense${unsettled.length !== 1 ? 's' : ''}`}
+                </p>
+              </div>
+              {unsettled.length > 0 && (
+                <button
+                  onClick={handleSettle}
+                  disabled={settling}
+                  className="shrink-0 bg-canopy-mid text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {settling ? 'Settling…' : 'Settle up'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabs — Outstanding / History / Childcare, one view at a time */}
+      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mb-4">
+        {tabs.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            {tabLabel(t)}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'childcare' ? (() => {
         const paName   = parentA?.display_name ?? 'Parent A'
         const pbName   = parentB?.display_name ?? 'Parent B'
         const rates    = family?.config?.childcare_rates ?? {}
@@ -135,11 +194,11 @@ export default function ExpensesPage() {
         const fmt      = (p) => formatMoney(p * 100, regionConfig)
 
         return (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-3 space-y-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-amber-900">Childcare hours</p>
               <button onClick={() => navigate('/childcare')} className="text-xs text-amber-700 hover:underline">
-                {isChildcare ? 'Log hours →' : 'View all →'}
+                {isChildcare ? 'Log hours →' : 'Full history →'}
               </button>
             </div>
 
@@ -185,7 +244,7 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  {childcareLogs.slice(0, 5).map((log) => {
+                  {childcareLogs.map((log) => {
                     const wages = (rates[log.logged_by] ?? 0) > 0
                       ? Number(log.hours_decimal) * rates[log.logged_by] / 100
                       : null
@@ -203,71 +262,12 @@ export default function ExpensesPage() {
                       </div>
                     )
                   })}
-                  {childcareLogs.length > 5 && (
-                    <p className="text-xs text-amber-600 text-center pt-1">+{childcareLogs.length - 5} more — <button onClick={() => navigate('/childcare')} className="underline">view all</button></p>
-                  )}
                 </div>
               </>
             )}
           </div>
         )
-      })()}
-
-      {/* Balance banner */}
-      {!loading && (
-        <div className={`rounded-2xl px-4 py-3.5 mb-3 ${
-          balancePence > 0
-            ? 'bg-canopy-frost border border-canopy-mist'
-            : balancePence < 0
-            ? 'bg-amber-50 border border-amber-200'
-            : 'bg-gray-50 border border-gray-200'
-        }`}>
-          {balancePence === 0 ? (
-            <p className="text-sm font-semibold text-gray-500 text-center">All settled up</p>
-          ) : (
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className={`text-lg font-bold ${balancePence > 0 ? 'text-canopy-deep' : 'text-amber-800'}`}>
-                  {formatMoney(balancePence, regionConfig)}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {balancePence > 0
-                    ? `${otherName} owes you`
-                    : `You owe ${otherName}`}
-                  {unsettled.length > 0 && ` · ${unsettled.length} expense${unsettled.length !== 1 ? 's' : ''}`}
-                </p>
-              </div>
-              {unsettled.length > 0 && (
-                <button
-                  onClick={handleSettle}
-                  disabled={settling}
-                  className="shrink-0 bg-canopy-mid text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-canopy-deep active:scale-95 transition-all disabled:opacity-50"
-                >
-                  {settling ? 'Settling…' : 'Settle up'}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex bg-gray-100 rounded-xl p-1 gap-1 mb-4">
-        {['outstanding', 'history'].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${
-              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-            }`}
-          >
-            {t === 'outstanding' ? `Outstanding${unsettled.length > 0 ? ` (${unsettled.length})` : ''}` : 'History'}
-          </button>
-        ))}
-      </div>
-
-      {/* List */}
-      {loading ? (
+      })() : loading ? (
         <div className="flex justify-center py-12">
           <div className="w-7 h-7 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
         </div>
@@ -296,16 +296,18 @@ export default function ExpensesPage() {
         ))
       )}
 
-      {/* Add button */}
-      <button
-        onClick={() => setShowNew(true)}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-canopy-mid hover:bg-canopy-deep text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-20"
-        aria-label="Log expense"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
+      {/* Add button — logging an expense doesn't apply on the Childcare tab */}
+      {tab !== 'childcare' && (
+        <button
+          onClick={() => setShowNew(true)}
+          className="fixed bottom-20 right-4 w-14 h-14 bg-canopy-mid hover:bg-canopy-deep text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-20"
+          aria-label="Log expense"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
 
       <NewExpenseSheet
         open={showNew}
@@ -337,7 +339,7 @@ function ExpenseCard({ expense, members, userId, otherName, regionConfig }) {
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-gray-900 truncate">{expense.description}</p>
             {expense.child_name && (
-              <span className="text-xs text-canopy-mid bg-canopy-frost px-2 py-0.5 rounded-full shrink-0">{expense.child_name}</span>
+              <span className="text-xs text-canopy-mid bg-canopy-frost px-2 py-0.5 rounded-full shrink-0">{firstName(expense.child_name)}</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">

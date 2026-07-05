@@ -8,6 +8,7 @@ import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import EditEventSheet from './EditEventSheet'
 import { shortSchoolName } from '../../lib/termDatesUtils'
+import { firstName } from '../../lib/childUtils'
 
 const OWNER_COLORS = {
   parent_a: 'text-pa-700 bg-pa-50 border-pa-200',
@@ -58,7 +59,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2 flex items-center gap-2">
           <span className="text-base">🎂</span>
           <p className="text-sm font-medium text-yellow-800">
-            {birthdayNames.join(' & ')}'s birthday!
+            {birthdayNames.map(firstName).join(' & ')}'s birthday!
           </p>
         </div>
       )}
@@ -224,7 +225,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {ev.tagged_children.map((name) => (
                         <span key={name} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-canopy-frost text-canopy-deep border border-canopy-mist">
-                          {name}
+                          {firstName(name)}
                         </span>
                       ))}
                     </div>

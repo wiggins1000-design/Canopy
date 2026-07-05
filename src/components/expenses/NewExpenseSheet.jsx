@@ -4,6 +4,7 @@ import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLocale } from '../../hooks/useLocale'
 import { formatDate } from '../../lib/scheduleEngine'
+import { firstName } from '../../lib/childUtils'
 import BottomSheet from '../ui/BottomSheet'
 import Button from '../ui/Button'
 
@@ -314,7 +315,7 @@ export default function NewExpenseSheet({ open, onClose, createExpense, otherSha
             >
               <option value="">No specific child</option>
               {children.map((c) => (
-                <option key={c.id} value={c.name}>{c.name}</option>
+                <option key={c.id} value={c.name}>{firstName(c.name)}</option>
               ))}
             </select>
           </div>

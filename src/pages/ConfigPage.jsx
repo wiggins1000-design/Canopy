@@ -12,6 +12,7 @@ import TermDatesSection from '../components/settings/TermDatesSection'
 import { useSubscription } from '../hooks/useSubscription'
 import { useLocale } from '../hooks/useLocale'
 import { SUPPORTED_LOCALES } from '../config/regions'
+import { firstName } from '../lib/childUtils'
 
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
@@ -640,8 +641,8 @@ export default function ConfigPage() {
             <div key={child.id}>
               {childToDelete?.id === child.id ? (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-red-900">Remove {child.name}?</p>
-                  <p className="text-xs text-red-700">This will delete all calendar events tagged to {child.name} and their Info Bank entries. If no other child in your family attends the same school, their term dates will also be removed. This cannot be undone.</p>
+                  <p className="text-xs font-semibold text-red-900">Remove {firstName(child.name)}?</p>
+                  <p className="text-xs text-red-700">This will delete all calendar events tagged to {firstName(child.name)} and their Info Bank entries. If no other child in your family attends the same school, their term dates will also be removed. This cannot be undone.</p>
                   <div className="flex gap-2">
                     <button onClick={() => setChildToDelete(null)} className="flex-1 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 bg-white">Cancel</button>
                     <button onClick={confirmDeleteChild} disabled={childDeleting} className="flex-1 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 disabled:opacity-50">

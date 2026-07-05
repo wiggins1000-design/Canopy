@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { compressImage } from '../../lib/imageUtils'
+import { firstName } from '../../lib/childUtils'
 import { useFamily } from '../../context/FamilyContext'
 import { useAuth } from '../../context/AuthContext'
 import { useSessionActivity } from '../../context/SessionActivityContext'
@@ -114,7 +115,7 @@ export default function VaultSection({ childName }) {
 
     {
       const categoryLabel = CATEGORIES.find((c) => c.id === uploadCat)?.label ?? uploadCat
-      const childLabel    = childName === 'Family' ? 'family' : childName
+      const childLabel    = childName === 'Family' ? 'family' : firstName(childName)
       trackActivity(`Uploaded '${uploadTitle.trim()}' to ${childLabel}'s documents (${categoryLabel})`)
     }
 

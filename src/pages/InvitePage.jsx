@@ -4,6 +4,7 @@ import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../hooks/useLocale'
 import { supabase } from '../lib/supabase'
+import { firstName } from '../lib/childUtils'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 
@@ -107,7 +108,7 @@ export default function InvitePage() {
         <div className="bg-canopy-frost rounded-2xl px-4 py-3 border border-canopy-mist">
           <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide">Children</p>
           <p className="font-bold text-gray-900 mt-0.5">
-            {family.config.children.filter((c) => c.name).map((c) => c.name).join(' & ')}
+            {family.config.children.filter((c) => c.name).map((c) => firstName(c.name)).join(' & ')}
           </p>
         </div>
       )}

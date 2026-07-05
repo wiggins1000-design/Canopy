@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
 import { validateEmail, validateUrl } from '../lib/validationUtils'
+import { firstName } from '../lib/childUtils'
 import { useSessionActivity } from '../context/SessionActivityContext'
 import { useLocale } from '../hooks/useLocale'
 import Button from '../components/ui/Button'
@@ -88,7 +89,7 @@ export default function InfoBankPage() {
       setAllData((prev) => ({ ...prev, [`${tab}||${section}`]: data }))
       setAllUpdatedAt((prev) => ({ ...prev, [`${tab}||${section}`]: now }))
 
-      const subjectLabel = tab === 'Family' ? 'family' : `${tab}'s`
+      const subjectLabel = tab === 'Family' ? 'family' : `${firstName(tab)}'s`
       const sectionLabel = SECTION_LABELS[section] ?? section
       trackActivity(`Updated ${subjectLabel} ${sectionLabel}`)
 
@@ -185,7 +186,7 @@ export default function InfoBankPage() {
           className="w-full appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-canopy-green pr-10"
         >
           {children.map((c) => (
-            <option key={c.name} value={c.name}>{c.name}</option>
+            <option key={c.name} value={c.name}>{firstName(c.name)}</option>
           ))}
           {pets.map((p) => (
             <option key={p.name} value={p.name}>🐾 {p.name}</option>

@@ -3,6 +3,7 @@ import { format, addDays, parseISO, isToday, isTomorrow } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { formatDate } from '../../lib/scheduleEngine'
+import { firstName } from '../../lib/childUtils'
 
 function labelDate(dateStr) {
   const d = parseISO(dateStr)
@@ -58,15 +59,15 @@ export default function ChildrenEventsPanel() {
         const childEvents = events.filter((ev) => ev.tagged_children?.includes(child.name))
         return (
           <div key={child.name}>
-            <h2 className="text-sm font-bold text-gray-900 mb-2 px-1">{child.name}</h2>
+            <h2 className="text-sm font-bold text-gray-900 mb-2 px-1">{firstName(child.name)}</h2>
             {childEvents.length === 0 ? (
               <p className="text-xs text-gray-400 px-1">No tagged events in the next 30 days.</p>
             ) : (
               <div className="space-y-2">
                 {childEvents.map((ev) => (
                   <div key={ev.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex gap-3 items-start">
-                    <div className="shrink-0 text-center w-12">
-                      <p className="text-[10px] font-semibold text-canopy-mid uppercase">{labelDate(ev.event_date)}</p>
+                    <div className="shrink-0 text-center w-14">
+                      <p className="text-[10px] font-semibold text-canopy-mid uppercase break-words">{labelDate(ev.event_date)}</p>
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900">{ev.title}</p>
