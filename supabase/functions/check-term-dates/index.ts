@@ -834,11 +834,16 @@ async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> 
       let locs = extractLocs(xml)
       console.log(`Sitemap ${path}: ${locs.length} URLs`)
 
-      // If it's a sitemap index, fetch child sitemaps and accumulate page URLs
+      // If it's a sitemap index, fetch child sitemaps and accumulate page URLs.
+      // Cap at 20, not 5 — school sites organised into many category sitemaps
+      // (e.g. a WordPress site split into junior/senior/international/about/community
+      // sitemaps) can easily have the relevant one past the first 5 (Diocesan School
+      // for Girls, NZ: term-dates lives in the 10th of 12 child sitemaps, "about-sitemap.xml").
+      // Each fetch has its own 5s timeout and they run in parallel, so this is cheap.
       if (xml.includes('<sitemapindex')) {
         const childSitemaps = locs.filter(u => u.endsWith('.xml'))
         const childResults = await Promise.all(
-          childSitemaps.slice(0, 5).map(async (childUrl) => {
+          childSitemaps.slice(0, 20).map(async (childUrl) => {
             try {
               const cr = await fetch(childUrl, { signal: AbortSignal.timeout(5000), redirect: 'follow' })
               return cr.ok ? extractLocs(await cr.text()) : []
@@ -873,7 +878,7 @@ async function fetchSitemapTermDatesUrl(origin: string): Promise<string | null> 
 // Decodes &amp; HTML entities in href attributes.
 function extractDocLinksFromHtml(html: string, pageUrl: string): string[] {
   const origin = (() => { try { return new URL(pageUrl).origin } catch { return '' } })()
-  const matches = [...html.matchAll(/href="([^"]*(?:\.pdf|type=pdf|amp;type=pdf|\.docx?)[^"]*)"/gi)]
+  const matches = [...html.matchAll(/href="([^"]*(?:\.pdf|type=pdf|amp;type=pdf|\.docx?|drive\.google\.com\/file\/d\/[^"]+)[^"]*)"/gi)]
   return [...new Set(matches.map(m => {
     const href = m[1].replace(/&amp;/g, '&')
     return href.startsWith('http') ? href : `${origin}${href.startsWith('/') ? '' : '/'}${href}`
@@ -1009,15 +1014,25 @@ ${content.slice(0, 15000)}`,
   }
 }
 
+// Some schools host their calendar as a Google Drive share link rather than a PDF
+// on their own domain (e.g. Mount Scopus Memorial College, AU: drive.google.com/file/d/{id}/view).
+// The /view URL serves an HTML preview shell, not the file bytes — convert to the
+// direct-download form before fetching.
+function normalizeGoogleDriveUrl(url: string): string {
+  const m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)
+  return m ? `https://drive.google.com/uc?export=download&id=${m[1]}` : url
+}
+
 function isPdfUrl(url: string): boolean {
   const u = url.toLowerCase()
-  return u.endsWith('.pdf') || u.includes('.pdf?') || u.includes('type=pdf')
+  return u.endsWith('.pdf') || u.includes('.pdf?') || u.includes('type=pdf') || /drive\.google\.com\/file\/d\//.test(u)
 }
 
 // Fetch a PDF's raw bytes and base64-encode for Claude's document API.
 // Claude's PDF support handles scanned/image pages via vision — this replaces the
 // old Jina-text-extraction path, which returned nothing for image-only PDFs.
 async function fetchPdfBase64(url: string): Promise<string | null> {
+  url = normalizeGoogleDriveUrl(url)
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Canopy/1.0; +https://canopy.app)' },

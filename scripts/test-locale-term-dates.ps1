@@ -1,12 +1,12 @@
 # test-locale-term-dates.ps1
-# Fetches real school URLs from AU, IE, and US education directories
+# Fetches real school URLs from AU, IE, US, and NZ education directories/seed lists
 # then invokes the check-term-dates edge function to test locale-aware scraping.
 #
 # Usage:
 #   .\scripts\test-locale-term-dates.ps1 -WebhookToken "YOUR_TOKEN"
 #   .\scripts\test-locale-term-dates.ps1 -WebhookToken "YOUR_TOKEN" -Market AU -Count 50
 #
-# Markets: AU, IE, US, ALL (default)
+# Markets: AU, IE, US, NZ, ALL (default)
 
 param(
     [Parameter(Mandatory=$true)] [string]$WebhookToken,
@@ -95,47 +95,46 @@ $IE_SEEDS = @(
     'https://www.clongowes.net',               # Clongowes Wood College SJ
     'https://www.terenurecollege.ie',          # Terenure College
     'https://www.rockwellcollege.ie',          # Rockwell College, Tipperary
-
-    # Educated guesses — well-known Irish schools
-    'https://www.belvedere-college.ie',        # Belvedere College SJ
     'https://www.alexandracollege.ie',         # Alexandra College
-    'https://www.loreto.ie',                   # Loreto schools
-    'https://www.sanctamaria.ie',              # Santa Maria College
-    'https://www.dominicancollegegalway.ie',   # Dominican College Galway
+    'https://www.colaisteiognaid.ie',          # Colaiste Iognaid, Galway
     'https://www.stgerards.ie',                # St Gerard's School, Bray
-    'https://www.sjcs.ie',                     # St Joseph's CBS
     'https://www.rathdownschool.ie',           # Rathdown School
     'https://www.cbscarlow.ie',                # CBS Carlow
-    'https://www.sionhill.ie',                 # Sion Hill School
-    'https://www.colaisteiognaid.ie',          # Colaiste Iognaid, Galway
-    'https://www.preschool.ie',                # Probably not a school, skip
-    'https://www.smgs.ie',                     # Scoil Mhuire Gan Smal
-    'https://www.colaistebride.ie',            # Colaiste Bride
-    'https://www.stmaryscollege.ie',           # St Mary's College
-    'https://www.pbc.ie',                      # Presentation Brothers College Cork
-    'https://www.corkgrammar.ie',              # Christian Brothers College, Cork
-    'https://www.colaistecriost.ie',           # Colaiste Criost Ri, Cork
-    'https://www.dlscork.ie',                  # De La Salle College, Cork
-    'https://www.scoildaibheid.ie',            # Scoil Dabhog Naofa
-    'https://www.colaistechiarain.ie',         # Colaiste Chiaran
-    'https://www.vpcollege.ie',                # VP College
-    'https://www.ardscoileigecrua.ie',         # Ardscoil Eige Crua
-    'https://www.stvincentss.ie',              # St Vincent's Secondary School
-    'https://www.colaistecholmcille.ie',       # Colaiste Cholmcille
-    'https://www.stmarysdundalk.ie',           # St Mary's College Dundalk
-    'https://www.stpatrickscollege.ie',        # St Patrick's College
-    'https://www.northwickcs.ie',              # Northwick Community School
-    'https://www.gormanstoncollege.ie',        # Gormanston College
-    'https://www.villiers.ie',                 # Villiers School, Limerick
-    'https://www.laurelhill.ie',               # Laurel Hill Colaiste FCJ
-    'https://www.cistercian-college.ie',       # Cistercian College Roscrea
-    'https://www.hazelwoodcollege.ie',         # Hazelwood College, Limerick
-    'https://www.colaistechriost.ie',          # Colaiste Chriost Ri
-    'https://www.preswicklow.ie',              # Presentation College Wicklow
-    'https://www.castleknockcollege.ie',       # Castleknock College
-    'https://www.millstreetcs.ie',             # Millstreet Community School
-    'https://www.irishstudies.ie',             # Probably not a school
-    'https://www.stvincentsus.ie'              # St Vincent's Secondary School
+
+    # Verified 2026-07-05 via web search (replacing dead/guessed domains removed the
+    # same day — see [[au_term_dates_work]]: 23/26 of the previous list's
+    # "homepage_fetch_failed" schools turned out to be non-resolving DNS, not actual
+    # site-blocking. Some of these are legitimately .com/.net, not .ie — the IE test
+    # invocation below now passes -Locale "en-IE" explicitly so TLD detection doesn't
+    # matter.)
+    'https://www.blackrockcollege.com',        # Blackrock College, Dublin
+    'https://www.stmc.ie',                     # St Michael's College, Dublin
+    'https://www.pbc-cork.ie',                 # Presentation Brothers College, Cork
+    'https://www.wesleycollege.ie',            # Wesley College, Dublin
+    'https://www.crescentsj.com',              # Crescent College Comprehensive SJ, Limerick
+    'https://www.ardscoil.com',                # Ard Scoil Rís, Limerick
+    'https://www.shswestport.ie',              # Sacred Heart School, Westport
+    'https://www.colaistechoilm.ie'            # Coláiste Choilm, Cork
+)
+
+$NZ_SEEDS = @(
+    # Verified 2026-07-05 via web search (data.govt.nz's own Schools Directory API is
+    # itself behind Imperva bot-protection from this environment, so dynamic discovery
+    # isn't attempted for NZ -- straight to a manually verified seed list, same as the
+    # IE/AU fallback lists)
+    'https://www.ags.school.nz',                 # Auckland Grammar School
+    'https://www.cbhs.school.nz',                # Christchurch Boys' High School
+    'https://www.wellington-college.school.nz',  # Wellington College
+    'https://stcuthberts.school.nz',              # St Cuthbert's College, Epsom
+    'https://www.rangitoto.school.nz',           # Rangitoto College, Auckland
+    'https://www.hbhs.school.nz',                # Hamilton Boys' High School
+    'https://www.scotscollege.school.nz',        # Scots College, Wellington
+    'https://www.stac.school.nz',                # St Andrew's College, Christchurch
+    'https://www.eggs.school.nz',                # Epsom Girls Grammar School
+    'https://www.diocesan.school.nz',            # Diocesan School for Girls, Auckland
+    'https://www.macleans.school.nz',            # Macleans College, Auckland
+    'https://www.otagogirls.school.nz',          # Otago Girls' High School, Dunedin
+    'https://lphs.school.nz'                     # Logan Park High School, Dunedin
 )
 
 $US_SEEDS = @(
@@ -285,6 +284,18 @@ function Get-IrishSchoolUrls([int]$Count = 10) {
     return $urls
 }
 
+function Get-NZSchoolUrls([int]$Count = 10) {
+    Write-Host ""
+    Write-Host "[NZ] Using verified seed list (data.govt.nz Schools Directory API is bot-blocked from here)..." -ForegroundColor Cyan
+    $urls = @()
+    foreach ($u in $NZ_SEEDS) {
+        if ($urls.Count -ge $Count) { break }
+        Write-Host "  Seed: $u" -ForegroundColor Yellow
+        $urls += $u
+    }
+    return $urls
+}
+
 function Get-USSchoolUrls([int]$Count = 10) {
     Write-Host ""
     Write-Host "[US] Discovering school URLs via Urban Institute API..." -ForegroundColor Cyan
@@ -376,7 +387,7 @@ function Invoke-TermDatesTest([string]$Market, [string[]]$Urls, [string]$Locale 
 # Main
 # -----------------------------------------------------------------------
 
-$markets = if ($Market -eq "ALL") { @("AU","IE","US") } else { @($Market.ToUpper()) }
+$markets = if ($Market -eq "ALL") { @("AU","IE","US","NZ") } else { @($Market.ToUpper()) }
 
 foreach ($m in $markets) {
     if ($m -eq "AU") {
@@ -386,13 +397,18 @@ foreach ($m in $markets) {
     }
     if ($m -eq "IE") {
         $schoolUrls = Get-IrishSchoolUrls -Count $Count
-        Invoke-TermDatesTest -Market "IE" -Urls $schoolUrls
-        # locale inferred from .ie TLD
+        Invoke-TermDatesTest -Market "IE" -Urls $schoolUrls -Locale "en-IE"
+        # locale passed explicitly -- some verified seeds are .com/.net domains, not .ie
     }
     if ($m -eq "US") {
         $schoolUrls = Get-USSchoolUrls -Count $Count
         Invoke-TermDatesTest -Market "US" -Urls $schoolUrls -Locale "en-US"
         # .com/.org TLDs are ambiguous -- locale passed explicitly
+    }
+    if ($m -eq "NZ") {
+        $schoolUrls = Get-NZSchoolUrls -Count $Count
+        Invoke-TermDatesTest -Market "NZ" -Urls $schoolUrls
+        # locale inferred from .school.nz / .ac.nz / .govt.nz TLD
     }
 }
 
