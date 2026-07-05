@@ -215,13 +215,22 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     const ageMs   = cached?.last_fetched_at
       ? Date.now() - new Date(cached.last_fetched_at).getTime()
       : Infinity
-    // Also re-scrape if the cache exists but has no dates (previous scrape failed silently).
+    // Also re-scrape if the cache exists but has no dates (previous scrape failed silently),
+    // has suspiciously few (a full year has ~5+ events at minimum), or has no Christmas/New
+    // Year coverage at all (every English-speaking school has time off somewhere in that
+    // window — its total absence means an earlier scrape missed a whole term boundary).
+    // Without this, a school cached with a thin or incomplete result from before
+    // scrapeTermDates() had this plausibility check would sit that way forever until the
+    // 60-day staleness window passed, even after the extraction logic improved.
     // 60 days rather than 30: term dates are typically published a year ahead and rarely
     // change, and any sync (manual or cron) that actually scrapes a school resets
     // last_fetched_at, so a family syncing recently naturally skips the next cron pass.
-    const isStale = ageMs > 60 * 24 * 60 * 60 * 1000 || !((cached as any)?.term_dates?.length)
+    const cachedDates = (cached as any)?.term_dates ?? []
+    const isStale = ageMs > 60 * 24 * 60 * 60 * 1000
+      || cachedDates.length < 5
+      || !hasChristmasCoverage(cachedDates)
 
-    let termDates: any[] = (cached as any)?.term_dates ?? []
+    let termDates: any[] = cachedDates
     let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
 
     if (!cached || isStale || forceRefresh) {
@@ -302,6 +311,27 @@ async function postTermDatesNotice(familyId: string, addedCount: number, schoolN
 }
 
 // ── Two-hop scrape ────────────────────────────────────────────────────────────
+
+// Every school in an English-speaking locale has time off around Christmas/New Year —
+// a Northern-hemisphere winter holiday (UK/US/IE) or the Southern-hemisphere summer
+// holiday spanning the same window (AU/NZ). If none of a scrape's events overlap this
+// window at all, that's a strong, locale-independent signal the scrape is incomplete
+// (missed a whole term boundary), regardless of how many dates were otherwise found.
+function overlapsChristmasWindow(dateStr: string, endDateStr: string | null): boolean {
+  const start = new Date(`${dateStr}T00:00:00Z`)
+  const end   = new Date(`${endDateStr ?? dateStr}T00:00:00Z`)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return false
+  for (const y of new Set([start.getUTCFullYear(), end.getUTCFullYear()])) {
+    const winStart = new Date(Date.UTC(y, 11, 15))     // 15 Dec, year y
+    const winEnd   = new Date(Date.UTC(y + 1, 0, 10))  // 10 Jan, year y+1
+    if (start <= winEnd && end >= winStart) return true
+  }
+  return false
+}
+
+function hasChristmasCoverage(termDates: any[]): boolean {
+  return termDates.some((e: any) => overlapsChristmasWindow(e.date, e.end_date ?? null))
+}
 
 async function scrapeTermDates(homepageUrl: string, existingHash: string | null, locale: string) {
   const urlObj  = new URL(homepageUrl)
@@ -392,6 +422,19 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
   let claudeFallbacksAdded = false
   let lastContentPreview = ''
 
+  // A real academic year's calendar has at minimum ~5 events (Christmas/Easter/Summer
+  // holidays plus at least one INSET/PD day), and always includes Christmas/New Year
+  // coverage somewhere (Northern-hemisphere winter break or Southern-hemisphere summer
+  // break — both span this window). A candidate failing either check is suspicious (a
+  // partial page, a wrong sub-section, or a document only covering part of the year)
+  // rather than a genuinely thin calendar. Rather than accepting the first non-empty
+  // result outright, keep searching remaining candidates/fallbacks for something more
+  // complete, but remember the best result seen as a safety net — a few real dates
+  // beats none if nothing better turns up.
+  const MIN_PLAUSIBLE_DATES = 5
+  const isPlausible = (dates: any[]) => dates.length >= MIN_PLAUSIBLE_DATES && hasChristmasCoverage(dates)
+  let bestResult: { termDatesUrl: string, termDates: any[], contentHash: string, schoolName: string | null } | null = null
+
   for (const candidateUrl of candidates) {
     console.log(`Trying candidate: ${candidateUrl}`)
     triedUrls.push(candidateUrl)
@@ -414,8 +457,14 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       termDates = deduplicateOverlapping(termDates)
       console.log(`Total events for KB from PDF ${candidateUrl}: ${termDates.length}`)
 
-      if (termDates.length > 0) {
+      if (isPlausible(termDates)) {
         return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName }
+      }
+      if (termDates.length > 0) {
+        console.log(`${termDates.length} date(s) from PDF ${candidateUrl} but ${termDates.length < MIN_PLAUSIBLE_DATES ? 'too few' : 'no Christmas/New Year coverage'} — suspicious, keeping as fallback and trying to find more…`)
+        if (!bestResult || termDates.length > bestResult.termDates.length) {
+          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName }
+        }
       }
       console.log(`No dates from PDF ${candidateUrl} — trying next candidate…`)
       continue
@@ -486,8 +535,14 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       termDates = deduplicateOverlapping(termDates)
       console.log(`Total events for KB from ${candidateUrl}: ${termDates.length}`)
 
-      if (termDates.length > 0) {
+      if (isPlausible(termDates)) {
         return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName }
+      }
+      if (termDates.length > 0) {
+        console.log(`${termDates.length} date(s) from ${candidateUrl} but ${termDates.length < MIN_PLAUSIBLE_DATES ? 'too few' : 'no Christmas/New Year coverage'} — suspicious, keeping as fallback and trying to find more…`)
+        if (!bestResult || termDates.length > bestResult.termDates.length) {
+          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName }
+        }
       }
 
       console.log(`No dates from ${candidateUrl} — trying next candidate…`)
@@ -523,6 +578,14 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
         }
       }
     }
+  }
+
+  // Every candidate and fallback is exhausted. If nothing hit the plausible-count bar but
+  // an earlier candidate did find a handful of real dates, that's still strictly better than
+  // returning nothing — accept it, low as it is.
+  if (bestResult) {
+    console.log(`No candidate reached ${MIN_PLAUSIBLE_DATES} dates — accepting best available result: ${bestResult.termDates.length} date(s) from ${bestResult.termDatesUrl}`)
+    return bestResult
   }
 
   return {
