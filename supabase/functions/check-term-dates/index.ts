@@ -105,7 +105,11 @@ Deno.serve(async (req) => {
     const { homepage_url, term_dates_url } = body.manual_scrape as { homepage_url: string; term_dates_url: string }
     const manualLocale = getLocaleFromUrl(homepage_url) ?? 'en-GB'
     console.log(`Manual scrape: ${homepage_url} → ${term_dates_url} (locale: ${manualLocale})`)
-    const scraped = await scrapeTermDates(term_dates_url, null)
+    // manualLocale was computed above but never actually passed here — scrapeTermDates()
+    // was silently always using its en-GB fallback (getLocaleConfig() falls back when
+    // locale is undefined) regardless of the school's real locale. Fixed alongside adding
+    // low_confidence below since both touch this same call.
+    const scraped = await scrapeTermDates(term_dates_url, null, manualLocale)
     if (scraped.error) {
       if ((scraped as any).diagnostic) {
         await storeDiagnostic(homepage_url, scraped.error, (scraped as any).diagnostic, manualLocale)
@@ -122,11 +126,12 @@ Deno.serve(async (req) => {
       content_hash:     scraped.contentHash,
       last_fetched_at:  new Date().toISOString(),
       locale:           manualLocale,
+      low_confidence:   (scraped as any).lowConfidence ?? false,
       scrape_error:     null,
       scrape_error_at:  null,
       scrape_diagnosis: null,
     }, { onConflict: 'homepage_url' })
-    return new Response(JSON.stringify({ ok: true, termDatesCount: scraped.termDates?.length, schoolName: scraped.schoolName }), {
+    return new Response(JSON.stringify({ ok: true, termDatesCount: scraped.termDates?.length, schoolName: scraped.schoolName, lowConfidence: (scraped as any).lowConfidence ?? false }), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
     })
   }
@@ -232,6 +237,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
     let termDates: any[] = cachedDates
     let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
+    let resolvedLowConfidence: boolean = (cached as any)?.low_confidence ?? false
 
     if (!cached || isStale || forceRefresh) {
       const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
@@ -254,6 +260,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       if (scraped.termDates?.length) {
         termDates = scraped.termDates
         if (scraped.schoolName) resolvedSchoolName = scraped.schoolName
+        resolvedLowConfidence = (scraped as any).lowConfidence ?? false
         // Use resolvedSchoolName (falls back to the cached name), not the raw scraped.schoolName —
         // extract-school-info already reliably captures school_name from the actual homepage when a
         // parent adds the school in Info Bank, upserting it into this same row keyed by homepage_url.
@@ -267,6 +274,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
           content_hash:     scraped.contentHash,
           last_fetched_at:  new Date().toISOString(),
           locale,
+          low_confidence:   resolvedLowConfidence,
           scrape_error:     null,
           scrape_error_at:  null,
           scrape_diagnosis: null,
@@ -286,7 +294,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       totalAdded += added
     }
 
-    return { status: 'ok', eventsAdded: totalAdded, totalDates: termDates.length }
+    return { status: 'ok', eventsAdded: totalAdded, totalDates: termDates.length, lowConfidence: resolvedLowConfidence }
   } catch (e: any) {
     console.error('processSchool error:', e)
     return { status: 'error', error: e.message }
@@ -433,7 +441,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
   // beats none if nothing better turns up.
   const MIN_PLAUSIBLE_DATES = 5
   const isPlausible = (dates: any[]) => dates.length >= MIN_PLAUSIBLE_DATES && hasChristmasCoverage(dates)
-  let bestResult: { termDatesUrl: string, termDates: any[], contentHash: string, schoolName: string | null } | null = null
+  let bestResult: { termDatesUrl: string, termDates: any[], contentHash: string, schoolName: string | null, lowConfidence: boolean } | null = null
 
   for (const candidateUrl of candidates) {
     console.log(`Trying candidate: ${candidateUrl}`)
@@ -458,12 +466,12 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       console.log(`Total events for KB from PDF ${candidateUrl}: ${termDates.length}`)
 
       if (isPlausible(termDates)) {
-        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName }
+        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName, lowConfidence: false }
       }
       if (termDates.length > 0) {
         console.log(`${termDates.length} date(s) from PDF ${candidateUrl} but ${termDates.length < MIN_PLAUSIBLE_DATES ? 'too few' : 'no Christmas/New Year coverage'} — suspicious, keeping as fallback and trying to find more…`)
         if (!bestResult || termDates.length > bestResult.termDates.length) {
-          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName }
+          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName: pdfResult.schoolName, lowConfidence: true }
         }
       }
       console.log(`No dates from PDF ${candidateUrl} — trying next candidate…`)
@@ -536,12 +544,12 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
       console.log(`Total events for KB from ${candidateUrl}: ${termDates.length}`)
 
       if (isPlausible(termDates)) {
-        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName }
+        return { termDatesUrl: candidateUrl, termDates, contentHash, schoolName, lowConfidence: false }
       }
       if (termDates.length > 0) {
         console.log(`${termDates.length} date(s) from ${candidateUrl} but ${termDates.length < MIN_PLAUSIBLE_DATES ? 'too few' : 'no Christmas/New Year coverage'} — suspicious, keeping as fallback and trying to find more…`)
         if (!bestResult || termDates.length > bestResult.termDates.length) {
-          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName }
+          bestResult = { termDatesUrl: candidateUrl, termDates, contentHash, schoolName, lowConfidence: true }
         }
       }
 

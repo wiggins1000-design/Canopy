@@ -286,7 +286,12 @@ export default function TermDatesSection({ onNewDates }) {
     }
 
     const failures = results.filter(r => r.status === 'error' || r.status === 'no_dates')
-    const scraped  = results.filter(r => r.status === 'ok')
+    // "Succeeded" but implausibly thin (fewer than 5 dates, or missing Christmas/New Year
+    // coverage) — the backend already searched harder and this is the best it could find,
+    // so it's worth the same "please check/add manually" treatment as an outright failure
+    // rather than being shown as a plain success.
+    const thin      = results.filter(r => r.status === 'ok' && r.lowConfidence)
+    const scraped   = results.filter(r => r.status === 'ok' && !r.lowConfidence)
 
     // Reload KB data so the panel shows updated counts; the edge function
     // already applied filtered events to the calendar — no KB import needed here.
@@ -313,21 +318,25 @@ export default function TermDatesSection({ onNewDates }) {
       if (r.status === 'error' || r.status === 'no_dates') {
         return `${name}: Couldn't read dates — add via photos or manually below`
       }
+      if (r.lowConfidence) {
+        return `${name}: Only found ${r.totalDates} date${r.totalDates !== 1 ? 's' : ''} — this may be incomplete. Check the school's website or add missing dates below.`
+      }
       return r.eventsAdded > 0
         ? `${name}: ${r.eventsAdded} new date${r.eventsAdded !== 1 ? 's' : ''} added`
         : `${name}: Calendar up to date`
     })
 
-    setKbMsg({ type: failures.length ? 'error' : 'info', msg: lines.join('\n') })
+    setKbMsg({ type: (failures.length || thin.length) ? 'error' : 'info', msg: lines.join('\n') })
 
-    // If any schools failed, open the photos panel pre-set to the first failed school
-    if (failures.length) {
-      const failedNames = failures.map(r => resolveName(r.homepageUrl))
-      setFailedSchoolNames(failedNames)
+    // If any schools failed or came back suspiciously thin, open the photos panel
+    // pre-set to the first one needing attention.
+    if (failures.length || thin.length) {
+      const needsAttentionNames = [...failures, ...thin].map(r => resolveName(r.homepageUrl))
+      setFailedSchoolNames(needsAttentionNames)
       setShowAddOptions(true)
-      setPhotoSchool(failedNames[0])
-      setManualSchool(failedNames[0])
-      setIAddSchool(failedNames[0])
+      setPhotoSchool(needsAttentionNames[0])
+      setManualSchool(needsAttentionNames[0])
+      setIAddSchool(needsAttentionNames[0])
       setOpenPanel('photos')
     } else {
       setFailedSchoolNames([])

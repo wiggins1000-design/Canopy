@@ -43,6 +43,7 @@ export default function AdminTermDatesPage() {
   const failed  = visible.filter(s => s.scrape_error)
   const ok      = visible.filter(s => !s.scrape_error && s.last_fetched_at)
   const pending = visible.filter(s => !s.scrape_error && !s.last_fetched_at)
+  const thin    = ok.filter(s => s.low_confidence)
 
   const countsByLocale = LOCALES.slice(1).reduce((acc, l) => {
     acc[l.code] = schools.filter(s => (s.locale ?? 'en-GB') === l.code).length
@@ -89,9 +90,10 @@ export default function AdminTermDatesPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <StatCard label={q || locale !== 'all' ? 'Matching' : 'Total schools'} value={loading ? null : visible.length} />
         <StatCard label="Synced OK"     value={loading ? null : ok.length}      colour="green" />
+        <StatCard label="Low confidence" value={loading ? null : thin.length}   colour="amber" />
         <StatCard label="Failed"        value={loading ? null : failed.length}   colour="red" />
       </div>
 
@@ -169,7 +171,17 @@ export default function AdminTermDatesPage() {
                           </a>
                         ) : <span className="text-slate-600 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-300 tabular-nums">{school.term_dates_count}</td>
+                      <td className="px-4 py-3 text-slate-300 tabular-nums">
+                        {school.term_dates_count}
+                        {school.low_confidence && (
+                          <span
+                            title="Fewer than 5 dates or no Christmas/New Year coverage found — likely incomplete"
+                            className="ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-900/50 text-amber-400"
+                          >
+                            low confidence
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                         {school.last_fetched_at
                           ? formatDistanceToNow(new Date(school.last_fetched_at), { addSuffix: true })
@@ -432,6 +444,7 @@ function StatCard({ label, value, colour }) {
   const colours = {
     green: 'text-green-400',
     red:   'text-red-400',
+    amber: 'text-amber-400',
   }
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4">
