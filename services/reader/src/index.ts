@@ -120,8 +120,14 @@ async function fetchHtml(url: string): Promise<string> {
 
     await page.goto(url, { waitUntil: 'load', timeout: 20000 })
 
-    // Wait for JS-rendered content and allow Cloudflare challenges to resolve
-    await page.evaluate(() => new Promise(r => setTimeout(r, 3000)))
+    // Wait for JS-rendered content and allow Cloudflare challenges to resolve.
+    // Raised from 3000ms 2026-07-05: several UK school sites (SPA-style CMSes —
+    // e.g. Webster Primary, Netherseal St Peter's — served near-empty content
+    // through this path and fell back to Jina/direct fetch, which returns the
+    // pre-hydration HTML shell with no readable dates at all. Untested against
+    // those specific sites (no local access to this service to verify in isolation)
+    // but safe either way — only adds latency, doesn't change what's extracted.
+    await page.evaluate(() => new Promise(r => setTimeout(r, 5000)))
 
     const text = await page.evaluate(() => {
       // Remove boilerplate that adds noise for LLMs
