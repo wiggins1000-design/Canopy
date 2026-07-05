@@ -44,19 +44,15 @@ $AU_SEEDS = @(
     'https://www.elthamcollege.vic.edu.au',    # Eltham College
     'https://www.carey.com.au',                # Carey Baptist Grammar School
 
-    # VIC educated guesses (likely .vic.edu.au domains)
+    # VIC — remaining guesses (schools whose real domain wasn't independently verified)
     'https://www.assumption.vic.edu.au',       # Assumption College
     'https://www.salesian.vic.edu.au',         # Salesian College Chadstone
-    'https://www.smc.vic.edu.au',              # Star of the Sea College
     'https://www.stmarys.vic.edu.au',          # St Mary's College
     'https://www.scc.vic.edu.au',              # Strathcona Baptist Girls' Grammar
-    'https://www.ivanhoe.vic.edu.au',          # Ivanhoe Grammar School
-    'https://www.taylors.vic.edu.au',          # Taylors Lakes Secondary College
     'https://www.sths.vic.edu.au',             # South Oakleigh College / Sunny Heights
 
-    # QLD government (.eq.edu.au)
+    # QLD government (.eq.edu.au) — remaining guesses
     'https://www.brisbaneshs.eq.edu.au',       # Brisbane State High School
-    'https://www.kelvingrove.eq.edu.au',       # Kelvin Grove State College
     'https://www.fernygrove.eq.edu.au',        # Ferny Grove State High School
     'https://www.indooroopillyss.eq.edu.au',   # Indooroopilly State School
     'https://www.parmia.eq.edu.au',            # Parramatta State School (QLD)
@@ -64,23 +60,31 @@ $AU_SEEDS = @(
     'https://www.ambrose.eq.edu.au',           # St Ambrose's Primary (QLD)
     'https://www.aldersyde.eq.edu.au',         # Aldersyde State School
 
-    # NSW
+    # NSW — remaining guesses
     'https://www.newington.nsw.edu.au',        # Newington College
     'https://www.abbotsleigh.nsw.edu.au',      # Abbotsleigh
     'https://www.hillsgrammar.nsw.edu.au',     # Hills Grammar School
     'https://www.knox.nsw.edu.au',             # Knox Grammar School
-    'https://www.tgs.nsw.edu.au',              # Trinity Grammar School, Summer Hill
     'https://www.shore.nsw.edu.au',            # Sydney Church of England Grammar
     'https://www.barker.nsw.edu.au',           # Barker College
-    'https://www.pems.nsw.edu.au',             # Pymble Ladies' College
     'https://www.kambala.nsw.edu.au',          # Kambala
     'https://www.sceggs.nsw.edu.au',           # SCEGGS Darlinghurst
     'https://www.queenwood.nsw.edu.au',        # Queenwood School for Girls
     'https://www.tara.nsw.edu.au',             # Tara Anglican School for Girls
-    'https://www.sac.nsw.edu.au',              # Santa Sabina College
     'https://www.ravenswood.nsw.edu.au',       # Ravenswood School for Girls
-    'https://www.domremy.nsw.edu.au',          # Domremy College
-    'https://www.sbhs.nsw.edu.au'              # Sydney Boys High School (government)
+    'https://www.sbhs.nsw.edu.au',              # Sydney Boys High School (government)
+
+    # Verified 2026-07-05 via web search — these replace guessed domains that turned out
+    # to be dead (never resolved, not a school that went offline). Same finding as IE:
+    # most "site blocking" in the original guessed list was actually wrong domains.
+    'https://www.ivanhoe.com.au',               # Ivanhoe Grammar School (was ivanhoe.vic.edu.au)
+    'https://www.ssc.nsw.edu.au',               # Santa Sabina College (was sac.nsw.edu.au)
+    'https://www.tlsc.vic.edu.au',              # Taylors Lakes Secondary College (was taylors.vic.edu.au)
+    'https://kelvingrovesc.eq.edu.au',          # Kelvin Grove State College (was kelvingrove.eq.edu.au)
+    'https://www.pymblelc.nsw.edu.au',          # Pymble Ladies' College (was pems.nsw.edu.au)
+    'https://www.trinity.nsw.edu.au',           # Trinity Grammar School, Summer Hill (was tgs.nsw.edu.au)
+    'https://starmelb.catholic.edu.au',         # Star of the Sea College (was smc.vic.edu.au)
+    'https://www.domremy.catholic.edu.au'       # Domremy College (was domremy.nsw.edu.au; site blocks — kept for reference)
 )
 
 $IE_SEEDS = @(
@@ -114,7 +118,8 @@ $IE_SEEDS = @(
     'https://www.crescentsj.com',              # Crescent College Comprehensive SJ, Limerick
     'https://www.ardscoil.com',                # Ard Scoil Rís, Limerick
     'https://www.shswestport.ie',              # Sacred Heart School, Westport
-    'https://www.colaistechoilm.ie'            # Coláiste Choilm, Cork
+    'https://www.colaistechoilm.ie',           # Coláiste Choilm, Cork
+    'https://belvederecollege.ie'               # Belvedere College SJ, Dublin — verified 2026-07-05, was belvedere-college.ie (dead, missing hyphen)
 )
 
 $NZ_SEEDS = @(
@@ -150,7 +155,7 @@ $US_SEEDS = @(
     'https://www.houstonisd.org',              # Houston ISD
     'https://www.saisd.net',                   # San Antonio ISD
     'https://www.cfisd.net',                   # Cypress-Fairbanks ISD
-    'https://www.aldine.k12.tx.us',            # Aldine ISD
+    'https://www.aldineisd.org',                # Aldine ISD — verified 2026-07-05, was aldine.k12.tx.us (dead)
     'https://www.nbisd.org',                   # New Braunfels ISD
     'https://www.wylieisd.net',                # Wylie ISD
     'https://www.lisd.net',                    # Lewisville ISD
@@ -174,7 +179,7 @@ $US_SEEDS = @(
     'https://www.bhusd.org',                   # Beverly Hills USD, CA
     'https://www.smmusd.org',                  # Santa Monica-Malibu USD, CA
     'https://www.conejousd.org',               # Conejo Valley USD, CA
-    'https://www.cosd.us',                     # Carlsbad USD, CA
+    'https://carlsbadusd.net',                  # Carlsbad USD, CA — verified 2026-07-05, was cosd.us (dead)
     'https://www.powayusd.com',                # Poway USD, CA
     'https://www.dmusd.org',                   # Del Mar USD, CA
     'https://www.svusd.org',                   # Saddleback Valley USD, CA
@@ -182,12 +187,12 @@ $US_SEEDS = @(
     'https://www.capousd.org',                 # Capistrano USD, CA
     'https://www.sausd.us',                    # Santa Ana USD, CA
     'https://www.aacps.org',                   # Anne Arundel County PS, MD
-    'https://www.mcpsmd.net',                  # Montgomery County PS, MD
+    'https://www.montgomeryschoolsmd.org',       # Montgomery County PS, MD — verified 2026-07-05, was mcpsmd.net (dead)
     'https://www.fcps.edu',                    # Fairfax County PS, VA
     'https://www.lcps.org',                    # Loudoun County PS, VA
     'https://www.pwcs.edu',                    # Prince William County PS, VA
-    'https://www.henrico.k12.va.us',           # Henrico County PS, VA
-    'https://www.chesterfield.k12.va.us',      # Chesterfield County PS, VA
+    'https://www.henricoschools.us',             # Henrico County PS, VA — verified 2026-07-05, was henrico.k12.va.us (dead)
+    'https://oneccps.org',                      # Chesterfield County PS, VA — verified 2026-07-05, was chesterfield.k12.va.us (dead)
     'https://www.rockingham.k12.va.us',        # Rockingham County PS, VA
     'https://www.jordandistrict.org',          # Jordan School District, UT
     'https://www.alpinedistrict.org'           # Alpine School District, UT
