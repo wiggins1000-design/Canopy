@@ -245,10 +245,15 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
       if (scraped.termDates?.length) {
         termDates = scraped.termDates
         if (scraped.schoolName) resolvedSchoolName = scraped.schoolName
+        // Use resolvedSchoolName (falls back to the cached name), not the raw scraped.schoolName —
+        // extract-school-info already reliably captures school_name from the actual homepage when a
+        // parent adds the school in Info Bank, upserting it into this same row keyed by homepage_url.
+        // The term-dates page/PDF Claude reads here often doesn't repeat the name at all, and writing
+        // scraped.schoolName directly was overwriting that already-good name with null on every sync.
         await supabase.from('school_calendars').upsert({
           homepage_url:     homepageUrl,
           term_dates_url:   scraped.termDatesUrl,
-          school_name:      scraped.schoolName,
+          school_name:      resolvedSchoolName,
           term_dates:       termDates,
           content_hash:     scraped.contentHash,
           last_fetched_at:  new Date().toISOString(),
@@ -931,6 +936,19 @@ function cleanForClaude(raw: string): string {
     .trim()
 }
 
+// The school name is almost always in the page <title> / Jina's "Title:" line, not repeated
+// inside the calendar/dates section itself — but findDatesSection() (below) discards everything
+// before the dates heading whenever the page is long enough, which throws the title away before
+// Claude ever sees it. Capture it separately from the untrimmed raw content so school_name doesn't
+// depend on whether the trim happens to keep it.
+function extractPageTitle(raw: string): string | null {
+  const jinaMatch = raw.match(/^Title:\s*(.+)$/m)
+  if (jinaMatch) return jinaMatch[1].trim()
+  const htmlMatch = raw.match(/<title[^>]*>([^<]+)<\/title>/i)
+  if (htmlMatch) return htmlMatch[1].trim()
+  return null
+}
+
 // When HTML is fetched (vs Jina markdown), navigation menus produce a long preamble before the
 // actual dates section. Find where the term dates content begins and discard everything before it.
 function findDatesSection(content: string, locale: string): string {
@@ -965,6 +983,7 @@ function stripUrls(content: string, locale: string): string {
 }
 
 async function extractTermDates(rawContent: string, locale: string): Promise<{ termDates: any[], schoolName: string | null }> {
+  const pageTitle = extractPageTitle(rawContent)
   const cleaned = cleanForClaude(rawContent)
   const stripped = stripUrls(cleaned, locale)
   const content = findDatesSection(stripped, locale)
@@ -994,7 +1013,11 @@ Additional rules:
 - Include ALL dates shown — past, present and future
 - For multi-day periods always set end_date
 - Use the academic year context to infer the year for any dates missing it
-
+- The page title below is the most reliable source for school_name — the calendar content
+  itself often doesn't repeat the school's name at all. Parse the real school name out of it
+  (strip generic suffixes like "Term Dates", "School Life", "Key Dates" etc.) if the content
+  doesn't state it more clearly itself.
+${pageTitle ? `\nPage title: ${pageTitle}\n` : ''}
 Content:
 ${content.slice(0, 15000)}`,
     4096
