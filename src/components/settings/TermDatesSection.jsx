@@ -275,6 +275,16 @@ export default function TermDatesSection({ onNewDates }) {
     }
 
     const results  = fnData?.results ?? []
+
+    // Backend already skips scraping entirely when there's no school saved in Info Bank
+    // for this family (empty results + this specific message) — surface that clearly
+    // instead of silently showing an empty message box.
+    if (results.length === 0 && fnData?.message === 'No school URLs configured') {
+      setKbMsg({ type: 'error', msg: 'No school added yet — add your child’s school in Info Bank → School, then try syncing again.' })
+      setKbRefreshing(false)
+      return
+    }
+
     const failures = results.filter(r => r.status === 'error' || r.status === 'no_dates')
     const scraped  = results.filter(r => r.status === 'ok')
 
