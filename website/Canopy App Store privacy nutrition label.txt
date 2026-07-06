@@ -1,0 +1,196 @@
+CANOPY — APP STORE PRIVACY NUTRITION LABEL (draft)
+Drafted 2026-07-06 from the live DB schema, edge functions, and src/ — not legal advice,
+same caveat as the Privacy Policy/Terms update (see legal_entity memory). Have this checked
+against whatever's actually shipping at submission time before you paste it into
+App Store Connect > App Privacy.
+
+Fill this in at: App Store Connect > [Canopy Family app] > App Privacy > Get Started
+
+============================================================
+TOP-LEVEL QUESTIONS
+============================================================
+
+Q: "Do you or your third-party partners collect data from this app?"
+A: YES
+
+Q: "Do you or your third-party partners use data collected from this app to track
+    users across apps and websites owned by other companies, or share it with a
+    data broker?"
+A: NO — no ad SDK, no analytics SDK, no data broker relationships. Every third
+   party used (Anthropic, Sentry, RevenueCat, Resend, Telnyx, Supabase) processes
+   data solely to deliver the feature the user invoked — none of them are used for
+   cross-app/cross-site advertising tracking. This means every data type below
+   gets "Used for Tracking: No".
+
+============================================================
+DATA TYPES TO DECLARE
+============================================================
+For each: Linked to the user's identity? (always Yes below — everything is tied
+to a family_id/user_id) | Used for Tracking? (always No, per above) | Purpose(s).
+
+--- CONTACT INFO ---
+
+Name
+  Collected: YES (display_name on family_members; child names in info_bank,
+  vault_documents.child_name, family_events.tagged_children)
+  Purpose: App Functionality
+
+Email Address
+  Collected: YES (auth email; member_additional_emails for FamilyFeed forwarding
+  addresses)
+  Purpose: App Functionality
+
+Phone Number
+  Collected: YES (family_members.phone_number — used for SMS 2FA and urgent
+  notices via Telnyx)
+  Purpose: App Functionality
+
+--- HEALTH & FITNESS ---
+
+Health
+  Collected: YES (info_bank medical section — allergies, conditions,
+  medications, entered by parents about their children)
+  Purpose: App Functionality
+  Note: Apple treats Health data strictly even when self-reported rather than
+  from HealthKit/a wearable. Declare it — don't skip because there's no HealthKit
+  integration.
+
+--- FINANCIAL INFO ---
+
+Other Financial Info
+  Collected: YES (expenses table — amounts, categories, receipts; childcare
+  bills/wages)
+  Purpose: App Functionality
+  Note: Do NOT declare "Payment Info" — Apple/StoreKit and RevenueCat handle the
+  actual subscription payment method; Canopy's own backend never sees card
+  numbers.
+
+--- USER CONTENT ---
+
+Emails or Text Messages
+  Collected: YES (FamilyFeed — forwarded school emails and their attachments are
+  sent to process-email, read by Claude for extraction, logged in
+  email_processing_log; direct messages between parents in messages/
+  message_threads)
+  Purpose: App Functionality
+
+Photos or Videos
+  Collected: YES (notice board image_url attachments, photo-based event
+  extraction, vault_documents image uploads)
+  Purpose: App Functionality
+
+Other User Content
+  Collected: YES (notice_posts.content, family_events notes/titles, vault
+  documents — legal/school/identity/financial categories, info_bank non-medical
+  sections e.g. school info, DOB)
+  Purpose: App Functionality
+
+--- USAGE DATA ---
+
+Product Interaction
+  Collected: YES (notice_post_reads table, migration 019_features.sql — read-
+  receipt tracking of who's seen which notice board post, and when)
+  Purpose: App Functionality
+  Note: added 2026-07-06 after re-checking against the schema — this was
+  wrongly filed under "not collected" in an earlier pass of this draft below.
+  It's real interaction tracking (Apple's definition covers "taps... or other
+  information about how the user interacts with the app" regardless of whether
+  the purpose is analytics or app functionality), used only to power the read-
+  receipt feature, not sent to any analytics vendor.
+
+--- IDENTIFIERS ---
+
+User ID
+  Collected: YES (auth.users id; RevenueCat App User ID is family.id)
+  Purpose: App Functionality
+
+Device ID
+  Collected: YES (family_members.push_token — APNs device token for push
+  notifications)
+  Purpose: App Functionality
+
+--- PURCHASES ---
+
+Purchase History
+  Collected: YES (families.subscription_status synced via revenuecat-webhook)
+  Purpose: App Functionality
+
+--- DIAGNOSTICS ---
+
+Crash Data
+  Collected: YES (Sentry — setSentryUser(userId) means crash reports are linked
+  to identity, not anonymous)
+  Purpose: App Functionality
+
+============================================================
+NOT DECLARED — checked against the actual code, don't add these
+============================================================
+
+Location (Precise or Coarse)
+  NOT collected. The evening-reminder timezone capture
+  (FamilyContext.jsx, Intl.DateTimeFormat().resolvedOptions().timeZone) is a
+  string like "Europe/London" from the device's OS setting, not GPS/CoreLocation
+  — Apple's own guidance treats this as distinct from Location data. No
+  geolocation API is called anywhere in src/.
+
+Contacts
+  NOT collected. member_additional_emails are typed in manually by the user in
+  Settings, never read from the device's address book — no Contacts framework
+  permission is requested.
+
+Search History / Browsing History
+  Not applicable — no in-app search or web browsing feature.
+
+Advertising Data / Other Usage Data
+  Not collected. There is no analytics SDK (no Mixpanel/Amplitude/GA/etc.) —
+  confirmed by search. (Product Interaction IS collected — see the Usage Data
+  section above; this line covers only the two Usage Data subtypes that
+  aren't.)
+
+Audio Data
+  Not collected. The voice-note event feature (NewEventSheet.jsx, both the
+  native @capacitor-community/speech-recognition path and the browser Web
+  Speech API path) performs speech-to-text on-device/OS-level and only ever
+  sends the resulting text transcript to the backend
+  (extractFromVoice(text) -> { type: 'voice', transcript: text, ... }) — no
+  raw audio bytes are uploaded or stored by Canopy.
+
+Sensitive Info (Apple's specific category: race, ethnicity, sexual orientation,
+pregnancy, disability, religion, union membership, political opinion, genetic/
+biometric data)
+  Not applicable — none of these specific fields exist anywhere in the schema.
+
+============================================================
+STALE — REMOVE IF STILL PRESENT FROM AN OLDER DRAFT
+============================================================
+Any line referencing "court order" / "Parenting Agreement" / legal-document-
+upload-and-AI-analysis as a data-collection purpose is OUT OF DATE. That feature
+(court_orders table, analyze-court-order function, CourtOrderPage.jsx) was
+removed 2026-07-06 (commits dd05fb3 + 20f29ba, migration
+058_drop_court_orders.sql). The vault's "legal" document category still exists
+(parents can still upload a court order as a plain stored file under Other User
+Content, same as any other vault document) but there is no longer a dedicated
+AI-analysis feature to call out separately.
+
+============================================================
+THIRD-PARTY PROCESSORS (for your own reference — not a separate App Store
+Connect field, but useful cross-check that the categories above are complete)
+============================================================
+- Anthropic (Claude Haiku) — FamilyFeed email/attachment parsing, photo/voice
+  event extraction, failure-diagnosis clustering
+- Sentry (EU region) — crash/error reporting
+- RevenueCat + Apple StoreKit — subscription purchases
+- Resend — transactional email delivery
+- Telnyx — SMS delivery
+- Supabase — auth, Postgres, storage, edge functions (the backend itself)
+- Cloudflare — FamilyFeed inbound email routing (Email Worker), no data
+  retention beyond forwarding
+
+============================================================
+STILL TO DO (separate from this label)
+============================================================
+- Age Rating questionnaire — not drafted yet.
+- Apple's third-party SDK privacy manifest requirement (separate from this
+  nutrition label — Xcode 15+/iOS 17 SDKs like the ones above may need their own
+  PrivacyInfo.xcprivacy files bundled) — not checked yet, worth a quick audit
+  before submission if not already handled by each SDK's own CocoaPod/SPM package.

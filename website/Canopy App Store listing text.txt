@@ -1,0 +1,70 @@
+PROMOTIONAL TEXT (170 char limit)
+----------------------------------
+The private family app for shared schedules, school updates, and everything about your kids — in one secure place. 10 days free, then one price for the whole family.
+
+
+DESCRIPTION (4000 char limit)
+----------------------------------
+Canopy is a private parenting and information-sharing app that keeps everyone who cares for your children on the same page — schedules, school updates, notices, and everything important about your kids, all in one secure place.
+
+It works for any family. Some features are especially useful for co-parents — shared custody schedules, First Right of Refusal, and expense splitting — alongside everything every family needs: a notice board, school term dates, document storage, and more.
+
+SHARED CALENDAR & SCHEDULE
+Set your rotation (alternating weeks, 2-2-5-5, 2-2-3, or fully custom) and the calendar updates itself. See who has the children on any day at a glance. Request schedule changes or holiday time, and First Right of Refusal offers cover to the other parent first when needed. Subscribe from Apple Calendar, Google Calendar, or Outlook.
+
+SCHOOL EMAILS, HANDLED AUTOMATICALLY
+Forward school newsletters to your family's own Canopy email address. AI reads them and adds events, term dates, and appointments straight to your calendar.
+
+TERM DATES, ALWAYS UP TO DATE
+Add your child's school once and holidays, half-terms, and INSET days stay synced automatically.
+
+FAMILY NOTICE BOARD
+Post updates, photos, and reminders, tagged by topic. Everyone's notified the moment something's posted.
+
+CHILDREN'S INFO, ALL IN ONE PLACE
+Medical details, school contacts, GP/dentist info, accounts, and documents, organised per child.
+
+SECURE DOCUMENT VAULT
+Passports, medical records, school reports, encrypted and always at hand.
+
+SHARED EXPENSES & CHILDCARE
+Split costs your way, track carer hours, roll them into bills automatically.
+
+DIRECT MESSAGING
+A private thread between parents.
+
+COURT-READY RECORDS
+Export a tamper-proof, timestamped record of activity for legal proceedings if you ever need it.
+
+READ-ONLY ACCESS FOR GRANDPARENTS & CARERS
+Give trusted family members visibility without full access.
+
+PRIVATE BY DESIGN
+Encrypted, GDPR compliant, no ads, no data selling. AI features are strictly opt-in.
+
+One plan covers the whole family, not a per-parent fee.
+
+
+KEYWORDS (100 char limit)
+----------------------------------
+co-parenting,custody schedule,family calendar,shared custody,parenting plan,child access
+
+
+SUPPORT URL
+----------------------------------
+https://canopy-app.app/faq.html
+
+
+MARKETING URL
+----------------------------------
+https://canopy-app.app
+
+
+VERSION
+----------------------------------
+1.0
+
+
+COPYRIGHT
+----------------------------------
+2026 Chrysalis Works Ltd

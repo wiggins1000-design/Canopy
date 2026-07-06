@@ -1,0 +1,76 @@
+CANOPY — APP STORE AGE RATING QUESTIONNAIRE (draft)
+Drafted 2026-07-06. Apple's exact question wording in App Store Connect can drift
+from what's below — treat this as "what to click," verify each question's live
+text against the actual form before submitting, don't paste blind.
+
+Fill this in at: App Store Connect > [Canopy Family app] > App Privacy's neighbour
+tab, "Age Rating" > Set Age Rating
+
+============================================================
+CONTENT CATEGORIES — all "None" (no built-in content of these kinds anywhere
+in the app; every one of these questions should be answered at the lowest/
+"None" option)
+============================================================
+- Cartoon or Fantasy Violence — None
+- Realistic Violence — None
+- Sexual Content or Nudity — None
+- Profanity or Crude Humor — None
+- Alcohol, Tobacco, or Drug Use or References — None
+- Mature or Suggestive Themes — None
+- Horror or Fear Themes — None
+- Gambling (Simulated) — None
+- Medical/Treatment Information — None
+  (Note: the app STORES health info a parent enters about their child in
+  Info Bank, but doesn't provide medical advice/treatment content itself —
+  this question is about in-app content advising the user, not user-entered
+  personal data. Different from the privacy label's Health data type.)
+- Contests — None
+- Unrestricted Web Access — No (the app doesn't embed an open web browser;
+  ConfigPage links out to canopy-app.app/privacy.html etc. via the device's own
+  browser, which doesn't count as in-app unrestricted access)
+
+============================================================
+THE TWO THAT ACTUALLY APPLY
+============================================================
+
+User-Generated Content — YES
+  Present in: notice board posts (text + image/file attachments), direct
+  messages between family members, calendar event notes, FamilyFeed-derived
+  content (originates from a forwarded school email, not another app user, but
+  becomes visible to other family members same as any other post).
+
+  Follow-up sub-questions Apple asks (2023+ format) and how to answer:
+  - "Is content moderated?" — No automated moderation exists; content is only
+    visible within one private family group, never public. Answer based on
+    whichever option best matches "private, invite-only group, not moderated,
+    not visible to the public or unknown users" — this is the option that
+    typically keeps the rating low, as opposed to open/public UGC platforms.
+  - "Can users interact with people they don't already know?" — No. Every
+    person who can see a family's content is either a co-parent added via a
+    family_invites code the account holder generated themselves, or a
+    third_party (grandparent/carer) added the same way. There's no discovery,
+    matching, or public feed — this is the key fact that distinguishes Canopy
+    from a social app for rating purposes.
+
+Communication/Messaging between users — YES, but closed-group only
+  `messages`/`message_threads` (migration 025) are scoped to family_id via RLS
+  — a user can only message people already in their own family, never an
+  arbitrary stranger. Answer any "who can users communicate with" question as
+  "only people they've already connected with in a private group," not
+  "anyone"/"the public."
+
+============================================================
+EXPECTED OUTCOME
+============================================================
+With every content category at None, and the only Yes answers being
+closed-group UGC/messaging with no stranger contact and no public exposure,
+this should land at the lowest or near-lowest tier Apple offers (historically
+4+ for this content profile; Apple's exact tier labels/thresholds are set by
+their live form, not fixed — read what the form actually shows once these
+answers are entered, don't assume the number in advance).
+
+============================================================
+STILL TO DO (separate from this)
+============================================================
+- Privacy Nutrition Label — see the companion file
+  "Canopy App Store privacy nutrition label.txt"

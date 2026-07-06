@@ -1,0 +1,34 @@
+Subject: You're invited to test Canopy Family
+
+Hi [name],
+
+I'd love you to try out Canopy Family, an app I've been building for families who share parenting across two homes.
+
+To get started:
+
+1. On your iPhone, install the TestFlight app from the App Store (it's free, made by Apple)
+2. Check your email for an invite from Apple — it'll come from noreply@email.apple.com
+3. Open the invite on your iPhone and tap Accept
+4. TestFlight will let you install Canopy Family directly
+
+What to test:
+- Sign up and create a family
+- Add a second parent (they'll get an invite email)
+- Add some events to the calendar and check they appear correctly
+- Try the notice board — post an update, share a document
+- Schools — add your child's school via Settings → Schools
+- Term dates — once a school is added, check that term dates import and appear in the calendar
+- FamilyFeed — go to Settings → FamilyFeed, enable it, then forward a school newsletter or appointment letter to familyfeed@canopy-app.app and see if it extracts events automatically
+- Direct messaging — send a message to the other parent
+- Expenses — log a shared expense and check it appears for both parents
+
+What I'd love feedback on:
+- Anything that felt confusing or didn't work as expected
+- Anything that's missing that you'd want
+- How it feels to use day to day — is it clear what everything does?
+
+Just reply to this message with anything you notice. All feedback welcome — nothing is too small.
+
+Thanks so much for helping out.
+
+Chris
