@@ -251,7 +251,7 @@ function LockedContent({ disabled, hasTwoDrafts, error, loading, onUnlock }) {
         {loading ? 'Please wait…' : 'Unlock AI review · £1.99'}
       </button>
       {disabled ? (
-        <p className="text-xs text-gray-400 text-center">Save your plan above to unlock</p>
+        <p className="text-xs text-gray-400 text-center">Preparing your plan…</p>
       ) : !PAYMENTS_ENABLED ? (
         <p className="text-xs text-amber-600 text-center bg-amber-50 rounded-lg px-3 py-2">
           Test mode — payment bypassed. Set <code className="font-mono">VITE_PAYMENTS_ENABLED=true</code> to enable Stripe.

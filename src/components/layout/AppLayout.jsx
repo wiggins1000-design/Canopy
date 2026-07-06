@@ -8,6 +8,7 @@ import OnboardingPage from '../../pages/OnboardingPage'
 import PaywallOverlay from '../subscription/PaywallOverlay'
 import { useSubscription } from '../../hooks/useSubscription'
 import { isNativePlatform } from '../../lib/supabase'
+import { PLAN_IMPORTED_FLAG } from '../../lib/planImport'
 
 async function initNativeStatusBar() {
   if (!isNativePlatform()) return
@@ -30,12 +31,25 @@ function SubscriptionSuccessToast({ onDone }) {
   )
 }
 
-function AppLayoutInner({ showSuccessToast, onToastDone }) {
+function PlanImportedToast({ onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 4000)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-canopy-deep text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg">
+      Imported your children and schedule from your parenting plan ✓
+    </div>
+  )
+}
+
+function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, onPlanToastDone }) {
   useEffect(() => { initNativeStatusBar() }, [])
 
   return (
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
+      {showPlanImportedToast && <PlanImportedToast onDone={onPlanToastDone} />}
       <PaywallOverlay />
       <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <Outlet />
@@ -50,11 +64,20 @@ export default function AppLayout() {
   const { family, loading, reload } = useFamily()
   const [isAdmin, setIsAdmin] = useState(null)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [showPlanImportedToast, setShowPlanImportedToast] = useState(false)
 
   useEffect(() => {
     if (!user) return
     supabase.rpc('is_admin').then(({ data }) => setIsAdmin(!!data))
   }, [user])
+
+  useEffect(() => {
+    if (!family) return
+    if (localStorage.getItem(PLAN_IMPORTED_FLAG)) {
+      localStorage.removeItem(PLAN_IMPORTED_FLAG)
+      setShowPlanImportedToast(true)
+    }
+  }, [family])
 
   if (loading || isAdmin === null) {
     return (
@@ -72,6 +95,8 @@ export default function AppLayout() {
     <AppLayoutInner
       showSuccessToast={showSuccessToast}
       onToastDone={() => setShowSuccessToast(false)}
+      showPlanImportedToast={showPlanImportedToast}
+      onPlanToastDone={() => setShowPlanImportedToast(false)}
     />
   )
 }

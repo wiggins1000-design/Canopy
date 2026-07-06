@@ -2,20 +2,32 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 
-const DRAFT_KEY   = 'pp_draft'
-const PLAN_ID_KEY = 'pp_plan_id'
-const PENDING_KEY = 'pp_pending_save'
-const LOCALE_KEY  = 'pp_locale'
+const DRAFT_KEY    = 'pp_draft'
+const PLAN_ID_KEY  = 'pp_plan_id'
+const PENDING_KEY  = 'pp_pending_save'
+const LOCALE_KEY   = 'pp_locale'
+export const REACHED_PAYWALL_KEY = 'pp_reached_paywall'
 
 export function usePlanSave() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const [planId, setPlanId] = useState(() => localStorage.getItem(PLAN_ID_KEY))
   const [saving, setSaving] = useState(false)
+
+  // Reaching the paywall step shouldn't require checking email first — get an
+  // anonymous (real, but password/email-free) session automatically so the
+  // plan can be saved and the AI review can be paid for immediately.
+  // "Save & share" later upgrades this same session to a permanent emailed
+  // account rather than creating a separate identity — see SaveAndShare.
+  useEffect(() => {
+    if (loading || user || planId) return
+    if (!localStorage.getItem(REACHED_PAYWALL_KEY)) return
+    supabase.auth.signInAnonymously().catch((err) => console.error('signInAnonymously failed', err))
+  }, [loading, user, planId])
 
   useEffect(() => {
     if (!user) return
     if (planId) return
-    if (!localStorage.getItem(PENDING_KEY)) return
+    if (!localStorage.getItem(PENDING_KEY) && !localStorage.getItem(REACHED_PAYWALL_KEY)) return
 
     const raw = localStorage.getItem(DRAFT_KEY)
     if (!raw) { localStorage.removeItem(PENDING_KEY); return }

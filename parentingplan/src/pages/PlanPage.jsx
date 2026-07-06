@@ -8,6 +8,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import PlanVersionHistory from '../components/PlanVersionHistory'
 import PlanPaywall from '../components/PlanPaywall'
+import { encodePlanHandoff } from '../lib/planHandoff'
+import { REACHED_PAYWALL_KEY } from '../hooks/usePlanSave'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -229,6 +231,9 @@ export default function PlanPage({ planId, planSaving }) {
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
   useEffect(() => { try { localStorage.setItem('pp_locale', locale) } catch {} }, [locale])
+  useEffect(() => {
+    if (step === TOTAL_STEPS) localStorage.setItem(REACHED_PAYWALL_KEY, 'true')
+  }, [step])
 
   function set(field, value) { setData(p => ({ ...p, [field]: value })) }
 
@@ -1029,10 +1034,17 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
     localStorage.setItem('pp_pending_save', 'true')
     setSending(true)
     setError('')
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.href },
-    })
+    // If an anonymous session already exists (created automatically on
+    // reaching this step — see usePlanSave), link the email to it instead of
+    // signing into a separate identity, so the same user_id (and therefore
+    // the same saved plan/paid entitlement) carries over rather than being
+    // orphaned under a brand-new account.
+    const { error: err } = user
+      ? await supabase.auth.updateUser({ email: email.trim() }, { emailRedirectTo: window.location.href })
+      : await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: { emailRedirectTo: window.location.href },
+        })
     setSending(false)
     if (err) { setError('Something went wrong — please try again.'); return }
     setSent(true)
@@ -1173,6 +1185,13 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
 
   function print() { window.print() }
 
+  const canopyHandoffUrl = `https://my.canopy-app.app/?plan=${encodePlanHandoff({
+    children: data.children,
+    patternType: data.patternType,
+    startingParent: data.startingParent,
+    customCycle: data.customCycle,
+  })}`
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2 pb-4 border-b border-[#d8f3dc]">
@@ -1310,7 +1329,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
           <p className="text-sm font-semibold text-[#1b4332]">Use this schedule in Canopy</p>
           <p className="text-sm text-[#2d6a4f]">Canopy is the private family app that keeps both parents in sync — shared calendar, schedule, notice board, and more. Your parenting schedule can be set up in minutes.</p>
           <a
-            href="https://canopy-app.app"
+            href={canopyHandoffUrl}
             className="block w-full py-3 rounded-xl text-sm font-semibold bg-[#1b4332] text-white text-center hover:bg-[#2d6a4f] transition-colors"
           >
             Get started free →

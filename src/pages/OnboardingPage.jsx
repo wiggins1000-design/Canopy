@@ -3,6 +3,9 @@ import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import { SUPPORTED_LOCALES } from '../config/regions'
+import { supabase } from '../lib/supabase'
+import { buildPresetPattern, formatDate } from '../lib/scheduleEngine'
+import { PLAN_IMPORT_STORAGE_KEY, PLAN_IMPORTED_FLAG, decodePlanImport } from '../lib/planImport'
 
 function detectDefaultLocale() {
   const lang = navigator.language ?? 'en-GB'
@@ -13,9 +16,43 @@ function detectDefaultLocale() {
   return 'en-GB'
 }
 
+// Applies a decoded plan-tool handoff (children + schedule) to a
+// freshly-created family. Writes directly via Supabase rather than through
+// FamilyContext's saveSchedule/updateFamilyConfig, since those callbacks are
+// closed over the pre-creation (family: null) render and would still be
+// stale immediately after createFamily() resolves in the same handler.
+async function applyPlanImport(familyId, payload) {
+  if (payload.children?.length) {
+    const { data: familyRow } = await supabase.from('families').select('config').eq('id', familyId).single()
+    const children = payload.children.map((c) => ({ id: crypto.randomUUID(), name: c.name }))
+    await supabase.from('families').update({ config: { ...(familyRow?.config ?? {}), children } }).eq('id', familyId)
+
+    for (const c of payload.children) {
+      if (!c.dob) continue
+      await supabase.from('info_bank').upsert(
+        { family_id: familyId, child_name: c.name, section: 'personal', data: { dob: c.dob }, updated_at: new Date().toISOString() },
+        { onConflict: 'family_id,child_name,section' }
+      )
+    }
+  }
+
+  if (payload.patternType && (payload.patternType !== 'custom' || payload.customCycle?.length)) {
+    const patternData = payload.patternType === 'custom'
+      ? { cycle: payload.customCycle }
+      : buildPresetPattern(payload.patternType, payload.startingParent)
+    await supabase.from('baseline_schedules').insert({
+      family_id: familyId,
+      pattern_type: payload.patternType,
+      pattern_data: patternData,
+      start_date: formatDate(new Date()), // the plan tool has no start-date field yet — default to today
+      starting_parent: payload.startingParent,
+    })
+  }
+}
+
 export default function OnboardingPage() {
-  const { createFamily, joinFamily } = useFamily()
-  const { signOut } = useAuth()
+  const { createFamily, joinFamily, reload } = useFamily()
+  const { user, signOut } = useAuth()
   const [step, setStep] = useState('choose') // 'choose' | 'create' | 'country' | 'join'
   const [inviteCode, setInviteCode] = useState('')
   const [selectedLocale, setSelectedLocale] = useState(detectDefaultLocale)
@@ -26,7 +63,25 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
     const { error } = await createFamily(selectedLocale)
-    if (error) setError(error.message)
+    if (error) { setError(error.message); setLoading(false); return }
+
+    const raw = localStorage.getItem(PLAN_IMPORT_STORAGE_KEY)
+    if (raw) {
+      localStorage.removeItem(PLAN_IMPORT_STORAGE_KEY)
+      const payload = decodePlanImport(raw)
+      if (payload) {
+        const { data: memberRow } = await supabase
+          .from('family_members').select('family_id').eq('user_id', user.id).single()
+        if (memberRow?.family_id) {
+          await applyPlanImport(memberRow.family_id, payload)
+          // OnboardingPage unmounts the instant `family` becomes truthy (AppLayout
+          // swaps it out in the same render), so any confirmation state set here
+          // would never paint — flag it for AppLayout to show once instead.
+          localStorage.setItem(PLAN_IMPORTED_FLAG, 'true')
+          await reload()
+        }
+      }
+    }
     setLoading(false)
   }
 

@@ -4,8 +4,23 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 import { initSentry, ErrorBoundary } from './lib/sentry'
+import { PLAN_IMPORT_STORAGE_KEY } from './lib/planImport'
 
 initSentry()
+
+// Capture a ?plan= handoff from the parenting plan tool into localStorage
+// before any redirect (e.g. ProtectedRoute -> /login, or the email
+// confirmation round-trip) can drop the query string. Runs at module load,
+// not inside a React effect, since redirects can happen before effects fire.
+;(function capturePlanImport() {
+  const params = new URLSearchParams(window.location.search)
+  const plan = params.get('plan')
+  if (!plan) return
+  localStorage.setItem(PLAN_IMPORT_STORAGE_KEY, plan)
+  params.delete('plan')
+  const rest = params.toString()
+  window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : ''))
+})()
 
 function ErrorFallback() {
   return (
