@@ -5,6 +5,6 @@
     "build": "echo 'static site, no build step needed'"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^3.90.0"
   }
 }
