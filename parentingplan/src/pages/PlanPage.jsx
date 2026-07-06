@@ -1070,8 +1070,11 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
     setInviteSent(true)
   }
 
-  // Logged in — show saving state or invite form
-  if (user) {
+  // Fully logged in (real, non-anonymous account) — show saving state or invite form.
+  // An anonymous session (created automatically on reaching this step — see
+  // usePlanSave) falls through to the "confirm your email" form below instead,
+  // since it has no real email yet to actually notify/invite anyone with.
+  if (user && !user.is_anonymous) {
     if (planSaving) {
       return (
         <div className="bg-[#d8f3dc] rounded-2xl p-5 flex items-center gap-3">
