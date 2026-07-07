@@ -1549,7 +1549,7 @@ function Prose({ label, value, onChange, placeholder, rows = 3 }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        rows={rows + 1}
+        rows={rows + 3}
         className="w-full border border-[#d8f3dc] rounded-xl px-3 py-3 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#52b788] resize-y"
       />
     </div>
