@@ -64,12 +64,11 @@ export function usePlanSave() {
       localStorage.setItem(PLAN_ID_KEY, id)
       localStorage.removeItem(PENDING_KEY)
       setPlanId(id)
-      // Auto-save Draft 1 so collaborators can see the baseline
-      await supabase.rpc('pp_save_version', {
-        p_plan_id:   id,
-        p_plan_data: data,
-        p_note:      `Draft 1 — ${data.parent1 || 'Parent 1'}`,
-      })
+      // pp_save_plan already inserts version 1 ("Initial plan") — no separate
+      // version save needed here. A second call used to run immediately after
+      // this one, which meant every brand-new solo plan started with 2
+      // pp_versions rows and the paywall's "two drafts" comparison UI showed
+      // before Parent B had even been invited.
     })
   }, [user, planId])
 
