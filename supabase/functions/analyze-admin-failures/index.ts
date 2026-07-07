@@ -11,6 +11,7 @@
 // to spot code-level patterns.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -145,6 +146,7 @@ List clusters largest-count first. If a failure doesn't fit any cluster with at 
   }
 
   const aiData = await aiRes.json()
+  await logClaudeUsage(supabase, { category: 'admin_tools', edgeFunction: 'analyze-admin-failures', model: 'claude-haiku-4-5-20251001', usage: aiData.usage })
   const analysis: string = aiData.content?.[0]?.text ?? ''
 
   return new Response(JSON.stringify({ ok: true, total_count: totalCount, analysis }), { status: 200, headers: CORS })

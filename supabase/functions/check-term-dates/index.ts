@@ -21,6 +21,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getLocaleConfig, getLocaleFromUrl, CLAUDE_EXTRACTION_PROMPTS } from '../_shared/localeConfig.ts'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -1482,6 +1483,7 @@ async function callClaude(prompt: string, maxTokens: number): Promise<string | n
       return null
     }
     const data = await res.json()
+    await logClaudeUsage(supabase, { category: 'term_dates', edgeFunction: 'check-term-dates', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     return data.content?.[0]?.text ?? null
   } catch (e: any) {
     console.error('callClaude fetch threw:', e?.name, e?.message)
@@ -1523,6 +1525,7 @@ async function callClaudeWithDocument(prompt: string, pdfBase64: string, maxToke
       return null
     }
     const data = await res.json()
+    await logClaudeUsage(supabase, { category: 'term_dates', edgeFunction: 'check-term-dates', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     return data.content?.[0]?.text ?? null
   } catch (e: any) {
     console.error('callClaudeWithDocument fetch threw:', e?.name, e?.message)

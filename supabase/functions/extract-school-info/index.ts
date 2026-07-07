@@ -15,6 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendDebugAlert } from '../_shared/debugAlert.ts'
 import { getLocaleConfig, getLocaleFromUrl, getClosedDayPatterns, CLAUDE_EXTRACTION_PROMPTS } from '../_shared/localeConfig.ts'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -345,6 +346,7 @@ async function extractTextFromImage(base64: string, mediaType: 'image/jpeg'|'ima
     })
     if (!res.ok) { console.error('Vision API error:', await res.text()); return null }
     const data = await res.json()
+    await logClaudeUsage(supabase, { category: 'term_dates', edgeFunction: 'extract-school-info', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     return data.content?.[0]?.text ?? null
   } catch (e: any) {
     console.error('extractTextFromImage failed:', e?.message)
@@ -907,6 +909,7 @@ async function callClaude(prompt: string, maxTokens: number): Promise<string | n
     })
     if (!res.ok) { console.error('Claude error:', await res.text()); return null }
     const data = await res.json()
+    await logClaudeUsage(supabase, { category: 'term_dates', edgeFunction: 'extract-school-info', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     return data.content?.[0]?.text ?? null
   } catch (e: any) {
     console.error('callClaude error:', e?.message)

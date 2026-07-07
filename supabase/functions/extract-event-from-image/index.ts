@@ -16,6 +16,12 @@
 //   npx supabase functions deploy extract-event-from-image --project-ref <ref>
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
+
+const serviceClient = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+)
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -161,6 +167,7 @@ For date, use today if not visible. For category, infer from the merchant or ite
       })
       if (!res.ok) return new Response('AI extraction failed', { status: 500, headers: CORS })
       const data   = await res.json()
+      await logClaudeUsage(serviceClient, { category: 'event_extraction', edgeFunction: 'extract-event-from-image', model: 'claude-haiku-4-5-20251001', usage: data.usage })
       const raw    = data.content?.[0]?.text ?? ''
       const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim())
       return new Response(JSON.stringify({ ok: true, receipt: parsed }), {
@@ -199,6 +206,7 @@ For date, use today if not visible. For category, infer from the merchant or ite
     }
 
     const data   = await res.json()
+    await logClaudeUsage(serviceClient, { category: 'event_extraction', edgeFunction: 'extract-event-from-image', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     const raw    = data.content?.[0]?.text ?? ''
     const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim())
 

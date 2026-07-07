@@ -1,4 +1,11 @@
 import Anthropic from 'npm:@anthropic-ai/sdk'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -165,6 +172,8 @@ ${currentSummary}`
       max_tokens: hasPrev ? 1200 : 800,
       messages:   [{ role: 'user', content: prompt }],
     })
+
+    await logClaudeUsage(supabase, { category: 'plan_review', edgeFunction: 'analyze-plan', model: 'claude-haiku-4-5-20251001', usage: msg.usage })
 
     const raw     = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '{}'
     const cleaned = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '')

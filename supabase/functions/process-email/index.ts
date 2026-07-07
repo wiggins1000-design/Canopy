@@ -27,6 +27,7 @@ import PostalMime from 'https://esm.sh/postal-mime@2.2.8'
 import JSZip from 'https://esm.sh/jszip@3.10.1'
 import { sendDebugAlert } from '../_shared/debugAlert.ts'
 import { getLocaleConfig, deriveKeyStage } from '../_shared/localeConfig.ts'
+import { logClaudeUsage } from '../_shared/claudeUsage.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -157,6 +158,7 @@ async function callExtractionClaude(content: string | any[]): Promise<RawEvent[]
   })
   if (!res.ok) { console.error('Extraction Claude error:', await res.text()); return [] }
   const data = await res.json()
+  await logClaudeUsage(supabase, { category: 'familyfeed', edgeFunction: 'process-email', model: 'claude-haiku-4-5-20251001', usage: data.usage })
   const text: string = data.content?.[0]?.text ?? '{}'
   try {
     const stripped = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
@@ -285,6 +287,7 @@ In 1-2 sentences explain the likely root cause and what a developer could try to
     })
     if (!res.ok) return null
     const data = await res.json()
+    await logClaudeUsage(supabase, { category: 'familyfeed', edgeFunction: 'process-email', model: 'claude-haiku-4-5-20251001', usage: data.usage })
     return data.content?.[0]?.text ?? null
   } catch {
     return null
@@ -772,6 +775,7 @@ ${yearGroupRule}
   }
 
   const aiData  = await aiRes.json()
+  await logClaudeUsage(supabase, { category: 'familyfeed', edgeFunction: 'process-email', model: 'claude-haiku-4-5-20251001', usage: aiData.usage, familyId })
   const aiText: string = aiData.content?.[0]?.text ?? '{}'
 
   let parsed: { events?: any[], notice_post?: string | null } = {}
