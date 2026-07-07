@@ -358,7 +358,7 @@ export default function PlanPage({ planId, planSaving }) {
         {step === 6 && <Step6 data={data} set={set} />}
         {step === 7 && <Step7 data={data} set={set} t={t} />}
         {step === 8 && <Step8 data={data} set={set} t={t} p1={p1} p2={p2} locale={locale} />}
-        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} isCollaborator={isCollaborator} p1OriginalName={p1OriginalName} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} />}
+        {step === 9 && <Step9 data={data} p1={p1} p2={p2} t={t} locale={locale} planId={planId} planSaving={planSaving} isCollaborator={isCollaborator} p1OriginalName={p1OriginalName} onRestart={() => { localStorage.removeItem(STORAGE_KEY); setData(blank()); go(1) }} go={go} />}
 
         {step < TOTAL_STEPS && (
           <div className="flex gap-3 pt-2">
@@ -1170,7 +1170,7 @@ function SaveAndShare({ data, p1, p2, locale, planId, planSaving }) {
   )
 }
 
-function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1OriginalName, onRestart }) {
+function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1OriginalName, onRestart, go }) {
   const children = data.children.filter(c => c.name)
 
 
@@ -1219,18 +1219,18 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         </div>
       </div>
 
-      <PlanSection title="1. About this plan">
+      <PlanSection title="1. About this plan" onEdit={() => go(1)}>
         <PlanRow label="Parents" value={`${p1} and ${p2}`} />
         {children.map((c, i) => (
           <PlanRow key={i} label={`Child ${i + 1}`} value={`${c.name}${c.dob ? ` (born ${c.dob})` : ''}`} />
         ))}
       </PlanSection>
 
-      <PlanSection title="2. The schedule">
+      <PlanSection title="2. The schedule" onEdit={() => go(2)}>
         <PlanRow label="Pattern" value={scheduleDesc} />
       </PlanSection>
 
-      <PlanSection title={`3. Handovers and ${t.schoolHolidays}`}>
+      <PlanSection title={`3. Handovers and ${t.schoolHolidays}`} onEdit={() => go(3)}>
         {data.handoverLocation && <PlanRow label="Handover location" value={{
           school: 'At school', parent_a_home: "At one parent's home", neutral: 'Neutral location', other: data.handoverOther,
         }[data.handoverLocation]} />}
@@ -1240,7 +1240,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
         {data.noticeWeeks && <PlanRow label="Holiday notice required" value={data.noticeWeeks === 'other' ? data.noticeWeeksOther : `${data.noticeWeeks} weeks`} />}
       </PlanSection>
 
-      <PlanSection title="4. Special occasions and travel">
+      <PlanSection title="4. Special occasions and travel" onEdit={() => go(4)}>
         {data.christmas && <PlanRow label="Christmas Day" value={CHRISTMAS_LABELS[data.christmas]} />}
         {data.birthdays && <PlanRow label="Children's birthdays" value={{
           separate: 'Each parent celebrates separately', joint: 'One joint celebration with both parents', resident: 'Resident parent celebrates; other parent has a separate celebration', other: data.birthdaysOther,
@@ -1259,7 +1259,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       </PlanSection>
 
       {(data.screenTime || data.socialMedia || data.restrictedApps || data.devicesPolicy || data.childContact || data.contactRestrictions || data.parentChannel) && (
-        <PlanSection title="5. Digital life and communication">
+        <PlanSection title="5. Digital life and communication" onEdit={() => go(5)}>
           {data.screenTime && <PlanRow label="Screen time" value={data.screenTime} />}
           {data.socialMedia && <PlanRow label="Social media" value={data.socialMedia} />}
           {data.restrictedApps && <PlanRow label="Restricted apps or platforms" value={data.restrictedApps} />}
@@ -1275,7 +1275,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       )}
 
       {(data.firstRefusal || data.carers.some(c => c.name) || data.extendedFamily || data.siblings) && (
-        <PlanSection title="6. Childcare and family">
+        <PlanSection title="6. Childcare and family" onEdit={() => go(6)}>
           {data.firstRefusal && <PlanRow label="If resident parent unavailable" value={{
             other_parent: 'Other parent has right of first refusal', agreed_list: 'Agreed list of carers', resident_decides: "Resident parent's discretion", other: data.firstRefusalOther,
           }[data.firstRefusal]} />}
@@ -1288,7 +1288,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       )}
 
       {(data.educationDisputes || data.schoolInfo || data.religiousUpbringing || data.routineHealth || data.nonEmergency || data.medicalEmergency) && (
-        <PlanSection title="7. Education and health">
+        <PlanSection title="7. Education and health" onEdit={() => go(7)}>
           {data.educationDisputes && <PlanRow label="Education disagreements" value={data.educationDisputes} />}
           {data.religiousUpbringing && <PlanRow label="Religious / cultural upbringing" value={data.religiousUpbringing} />}
           {data.schoolInfo && <PlanRow label="School communication" value={data.schoolInfo} />}
@@ -1299,7 +1299,7 @@ function Step9({ data, p1, p2, t, locale, planId, planSaving, isCollaborator, p1
       )}
 
       {(data.dailyRules || data.relocation || data.legalCustody || data.newPartners || data.dayCosts || data.bigCosts || data.financialChange || data.taxDependency || data.disputeProcess || data.reviewFrequency) && (
-        <PlanSection title="8. Decisions, money and disagreements">
+        <PlanSection title="8. Decisions, money and disagreements" onEdit={() => go(8)}>
           {locale === 'en-us' && data.legalCustody && <PlanRow label="Legal custody" value={{
             joint: `Joint legal custody — ${p1} and ${p2} share decision-making`,
             sole_p1: `Sole legal custody — ${p1} makes major decisions`,
@@ -1500,10 +1500,20 @@ function RadioGroup({ label, name, value, onChange, options }) {
   )
 }
 
-function PlanSection({ title, children }) {
+function PlanSection({ title, children, onEdit }) {
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-bold text-[#1b4332] border-b border-[#d8f3dc] pb-1">{title}</h2>
+      <div className="flex items-center justify-between border-b border-[#d8f3dc] pb-1">
+        <h2 className="text-sm font-bold text-[#1b4332]">{title}</h2>
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="text-xs font-semibold text-[#2d6a4f] hover:text-[#1b4332] hover:underline shrink-0 ml-2"
+          >
+            Edit →
+          </button>
+        )}
+      </div>
       <div className="space-y-2">{children}</div>
     </div>
   )
