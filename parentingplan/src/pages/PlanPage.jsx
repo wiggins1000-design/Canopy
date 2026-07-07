@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import PlanVersionHistory from '../components/PlanVersionHistory'
 import PlanPaywall from '../components/PlanPaywall'
 import { encodePlanHandoff } from '../lib/planHandoff'
-import { REACHED_PAYWALL_KEY } from '../hooks/usePlanSave'
+import { REACHED_PAYWALL_KEY, REACHED_PAYWALL_EVENT } from '../hooks/usePlanSave'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -260,7 +260,10 @@ export default function PlanPage({ planId, planSaving }) {
   useEffect(() => { try { localStorage.setItem('pp_locale', locale) } catch {} }, [locale])
   useEffect(() => {
     try { localStorage.setItem(STEP_KEY, String(step)) } catch {}
-    if (step === TOTAL_STEPS) localStorage.setItem(REACHED_PAYWALL_KEY, 'true')
+    if (step === TOTAL_STEPS) {
+      localStorage.setItem(REACHED_PAYWALL_KEY, 'true')
+      window.dispatchEvent(new Event(REACHED_PAYWALL_EVENT))
+    }
   }, [step])
 
   function set(field, value) { setData(p => ({ ...p, [field]: value })) }

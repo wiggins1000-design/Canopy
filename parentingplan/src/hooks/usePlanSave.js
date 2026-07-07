@@ -7,11 +7,26 @@ const PLAN_ID_KEY  = 'pp_plan_id'
 const PENDING_KEY  = 'pp_pending_save'
 const LOCALE_KEY   = 'pp_locale'
 export const REACHED_PAYWALL_KEY = 'pp_reached_paywall'
+export const REACHED_PAYWALL_EVENT = 'pp:reached-paywall'
 
 export function usePlanSave() {
   const { user, loading } = useAuth()
   const [planId, setPlanId] = useState(() => localStorage.getItem(PLAN_ID_KEY))
   const [saving, setSaving] = useState(false)
+  // usePlanSave is instantiated once in App.jsx, outside PlanPage, so it has
+  // no direct signal when the user reaches step 9 within the same session —
+  // only localStorage, which effects don't re-read on their own. Without
+  // this tick, the sign-in effect below only ever fires once (when
+  // loading/user/planId first settle, before REACHED_PAYWALL_KEY exists) and
+  // then never again in that session, permanently disabling the paywall
+  // button. PlanPage dispatches REACHED_PAYWALL_EVENT the moment it sets the
+  // flag so this effect gets a reason to re-check it.
+  const [paywallTick, setPaywallTick] = useState(0)
+  useEffect(() => {
+    const bump = () => setPaywallTick(t => t + 1)
+    window.addEventListener(REACHED_PAYWALL_EVENT, bump)
+    return () => window.removeEventListener(REACHED_PAYWALL_EVENT, bump)
+  }, [])
 
   // Reaching the paywall step shouldn't require checking email first — get an
   // anonymous (real, but password/email-free) session automatically so the
@@ -22,7 +37,7 @@ export function usePlanSave() {
     if (loading || user || planId) return
     if (!localStorage.getItem(REACHED_PAYWALL_KEY)) return
     supabase.auth.signInAnonymously().catch((err) => console.error('signInAnonymously failed', err))
-  }, [loading, user, planId])
+  }, [loading, user, planId, paywallTick])
 
   useEffect(() => {
     if (!user) return
