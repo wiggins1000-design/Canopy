@@ -725,7 +725,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "notes": "any extra detail or null",
       "existing_id": "id of matching existing event, or null if this is new",
       "additional_notes": "any new information not already in the existing event's notes, or null",
-      "tagged_children": ["child name", ...]
+      "tagged_children": ["child name", ...],
+      "applies_to": "copy exactly from the candidate event's applies_to field if this came from the candidate list, or the year group/key stage/class named in the email body if you found it there yourself, or null if whole-school/not tied to one group — do not re-decide relevance, just copy through what group (if any) this event is for"
     }
   ],
   "notice_post": "1-2 sentence summary for parents, or null if nothing important beyond the events"
@@ -735,6 +736,7 @@ Rules:
 - Also read the email body itself for any dated events not already covered by the candidate events list (e.g. something mentioned only in the forwarding message itself)
 - If the same event appears more than once in the candidate list (e.g. mentioned in both an attachment and a linked page), only include it once
 ${yearGroupRule}
+- Set applies_to by copying the candidate event's "applies_to" field exactly (or your own reading of the body for events not in the candidate list) — this is a mechanical copy, not a relevance decision
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
 - If the event matches one of the children's year group, key stage, or class, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
@@ -797,6 +799,45 @@ ${yearGroupRule}
   oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
   const cutoff = oneMonthAgo.toISOString().split('T')[0]
 
+  // Deterministic backstop for the year-group exclusion rule above. Confirmed
+  // via a real production case that the prompt-only rule isn't sufficient on
+  // its own: Claude correctly tagged "Year 6 Residential" applies_to="Year 6"
+  // at extraction time, then included the event anyway for a family with no
+  // Year 6 child. This re-checks applies_to in code instead of trusting the
+  // LLM to have followed the rule — but only overrides to EXCLUDE when there's
+  // real year-group data to check against; if a child's year group isn't on
+  // file, or the event has no applies_to signal, this doesn't block anything
+  // (stays as conservative as the old prompt-only behaviour in that case).
+  function matchesFamilyYearGroup(appliesTo: string | null | undefined): boolean {
+    if (!appliesTo) return true
+    const normalized = appliesTo.toLowerCase().trim()
+    if (/whole.?school|all year|all pupil|all student|entire school|everyone/.test(normalized)) return true
+
+    const appliesToNum = normalized.match(/\d+/)?.[0]
+    let hadAnyChildData = false
+
+    for (const c of familyChildren) {
+      const school = schoolByChild[c.name] ?? {}
+      const rawYearGroup = (school.year_group || c.year_group || '').toString().toLowerCase().trim()
+      const className = (school.class_name || c.class_name || '').toString().toLowerCase().trim()
+      const ks = deriveKeyStage(rawYearGroup, locale, ageFromDob(dobByChild[c.name]))?.toLowerCase()
+
+      if (!rawYearGroup && !className && !ks) continue
+      hadAnyChildData = true
+
+      const childNum = rawYearGroup.match(/\d+/)?.[0]
+      if (appliesToNum && childNum && appliesToNum === childNum) return true
+      if (ks && normalized.includes(ks)) return true
+      if (className && normalized.includes(className)) return true
+      if (rawYearGroup && normalized.includes(rawYearGroup)) return true
+      if (/reception|foundation|nursery|kindergarten/.test(normalized) && /reception|foundation|nursery|kindergarten/.test(rawYearGroup)) return true
+    }
+
+    // No usable year-group data on file for any child — can't safely rule
+    // this out, so don't override the LLM's own decision.
+    return !hadAnyChildData
+  }
+
   for (const ev of events) {
     if (!ev.title || !ev.date) continue
     if (ev.date < cutoff) continue  // skip events more than 1 month in the past
@@ -827,6 +868,11 @@ ${yearGroupRule}
       }
     } else {
       // New event
+      if (eventScope === 'relevant' && !matchesFamilyYearGroup(ev.applies_to)) {
+        console.log(`Skipped "${ev.title}" — applies_to "${ev.applies_to}" doesn't match any child's year group/class/key stage`)
+        eventsSkipped++
+        continue
+      }
       const taggedChildren = Array.isArray(ev.tagged_children)
         ? ev.tagged_children.filter((n: string) => allChildNames.includes(n))
         : []

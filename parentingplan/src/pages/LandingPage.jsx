@@ -12,10 +12,15 @@ const SECTIONS = [
   { icon: '🤝', title: 'Disputes & review',              desc: 'What happens when positions differ, and the process for reviewing the plan over time.' },
 ]
 
+// Mirrors the real "Draft history" widget in PlanVersionHistory.jsx — version
+// number, date, and the note text exactly as it's actually stored (auto-notes
+// read "Initial plan" for v1, then "Draft N — {name}" for each submission).
+// There's no per-parent quote/chat view and no in-app "new draft" banner in
+// the real product (only an email notification) — don't reintroduce either.
 const DRAFTS = [
-  { author: 'Alex',   avatar: 'A', draft: 1, date: '14 Jun', text: "I'd like alternating weeks, starting after the summer break." },
-  { author: 'Jordan', avatar: 'J', draft: 2, date: '16 Jun', text: "Alternating weeks feels too long between visits. I've changed this to 2-2-5-5." },
-  { author: 'Alex',   avatar: 'A', draft: 3, date: 'Today',  text: "2-2-5-5 accepted. I've updated the handover location to school gate.", current: true },
+  { draft: 1, date: '14 Jun 2026, 09:12', note: 'Initial plan' },
+  { draft: 2, date: '16 Jun 2026, 18:40', note: 'Draft 2 — Jordan' },
+  { draft: 3, date: '7 Jul 2026, 21:05',  note: 'Draft 3 — Alex', latest: true },
 ]
 
 export default function LandingPage() {
@@ -153,37 +158,33 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Versioned drafts mock-up */}
-            <div className="space-y-3">
-              <div className="bg-white rounded-2xl border border-[#d8f3dc] p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-gray-900">The schedule</span>
-                  <span className="text-xs font-semibold text-[#52b788]">3 drafts</span>
-                </div>
-                <div className="space-y-2">
-                  {DRAFTS.map(({ author, avatar, draft, date, text, current }) => (
-                    <div key={draft} className={`rounded-xl p-3 ${current ? 'bg-[#d8f3dc] border border-[#74c69d]' : 'bg-gray-50'}`}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${author === 'Alex' ? 'bg-[#1b4332] text-white' : 'bg-gray-300 text-gray-700'}`}>
-                          {avatar}
-                        </div>
-                        <span className="text-xs font-semibold text-gray-900">{author}</span>
-                        <span className="text-xs text-gray-400">· Draft {draft} · {date}</span>
-                        {current && <span className="ml-auto text-xs font-semibold text-[#1b4332]">Awaiting Jordan</span>}
-                      </div>
-                      <p className="text-xs text-gray-700 leading-relaxed pl-8">"{text}"</p>
-                    </div>
-                  ))}
+            {/* Draft history mock-up — matches the real widget's collapsed
+                header + expanded row list exactly (see DRAFTS comment above) */}
+            <div className="bg-white border border-[#d8f3dc] rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 flex items-center justify-between border-b border-[#d8f3dc]">
+                <div className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-[#52b788] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-semibold text-[#1b4332]">Draft history</span>
+                  <span className="text-xs text-gray-400">3 drafts</span>
                 </div>
               </div>
-
-              <div className="bg-white rounded-2xl border border-[#d8f3dc] p-3 shadow-sm flex items-center gap-3">
-                <div className="w-8 h-8 bg-[#1b4332] rounded-full flex items-center justify-center text-sm flex-shrink-0">🔔</div>
-                <div>
-                  <p className="text-xs font-semibold text-gray-900">Jordan submitted Draft 2</p>
-                  <p className="text-xs text-gray-500">3 sections updated · 2 days ago</p>
-                </div>
-                <button className="ml-auto text-xs font-semibold text-[#1b4332] bg-[#d8f3dc] px-3 py-1.5 rounded-lg flex-shrink-0">Review</button>
+              <div className="divide-y divide-[#d8f3dc]">
+                {DRAFTS.map(({ draft, date, note, latest }) => (
+                  <div key={draft} className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#1b4332]">
+                        v{draft}
+                        {latest && (
+                          <span className="ml-1.5 text-[10px] bg-[#d8f3dc] text-[#1b4332] px-1.5 py-0.5 rounded-full font-medium">latest</span>
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">{date}</p>
+                    <p className="text-xs text-gray-500 italic">"{note}"</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -196,28 +197,41 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-            {/* AI mock-up */}
-            <div className="bg-[#f4fbf4] rounded-2xl border border-[#d8f3dc] p-5 space-y-3 order-2 lg:order-1">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 bg-[#1b4332] rounded-lg flex items-center justify-center text-xs">🤖</div>
-                <span className="text-xs font-semibold text-[#1b4332]">AI feedback</span>
-              </div>
-              {[
-                { type: 'gap', text: 'Your handover section doesn\'t specify what happens if a handover is delayed. Adding a short clause here prevents disagreements later.' },
-                { type: 'conflict', text: 'Section 3 says holidays are split equally, but section 4 sets a 7-day maximum per stay. These may conflict in school summer holidays — worth clarifying.' },
-                { type: 'good', text: 'Your communication section is clear and specific. Naming a primary channel and an urgent-contact process is exactly what makes plans stick.' },
-              ].map(({ type, text }, i) => (
-                <div key={i} className={`rounded-xl p-3.5 text-xs leading-relaxed ${
-                  type === 'gap'      ? 'bg-amber-50 border border-amber-200 text-amber-800' :
-                  type === 'conflict' ? 'bg-red-50 border border-red-200 text-red-800' :
-                                       'bg-[#d8f3dc] border border-[#74c69d] text-[#1b4332]'
-                }`}>
-                  <span className="font-semibold mr-1">
-                    {type === 'gap' ? '⚠️ Gap:' : type === 'conflict' ? '🔴 Conflict:' : '✅ Strong:'}
-                  </span>
-                  {text}
+            {/* AI mock-up — mirrors the real AI Plan Review card exactly: same
+                section labels, same icon+plain-text style, no colour-coded
+                boxes. Keep in sync with AnalysisResult in PlanPaywall.jsx. */}
+            <div className="bg-white border border-[#d8f3dc] rounded-2xl overflow-hidden order-2 lg:order-1">
+              <div className="px-4 py-3 border-b border-[#d8f3dc] bg-[#f4fbf4] flex items-center gap-2">
+                <div className="w-5 h-5 rounded-full bg-[#52b788] flex items-center justify-center shrink-0">
+                  <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
                 </div>
-              ))}
+                <h2 className="text-sm font-semibold text-[#1b4332]">AI Plan Review</h2>
+              </div>
+              <div className="px-4 py-5 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Gaps to address</p>
+                  <div className="flex gap-2.5 items-start">
+                    <span className="text-amber-400 text-sm shrink-0 mt-0.5">⚠</span>
+                    <p className="text-sm text-gray-700"><span className="font-medium text-gray-800">Handovers:</span> Doesn't specify what happens if a handover is delayed — add a short fallback clause.</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Strengths</p>
+                  <div className="flex gap-2.5 items-start">
+                    <span className="text-[#52b788] text-sm shrink-0 mt-0.5">✓</span>
+                    <p className="text-sm text-gray-600">Naming a primary communication channel and an urgent-contact process makes this plan easy to follow.</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Next steps</p>
+                  <div className="flex gap-2.5 items-start">
+                    <span className="text-[#1b4332] text-sm font-bold shrink-0 mt-0.5">1.</span>
+                    <p className="text-sm text-gray-600">Add a fallback plan for delayed or missed handovers.</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="order-1 lg:order-2">
