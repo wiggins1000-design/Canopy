@@ -211,6 +211,7 @@ function blank() {
 }
 
 const STEP_KEY = 'pp_step'
+const VISITED_KEY = 'pp_visited'
 
 export default function PlanPage({ planId, planSaving }) {
   // Resume wherever the user left off rather than always restarting at Step 1
@@ -226,6 +227,19 @@ export default function PlanPage({ planId, planSaving }) {
     try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : blank() }
     catch { return blank() }
   })
+  // Sections the user has been on and left — drives the checkmarks in the
+  // section nav dropdown. Not field-level validation: most fields are
+  // optional, so "visited" is the only completion signal that works for
+  // every section.
+  const [visited, setVisited] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(VISITED_KEY) || '[]')
+      const set = new Set(Array.isArray(saved) ? saved : [])
+      set.add(step)
+      return set
+    } catch { return new Set([step]) }
+  })
+  const [sectionNavOpen, setSectionNavOpen] = useState(false)
   const [locale, setLocale] = useState(detectLocale)
   const [localeOpen, setLocaleOpen] = useState(false)
   const topRef = useRef(null)
@@ -240,6 +254,9 @@ export default function PlanPage({ planId, planSaving }) {
   const t = TERMS[locale] ?? TERMS['en-gb']
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
+  useEffect(() => {
+    try { localStorage.setItem(VISITED_KEY, JSON.stringify([...visited])) } catch {}
+  }, [visited])
   useEffect(() => { try { localStorage.setItem('pp_locale', locale) } catch {} }, [locale])
   useEffect(() => {
     try { localStorage.setItem(STEP_KEY, String(step)) } catch {}
@@ -259,8 +276,16 @@ export default function PlanPage({ planId, planSaving }) {
   }
 
   function go(n) {
+    setVisited(prev => (prev.has(step) ? prev : new Set(prev).add(step)))
     setStep(n)
+    setSectionNavOpen(false)
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Silent autosave so progress survives a lost phone/tab close between
+    // sections — separate from "Submit draft", which snapshots a numbered
+    // version the other parent sees in Draft history.
+    if (planId) {
+      supabase.rpc('pp_autosave_plan', { p_plan_id: planId, p_plan_data: data }).catch(() => {})
+    }
   }
 
   const p1 = data.parent1 || 'Parent 1'
@@ -278,6 +303,10 @@ export default function PlanPage({ planId, planSaving }) {
     'Your parenting plan',
   ]
 
+  // Labels for the section-nav dropdown — same as stepTitles except the
+  // final entry, which reads better as an action than as a noun there.
+  const navLabels = [...stepTitles.slice(0, 8), 'Review your plan']
+
   const currentLocaleItem = LOCALES.find(l => l.key === locale) ?? LOCALES[0]
 
   return (
@@ -290,9 +319,6 @@ export default function PlanPage({ planId, planSaving }) {
             <span className="text-white font-semibold text-sm">parentingplan.help</span>
           </div>
           <div className="flex items-center gap-6">
-            {step < TOTAL_STEPS && (
-              <span className="text-[#b7e4c7] text-xs">{step} of {TOTAL_STEPS - 1}</span>
-            )}
             {/* Locale picker */}
             <div className="relative">
               <button
@@ -326,20 +352,73 @@ export default function PlanPage({ planId, planSaving }) {
         </div>
       </header>
 
-      {/* Progress */}
+      {/* Section nav — tap to jump to any section, e.g. from Step 9's AI
+          feedback straight to the flagged section, or back to Step 9 from
+          mid-edit without clicking Continue repeatedly. */}
+      <div className="relative border-b border-[#d8f3dc] bg-white no-print">
+        <button
+          onClick={() => setSectionNavOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 max-w-xl mx-auto"
+          aria-expanded={sectionNavOpen}
+        >
+          <div className="text-left">
+            <p className="text-xs text-[#52b788] font-semibold uppercase tracking-wide">
+              {step < TOTAL_STEPS ? `Step ${step} of ${TOTAL_STEPS - 1}` : 'Review'}
+            </p>
+            <p className="text-sm font-semibold text-[#1b4332]">{navLabels[step - 1]}</p>
+          </div>
+          <svg
+            className={`w-4 h-4 text-[#52b788] flex-shrink-0 transition-transform ${sectionNavOpen ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {sectionNavOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setSectionNavOpen(false)} />
+            <div className="absolute left-0 right-0 top-full bg-white border-t border-[#d8f3dc] shadow-xl z-50 max-h-[70vh] overflow-y-auto">
+              <div className="max-w-xl mx-auto py-1">
+                {navLabels.map((title, i) => {
+                  const n = i + 1
+                  const isCurrent = n === step
+                  const isDone = visited.has(n) && !isCurrent
+                  return (
+                    <button
+                      key={n}
+                      onClick={() => go(n)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm transition-colors ${
+                        isCurrent ? 'bg-[#d8f3dc] font-semibold text-[#1b4332]' : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] ${
+                        isCurrent ? 'bg-[#1b4332] text-white' : isDone ? 'bg-[#52b788] text-white' : 'border border-gray-300 text-gray-400'
+                      }`}>
+                        {isDone ? '✓' : n}
+                      </span>
+                      {n}. {title}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Progress — reflects sections actually visited, not just current step,
+          since the nav above lets people jump around out of order. */}
       <div className="h-1 bg-[#1b4332]/20 no-print">
         <div
           className="h-full bg-[#52b788] transition-all duration-500"
-          style={{ width: `${Math.min((step / (TOTAL_STEPS - 1)) * 100, 100)}%` }}
+          style={{ width: `${Math.min(([...visited].filter(n => n <= TOTAL_STEPS - 1).length / (TOTAL_STEPS - 1)) * 100, 100)}%` }}
         />
       </div>
 
       <main className="max-w-xl mx-auto px-4 py-8 space-y-6">
         {step < TOTAL_STEPS && (
-          <div>
-            <p className="text-xs text-[#52b788] font-semibold uppercase tracking-wide">Step {step} of {TOTAL_STEPS - 1}</p>
-            <h1 className="text-2xl font-bold text-[#1b4332] mt-1">{stepTitles[step - 1]}</h1>
-          </div>
+          <h1 className="text-2xl font-bold text-[#1b4332]">{stepTitles[step - 1]}</h1>
         )}
 
         {step < TOTAL_STEPS && isCollaborator && (
