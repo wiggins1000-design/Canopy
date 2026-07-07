@@ -210,8 +210,18 @@ function blank() {
   }
 }
 
+const STEP_KEY = 'pp_step'
+
 export default function PlanPage({ planId, planSaving }) {
-  const [step, setStep] = useState(1)
+  // Resume wherever the user left off rather than always restarting at Step 1
+  // - matters most for the Stripe checkout round-trip (a full page redirect
+  // away and back), which would otherwise lose all step progress on return.
+  const [step, setStep] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(STEP_KEY))
+      return saved >= 1 && saved <= TOTAL_STEPS ? saved : 1
+    } catch { return 1 }
+  })
   const [data, setData] = useState(() => {
     try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : blank() }
     catch { return blank() }
@@ -232,6 +242,7 @@ export default function PlanPage({ planId, planSaving }) {
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) }, [data])
   useEffect(() => { try { localStorage.setItem('pp_locale', locale) } catch {} }, [locale])
   useEffect(() => {
+    try { localStorage.setItem(STEP_KEY, String(step)) } catch {}
     if (step === TOTAL_STEPS) localStorage.setItem(REACHED_PAYWALL_KEY, 'true')
   }, [step])
 

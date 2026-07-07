@@ -24,8 +24,7 @@ function buildSummary(data: Record<string, unknown>, p1: string, p2: string, loc
   const children = ((data.children as any[]) ?? [])
     .filter(c => c.name).map(c => c.name).join(', ') || '[not completed]'
 
-  const abroadInfo     = ((data.abroadInfo     as string[]) ?? []).join(', ') || '[not completed]'
-  const jointDecisions = ((data.jointDecisions as string[]) ?? []).join(', ') || '[not completed]'
+  const abroadInfo = f(data.abroadInfo as string)
   const carers = ((data.carers as any[]) ?? [])
     .filter(c => c.name).map(c => `${c.name} (${c.relationship})`).join(', ') || '[not completed]'
 
@@ -84,7 +83,6 @@ HEALTH:
 - Medical emergency process: ${f(data.medicalEmergency as string)}
 
 DECISIONS:
-- Joint decisions required: ${jointDecisions}
 - Daily rules: ${f(data.dailyRules as string)}
 - New partners: ${f(data.newPartners as string)}
 
