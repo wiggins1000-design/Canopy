@@ -119,8 +119,46 @@ export default function LoginPage() {
             </>
           )}
         </div>
+
+        {/* Store badges — neither app is publicly live yet (iOS is TestFlight-only,
+            Android hasn't started), so both are marked "coming soon" and non-interactive. */}
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <StoreBadge icon={<AppleIcon />} label="App Store" />
+          <StoreBadge icon={<PlayIcon />} label="Google Play" />
+        </div>
       </div>
     </div>
+  )
+}
+
+function StoreBadge({ icon, label }) {
+  return (
+    <div className="flex items-center gap-2 bg-white/70 border border-gray-200 rounded-xl px-3.5 py-2 text-gray-400">
+      {icon}
+      <div className="leading-tight">
+        <p className="text-[9px] uppercase tracking-wide">Coming soon</p>
+        <p className="text-xs font-semibold text-gray-500">{label}</p>
+      </div>
+    </div>
+  )
+}
+
+function AppleIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M16.365 1.43c0 1.14-.462 2.253-1.156 3.03-.756.845-2.02 1.49-3.05 1.49-.127 0-.253-.02-.34-.033-.014-.113-.033-.253-.033-.4 0-1.14.516-2.302 1.18-3.07.802-.906 2.117-1.55 3.19-1.6.02.19.02.33.02.4zM20.5 17.34c-.42.973-.63 1.407-1.176 2.267-.766 1.196-1.844 2.686-3.18 2.7-1.185.013-1.49-.77-3.098-.76-1.608.01-1.943.774-3.128.76-1.336-.014-2.357-1.36-3.123-2.556-2.14-3.343-2.364-7.267-1.044-9.36.937-1.487 2.418-2.36 3.812-2.36 1.418 0 2.31.774 3.482.774 1.137 0 1.828-.774 3.464-.774 1.24 0 2.554.677 3.49 1.846-3.067 1.68-2.57 6.05.5 7.463z"/>
+    </svg>
+  )
+}
+
+function PlayIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M3.6 2.24c-.34.34-.54.86-.54 1.53v16.46c0 .67.2 1.19.54 1.53l.1.08L13.03 12v-.24L3.7 2.16l-.1.08z"/>
+      <path d="M16.1 15.1l-3.07-3.07V12v-.24l3.07-3.07 6.94 3.94c.94.53.94 1.4 0 1.93l-6.94 3.94z"/>
+      <path d="M13.03 12L3.7 21.76c.34.36.9.4 1.53.06l10.87-6.18-3.07-3.64z"/>
+      <path d="M13.03 12l3.07-3.64L5.23 2.18c-.63-.35-1.19-.3-1.53.06L13.03 12z"/>
+    </svg>
   )
 }
 
