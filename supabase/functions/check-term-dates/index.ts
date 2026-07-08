@@ -255,7 +255,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
         if ((scraped as any).diagnostic) {
           await storeDiagnostic(homepageUrl, scraped.error, (scraped as any).diagnostic, locale)
         }
-        return { status: 'error', error: scraped.error }
+        return { status: 'error', error: scraped.error, diagnostic: (scraped as any).diagnostic }
       }
 
       if (scraped.termDates?.length) {
@@ -598,7 +598,7 @@ async function scrapeTermDates(homepageUrl: string, existingHash: string | null,
   }
 
   return {
-    error: 'Found the term dates page but could not extract dates. If dates are in an image or scanned PDF they cannot be read automatically.',
+    error: `Found ${triedUrls.length} candidate page(s) but could not extract a usable set of term dates from any of them.`,
     diagnostic: { error_type: 'extraction_failed', candidates_tried: triedUrls, content_preview: lastContentPreview },
   }
 }

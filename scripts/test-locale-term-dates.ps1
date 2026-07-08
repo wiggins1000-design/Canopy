@@ -49,16 +49,21 @@ $AU_SEEDS = @(
     'https://www.salesian.vic.edu.au',         # Salesian College Chadstone
     'https://www.stmarys.vic.edu.au',          # St Mary's College
     'https://www.scc.vic.edu.au',              # Strathcona Baptist Girls' Grammar
-    'https://www.sths.vic.edu.au',             # South Oakleigh College / Sunny Heights
 
     # QLD government (.eq.edu.au) — remaining guesses
     'https://www.brisbaneshs.eq.edu.au',       # Brisbane State High School
-    'https://www.fernygrove.eq.edu.au',        # Ferny Grove State High School
     'https://www.indooroopillyss.eq.edu.au',   # Indooroopilly State School
-    'https://www.parmia.eq.edu.au',            # Parramatta State School (QLD)
-    'https://www.mtasc.eq.edu.au',             # Mt Alvernia College (QLD)
-    'https://www.ambrose.eq.edu.au',           # St Ambrose's Primary (QLD)
-    'https://www.aldersyde.eq.edu.au',         # Aldersyde State School
+
+    # Verified 2026-07-08 via web search — replacing dead domains that never resolved
+    # (same "wrong guessed domain" pattern as the 2026-07-05 batch below, not real
+    # site-blocking). One entry (Aldersyde State School) was dropped outright — no
+    # evidence a Queensland school by that name exists at all, likely a phantom guess
+    # from the original seed list, same as Twyford's dead domain — see [[term_dates_pipeline]].
+    'https://www.sosc.vic.edu.au',              # South Oakleigh College (was sths.vic.edu.au, dead)
+    'https://fernygroveshs.eq.edu.au',          # Ferny Grove State High School (was fernygrove.eq.edu.au, dead)
+    'https://parramattass.eq.edu.au',           # Parramatta State School, Cairns (was parmia.eq.edu.au, dead)
+    'https://www.mta.qld.edu.au',               # Mount Alvernia College (was mtasc.eq.edu.au, dead — it's Catholic independent, not .eq.edu.au)
+    'https://www.stambrosesschool.qld.edu.au',  # St Ambrose's Catholic Primary, Newmarket (was ambrose.eq.edu.au, dead — also Catholic, not .eq.edu.au)
 
     # NSW — remaining guesses
     'https://www.newington.nsw.edu.au',        # Newington College
