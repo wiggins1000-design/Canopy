@@ -52,6 +52,22 @@ export default function CalendarPage() {
   const [showSchoolDates, setShowSchoolDates] = useState(
     () => localStorage.getItem('canopy-show-school-dates') !== '0'
   )
+  // Personal, per-device display filter for FamilyFeed-sourced events — independent of
+  // the family-wide "which events to add" capture setting (Settings → FamilyFeed). That
+  // setting controls what gets stored at all; this just controls what this parent sees,
+  // same pattern as showSchoolDates above. "Just my kids" hides FamilyFeed events with no
+  // tagged_children (untagged = didn't match a specific child, e.g. another year group's
+  // event that slipped through under the family's "all events" capture setting).
+  const [showAllFamilyFeedEvents, setShowAllFamilyFeedEvents] = useState(
+    () => localStorage.getItem('canopy-show-all-familyfeed-events') !== '0'
+  )
+  const hasHideableFamilyFeedEvents = events.some(
+    (e) => e.source === 'email_ai' && !(Array.isArray(e.tagged_children) && e.tagged_children.length > 0)
+  )
+  const visibleEvents = showAllFamilyFeedEvents
+    ? events
+    : events.filter((e) => e.source !== 'email_ai' || (Array.isArray(e.tagged_children) && e.tagged_children.length > 0))
+  const visibleEventDates = showAllFamilyFeedEvents ? eventDates : new Set(visibleEvents.map((e) => e.event_date))
   const [calView, setCalView] = useState('month') // 'month' | 'week' | 'children'
   const hasChildren = (family?.config?.children ?? []).length > 0
 
@@ -165,6 +181,19 @@ export default function CalendarPage() {
               <GradCapIcon className="w-5 h-5" />
             </button>
           )}
+          {hasHideableFamilyFeedEvents && (
+            <button
+              onClick={() => {
+                const next = !showAllFamilyFeedEvents
+                setShowAllFamilyFeedEvents(next)
+                localStorage.setItem('canopy-show-all-familyfeed-events', next ? '1' : '0')
+              }}
+              title={showAllFamilyFeedEvents ? 'Show only my kids’ events' : 'Show all events'}
+              className={`relative p-2 rounded-xl hover:bg-gray-100 transition-colors ${showAllFamilyFeedEvents ? 'text-gray-300' : 'text-canopy-mid'}`}
+            >
+              <FilterIcon className="w-5 h-5" />
+            </button>
+          )}
           {isParent && (
             <button
               onClick={() => setShowNewEvent(true)}
@@ -250,17 +279,16 @@ export default function CalendarPage() {
             selectedDateStr={selectedDay?.dateStr ?? null}
             onSelectDay={handleSelectDay}
             selectingEndDate={selectingEndDate}
-            eventDates={eventDates}
+            eventDates={visibleEventDates}
             termDays={showSchoolDates ? termDays : null}
             birthdayDates={birthdayDates}
-            peDates={peDates}
           />
 
           {/* Inline day detail */}
           {selectedDay && !selectingEndDate && (
             <DayDetailPanel
               day={selectedDay}
-              dayEvents={events.filter((e) => e.event_date === selectedDay.dateStr)}
+              dayEvents={visibleEvents.filter((e) => e.event_date === selectedDay.dateStr)}
               birthdayNames={birthdayDates.get(selectedDay.dateStr) ?? []}
               termSchools={termDays?.get(selectedDay.dateStr) ?? null}
               peNames={peDates.get(selectedDay.dateStr) ?? []}
@@ -327,6 +355,14 @@ function GradCapIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 3 2 8.5l10 5.5 10-5.5L12 3zm0 13.5L4 12v4.5c0 1.93 3.58 3.5 8 3.5s8-1.57 8-3.5V12l-8 4.5z" />
+    </svg>
+  )
+}
+
+function FilterIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-7 8v6l-4 2v-8L3 4z" />
     </svg>
   )
 }
