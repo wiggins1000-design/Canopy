@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
+import { isNativePlatform } from '../lib/supabase'
 
 export default function LoginPage() {
   const { session, needsTwoFa, signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth()
@@ -120,12 +121,15 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Store badges — neither app is publicly live yet (iOS is TestFlight-only,
-            Android hasn't started), so both are marked "coming soon" and non-interactive. */}
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <StoreBadge icon={<AppleIcon />} label="App Store" />
-          <StoreBadge icon={<PlayIcon />} label="Google Play" />
-        </div>
+        {/* Store badges — only meaningful on the web version (neither app is publicly
+            live yet, both marked "coming soon"). Pointless — and confusing — inside
+            a native build someone already has installed, so hidden there. */}
+        {!isNativePlatform() && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <StoreBadge icon={<AppleIcon />} label="App Store" />
+            <StoreBadge icon={<PlayIcon />} label="Google Play" />
+          </div>
+        )}
       </div>
     </div>
   )
