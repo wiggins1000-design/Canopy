@@ -1148,7 +1148,7 @@ export default function ConfigPage() {
             />
             <ToggleRow
               label="Parenting schedule"
-              description="The custody schedule and upcoming changeovers"
+              description="The parenting schedule and upcoming changeovers"
               enabled={displayPerms.schedule ?? VIEWER_DEFAULTS.schedule}
               onToggle={() => toggleViewerPerm('schedule', false)}
             />

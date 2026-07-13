@@ -5,7 +5,7 @@ import { isNativePlatform } from '../../lib/supabase'
 import { getCurrentOffering, purchasePackage, restorePurchases, hasActiveEntitlement, isRevenueCatReady } from '../../lib/revenuecat'
 
 const FEATURES = [
-  'Shared calendar with custody schedule',
+  'Shared calendar with parenting schedule',
   'AI email & newsletter parsing',
   'Notice board & messaging',
   'Info bank & document storage',

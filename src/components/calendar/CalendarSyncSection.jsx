@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import Button from '../ui/Button'
 
 const SYNC_TYPE_OPTIONS = [
-  { id: 'schedule',         label: 'Custody schedule',      desc: 'Which parent has the children each day' },
+  { id: 'schedule',         label: 'Parenting schedule',    desc: 'Which parent has the children each day' },
   { id: 'events',           label: 'Calendar events',        desc: 'Family events added manually or via FamilyFeed' },
   { id: 'term_dates',       label: 'School term dates',      desc: 'Holidays and INSET days from your school' },
   { id: 'schedule_changes', label: 'Schedule changes',       desc: 'Approved swaps and holiday requests' },

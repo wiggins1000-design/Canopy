@@ -7,7 +7,7 @@ DESCRIPTION (4000 char limit)
 ----------------------------------
 Canopy is a private parenting and information-sharing app that keeps everyone who cares for your children on the same page — schedules, school updates, notices, and everything important about your kids, all in one secure place.
 
-It works for any family. Some features are especially useful for co-parents — shared custody schedules, First Right of Refusal, and expense splitting — alongside everything every family needs: a notice board, school term dates, document storage, and more.
+It works for any family — parenting, co-parenting, or parallel parenting. Some features are especially useful for co-parents and parallel parenting families — shared custody schedules, First Right of Refusal, and expense splitting — alongside everything every family needs: a notice board, school term dates, document storage, and more.
 
 SHARED CALENDAR & SCHEDULE
 Set your rotation (alternating weeks, 2-2-5-5, 2-2-3, or fully custom) and the calendar updates itself. See who has the children on any day at a glance. Request schedule changes or holiday time, and First Right of Refusal offers cover to the other parent first when needed. Subscribe from Apple Calendar, Google Calendar, or Outlook.
@@ -47,7 +47,7 @@ One plan covers the whole family, not a per-parent fee.
 
 KEYWORDS (100 char limit)
 ----------------------------------
-co-parenting,custody schedule,family calendar,shared custody,parenting plan,child access
+co-parenting,parallel parenting,custody schedule,family calendar,shared custody,parenting plan
 
 
 SUPPORT URL
