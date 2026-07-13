@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete your account &ndash; Canopy</title>
+  <meta name="description" content="How to permanently delete your Canopy account and all associated data.">
+  <meta property="og:title" content="Delete your account &ndash; Canopy">
+  <meta property="og:url" content="https://canopy-app.app/delete-account.html">
+  <meta name="theme-color" content="#1b4332">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            canopy: {
+              deep:  '#1b4332',
+              mid:   '#2d6a4f',
+              green: '#52b788',
+              light: '#74c69d',
+              mist:  '#d8f3dc',
+              frost: '#f4fbf4',
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Helvetica', 'Arial', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-white text-gray-900 antialiased" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+
+  <!-- Navigation -->
+  <nav class="bg-canopy-deep sticky top-0 z-50 shadow-sm">
+    <div class="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html">
+          <img src="images/CanopyGreenLogo.gif" alt="Canopy" style="height:36px;">
+        </a>
+        <span class="hidden sm:block text-canopy-mist text-sm">Share what matters.</span>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-5">
+        <a href="faq.html" class="text-canopy-mist hover:text-white text-sm font-medium transition-colors hidden md:block">FAQ</a>
+        <a href="https://my.canopy-app.app"
+           class="text-sm font-semibold bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition-colors">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="bg-canopy-frost py-16 px-5 text-center">
+    <div class="max-w-2xl mx-auto">
+      <p class="text-canopy-mid font-semibold text-xs uppercase tracking-widest mb-3">Account deletion</p>
+      <h1 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Delete your account</h1>
+      <p class="text-lg text-gray-500 leading-relaxed">You can permanently delete your Canopy account and all associated data at any time &mdash; from within the app, or by request if you no longer have access to it.</p>
+    </div>
+  </section>
+
+  <div class="max-w-2xl mx-auto px-5 py-16 space-y-12">
+
+    <section>
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Option 1: Delete it yourself (instant)</h2>
+      <ol class="list-decimal list-inside space-y-2 text-gray-600 leading-relaxed">
+        <li>Sign in at <a href="https://my.canopy-app.app" class="text-canopy-mid hover:underline font-medium">my.canopy-app.app</a> (in a browser, or the Canopy app)</li>
+        <li>Go to <strong>Settings</strong></li>
+        <li>Scroll to <strong>Account</strong> and select <strong>Delete account</strong></li>
+        <li>Confirm &mdash; your account is deleted immediately</li>
+      </ol>
+      <div class="mt-6 text-center">
+        <a href="https://my.canopy-app.app/config"
+           class="inline-block bg-canopy-deep hover:bg-canopy-mid text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
+          Go to Settings
+        </a>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Option 2: Request deletion by email</h2>
+      <p class="text-gray-600 leading-relaxed">If you can no longer sign in, email <a href="mailto:hello@canopy-app.app" class="text-canopy-mid hover:underline font-medium">hello@canopy-app.app</a> from the address associated with your account and ask us to delete it. We'll verify your identity and process the request within 30 days, in line with UK GDPR.</p>
+    </section>
+
+    <section class="bg-canopy-frost rounded-2xl p-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-3">What gets deleted</h2>
+      <ul class="list-disc list-inside space-y-1.5 text-gray-600 text-sm leading-relaxed">
+        <li>Your account and login credentials</li>
+        <li>Your profile, calendar, notices, messages, and Info Bank entries you've added</li>
+        <li>Documents you've uploaded to the vault</li>
+        <li><strong>If you're the last remaining parent in a family:</strong> the whole family's data is deleted too, including shared documents and uploaded files</li>
+        <li><strong>If a co-parent remains:</strong> only your own membership and personal data are removed &mdash; shared family data (calendar, schedule, notices) stays intact for them</li>
+      </ul>
+      <p class="mt-4 text-gray-500 text-sm">Deletion is immediate and permanent once confirmed &mdash; it can't be undone, and there's no recovery period.</p>
+    </section>
+
+    <p class="text-sm text-gray-400 text-center">See our <a href="privacy.html" class="text-canopy-mid hover:underline">Privacy Policy</a> for more on how your data is handled.</p>
+
+  </div>
+
+  <!-- Footer -->
+  <footer style="background:#111827;color:#9ca3af;" class="py-8 px-5 text-center text-sm">
+    <p>&copy; 2026 Chrysalis Works Ltd. All rights reserved.</p>
+    <p class="mt-2">
+      <a href="index.html" class="hover:text-white transition-colors">Home</a> &middot;
+      <a href="privacy.html" class="hover:text-white transition-colors">Privacy</a> &middot;
+      <a href="terms.html" class="hover:text-white transition-colors">Terms</a> &middot;
+      <a href="faq.html" class="hover:text-white transition-colors">FAQ</a>
+    </p>
+  </footer>
+
+</body>
+</html>
