@@ -1,0 +1,61 @@
+SHORT DESCRIPTION (80 char limit)
+----------------------------------
+Family & parenting calendar, schedules, notices — all in one private app
+
+
+FULL DESCRIPTION (4000 char limit)
+----------------------------------
+Canopy is a private family app for staying organised together — shared parenting schedules, school updates, notices, and everything important about your kids, all in one secure place.
+
+It works for any family — parenting, co-parenting, or parallel parenting. Some features are especially useful for co-parents and parallel parenting families — shared custody schedules, First Right of Refusal, and expense splitting — alongside everything every family needs: a notice board, school term dates, document storage, and more.
+
+SHARED CALENDAR & PARENTING SCHEDULE
+Set your rotation (alternating weeks, 2-2-5-5, 2-2-3, or fully custom) and the calendar updates itself. See who has the children on any day at a glance. Request schedule changes or holiday time, and First Right of Refusal offers cover to the other parent first when needed. Subscribe from Google Calendar, Apple Calendar, or Outlook.
+
+SCHOOL EMAILS, HANDLED AUTOMATICALLY
+Forward school newsletters to your family's own Canopy email address. AI reads them and adds events, term dates, and appointments straight to your calendar.
+
+TERM DATES, ALWAYS UP TO DATE
+Add your child's school once and holidays, half-terms, and INSET days stay synced automatically.
+
+FAMILY NOTICE BOARD
+Post updates, photos, and reminders, tagged by topic. Everyone's notified the moment something's posted.
+
+CHILDREN'S INFO, ALL IN ONE PLACE
+Medical details, school contacts, GP/dentist info, accounts, and documents, organised per child.
+
+SECURE DOCUMENT VAULT
+Passports, medical records, school reports, encrypted and always at hand.
+
+SHARED EXPENSES & CHILDCARE
+Split costs your way, track carer hours, roll them into bills automatically.
+
+DIRECT MESSAGING
+A private thread between parents.
+
+COURT-READY RECORDS
+Export a tamper-proof, timestamped record of activity for legal proceedings if you ever need it — useful for co-parenting and custody schedule disputes.
+
+READ-ONLY ACCESS FOR GRANDPARENTS & CARERS
+Give trusted family members visibility without full access.
+
+PRIVATE BY DESIGN
+Encrypted, GDPR compliant, no ads, no data selling. AI features are strictly opt-in.
+
+One plan covers the whole family, not a per-parent fee.
+
+
+NOTE ON KEYWORDS
+----------------------------------
+Unlike the App Store, Play has no separate keywords field -- its search
+algorithm weighs the description text itself, so search terms (family
+calendar, co-parenting, parenting schedule, custody schedule, parallel
+parenting) are woven into the prose above rather than listed separately.
+
+
+SCREENSHOTS
+----------------------------------
+website/images/google-play/ -- 10 files, padded to 1512x2688 (16:9) from the
+iOS 1242x2688 originals to satisfy Play's screenshot aspect-ratio limit.
+Generated via scripts/pad-android-screenshots.mjs. Play allows max 8 -- pick
+the best 8 of the 10 when uploading.
