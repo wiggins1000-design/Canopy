@@ -1,31 +1,58 @@
 // Generates the Google Play "Feature graphic" (1024x500, JPG/24-bit PNG, no
-// alpha) -- a Play-only asset with no App Store equivalent. Forest Deep
-// background with the logo recoloured for legibility (dark green text is
-// invisible on a dark green bg, so it's swapped to Mist), matching the
-// treatment already used for canopy-app.app's own dark-bg surfaces.
+// alpha) -- a Play-only asset with no App Store equivalent. Uses the
+// artwork from the pre-made CanopyGreenLogo.gif (white wordmark on a Forest
+// Deep background) directly.
+//
+// The GIF's "solid" background isn't actually flat -- GIF palette
+// quantization/dithering leaves subtle noise -- which showed up as a visible
+// rectangle seam in earlier attempts that recomposited a cropped region of
+// it onto a separately-filled canvas. Fixed by extracting *only* the white
+// wordmark/leaf shapes as a clean alpha silhouette (thresholding for
+// near-white pixels) and discarding the noisy green background entirely,
+// then compositing that clean cutout onto a flat brand-colour fill -- same
+// source artwork, no dithering carried over.
 import sharp from 'sharp'
 
-const SOURCE = 'CanopyWhiteLogo.png'
+const SOURCE = 'CanopyGreenLogo.gif'
 const OUT = 'website/images/google-play/play-feature-graphic.png'
-const FOREST_DEEP = { r: 27, g: 67, b: 50, alpha: 1 }
-const MIST = [0xd8, 0xf3, 0xdc]
+const FOREST_DEEP = { r: 0x1b, g: 0x43, b: 0x32, alpha: 1 }
 const CANVAS_W = 1024
 const CANVAS_H = 500
+const NEAR_WHITE = 180
 
-async function prepareLogo() {
+async function extractWhiteSilhouette() {
   const { data, info } = await sharp(SOURCE).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const px = new Uint8ClampedArray(data)
   for (let i = 0; i < px.length; i += 4) {
     const r = px[i], g = px[i + 1], b = px[i + 2]
-    if (r > 240 && g > 240 && b > 240) { px[i + 3] = 0; continue } // near-white -> transparent
-    if (r < 60 && g < 115 && b < 90) { px[i] = MIST[0]; px[i + 1] = MIST[1]; px[i + 2] = MIST[2] } // dark green -> Mist
+    if (r > NEAR_WHITE && g > NEAR_WHITE && b > NEAR_WHITE) {
+      px[i] = 255; px[i + 1] = 255; px[i + 2] = 255; px[i + 3] = 255 // clean opaque white
+    } else {
+      px[i + 3] = 0 // everything else -> transparent (discards the dithered green)
+    }
   }
-  return sharp(Buffer.from(px), { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer()
+  const full = sharp(Buffer.from(px), { raw: { width: info.width, height: info.height, channels: 4 } })
+  const bounds = await findContentBounds(px, info.width, info.height, info.channels)
+  return full.extract(bounds).png().toBuffer()
+}
+
+async function findContentBounds(data, width, height, channels) {
+  let minX = width, minY = height, maxX = 0, maxY = 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * channels
+      if (data[i + 3] > 0) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x
+        if (y < minY) minY = y; if (y > maxY) maxY = y
+      }
+    }
+  }
+  return { left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 }
 }
 
 async function run() {
-  const logo = await prepareLogo()
-  const targetLogoWidth = Math.round(CANVAS_W * 0.55)
+  const logo = await extractWhiteSilhouette()
+  const targetLogoWidth = Math.round(CANVAS_W * 0.6)
   const resized = await sharp(logo).resize(targetLogoWidth, null, { fit: 'inside' }).png().toBuffer()
   const { width: lw, height: lh } = await sharp(resized).metadata()
 
