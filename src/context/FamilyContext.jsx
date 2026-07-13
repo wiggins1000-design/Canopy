@@ -86,11 +86,12 @@ export function FamilyProvider({ children }) {
   const parentA = members.find((m) => m.role === 'parent_a')
   const parentB = members.find((m) => m.role === 'parent_b')
 
-  const createFamily = useCallback(async (locale = 'en-GB') => {
+  const createFamily = useCallback(async (locale = 'en-GB', careType = 'other') => {
     const displayName = user.user_metadata?.display_name ?? user.email
     const { error } = await supabase.rpc('create_family', {
       member_display_name: displayName,
       p_locale: locale,
+      p_care_type: careType,
     })
     if (error) return { error }
     await loadFamily()

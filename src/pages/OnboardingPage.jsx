@@ -53,16 +53,17 @@ async function applyPlanImport(familyId, payload) {
 export default function OnboardingPage() {
   const { createFamily, joinFamily, reload } = useFamily()
   const { user, signOut } = useAuth()
-  const [step, setStep] = useState('choose') // 'choose' | 'create' | 'country' | 'join'
+  const [step, setStep] = useState('choose') // 'choose' | 'create' | 'careType' | 'country' | 'join'
   const [inviteCode, setInviteCode] = useState('')
   const [selectedLocale, setSelectedLocale] = useState(detectDefaultLocale)
+  const [selectedCareType, setSelectedCareType] = useState('other')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function handleCreate() {
     setLoading(true)
     setError(null)
-    const { error } = await createFamily(selectedLocale)
+    const { error } = await createFamily(selectedLocale, selectedCareType)
     if (error) { setError(error.message); setLoading(false); return }
 
     const raw = localStorage.getItem(PLAN_IMPORT_STORAGE_KEY)
@@ -130,6 +131,43 @@ export default function OnboardingPage() {
               <p className="text-xs text-gray-400">
                 You'll be set up as Parent A. Share an invite code from the People tab for Parent B to join.
               </p>
+              <Button className="w-full py-3" onClick={() => setStep('careType')}>
+                Continue
+              </Button>
+            </>
+          )}
+
+          {step === 'careType' && (
+            <>
+              <button onClick={() => setStep('create')} className="text-sm text-canopy-mid flex items-center gap-1 mb-1">
+                ← Back
+              </button>
+              <p className="text-sm font-semibold text-gray-700">How does your family share care?</p>
+              <p className="text-xs text-gray-400">This just tailors your setup steps — you can change anything later in Settings.</p>
+              <div className="space-y-2 pt-1">
+                {[
+                  { code: 'living_together', label: 'We live together' },
+                  { code: 'co_parenting', label: 'Co-parenting (two homes)' },
+                  { code: 'parallel_parenting', label: 'Parallel parenting' },
+                  { code: 'other', label: "Other / I'll set this up myself" },
+                ].map(({ code, label }) => (
+                  <button
+                    key={code}
+                    onClick={() => setSelectedCareType(code)}
+                    className={[
+                      'w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors',
+                      selectedCareType === code
+                        ? 'border-canopy-green bg-canopy-green/5 text-canopy-dark'
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300',
+                    ].join(' ')}
+                  >
+                    {label}
+                    {selectedCareType === code && (
+                      <span className="ml-auto text-canopy-green">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
               <Button className="w-full py-3" onClick={() => setStep('country')}>
                 Continue
               </Button>
@@ -138,7 +176,7 @@ export default function OnboardingPage() {
 
           {step === 'country' && (
             <>
-              <button onClick={() => setStep('create')} className="text-sm text-canopy-mid flex items-center gap-1 mb-1">
+              <button onClick={() => setStep('careType')} className="text-sm text-canopy-mid flex items-center gap-1 mb-1">
                 ← Back
               </button>
               <p className="text-sm font-semibold text-gray-700">Where is your family based?</p>

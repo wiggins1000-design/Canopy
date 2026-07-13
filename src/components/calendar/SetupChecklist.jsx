@@ -7,8 +7,10 @@ export default function SetupChecklist() {
 
   if (!isParent) return null
 
+  const isSingleHousehold = family?.config?.care_type === 'living_together'
+
   const items = [
-    userRole === 'parent_a' && {
+    userRole === 'parent_a' && !isSingleHousehold && {
       id: 'schedule',
       label: 'Set up the parenting schedule',
       done: !!schedule,
