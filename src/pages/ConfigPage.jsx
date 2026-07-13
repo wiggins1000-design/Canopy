@@ -1390,7 +1390,7 @@ function SubscriptionSection() {
               disabled
               className="w-full py-2.5 rounded-xl text-sm font-semibold bg-canopy-mid text-white opacity-50 cursor-not-allowed"
             >
-              Subscribe — £12.99/mo or £119.99/yr
+              Subscribe — £6.99/mo or £69.99/yr
             </button>
             <p className="text-xs text-gray-400 text-center">Coming soon via the App Store</p>
           </div>

@@ -312,7 +312,7 @@ export default function LandingPage() {
               Learn more
             </a>
           </div>
-          <p className="text-[#74c69d] text-xs mt-5">10 days free — then £12.99/month for the whole family.</p>
+          <p className="text-[#74c69d] text-xs mt-5">10 days free — then £6.99/month for the whole family.</p>
         </div>
       </section>
 

@@ -95,7 +95,7 @@ export default function PaywallOverlay() {
             <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2 mt-1">Annual</p>
             <div className="flex items-end justify-center gap-1 mb-0.5">
               <span className="text-5xl font-bold text-gray-900">
-                {annualPkg?.product.priceString ?? '£119.99'}
+                {annualPkg?.product.priceString ?? '£69.99'}
               </span>
               <span className="text-gray-400 mb-1.5">/year</span>
             </div>
@@ -116,7 +116,7 @@ export default function PaywallOverlay() {
             <p className="text-xs font-bold text-canopy-mid uppercase tracking-widest text-center mb-2">Monthly</p>
             <div className="flex items-end justify-center gap-1 mb-1">
               <span className="text-5xl font-bold text-gray-900">
-                {monthlyPkg?.product.priceString ?? '£12.99'}
+                {monthlyPkg?.product.priceString ?? '£6.99'}
               </span>
               <span className="text-gray-400 mb-1.5">/month</span>
             </div>
