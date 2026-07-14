@@ -2,7 +2,7 @@
 //
 // A single client instance is exported so React Query / hooks share the same
 // connection pool and realtime websocket. Push subscription helpers live here
-// because they write to family_members.push_token and need the client anyway.
+// because they write to family_members.push_token_* columns and need the client anyway.
 import { createClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 
@@ -17,14 +17,16 @@ export const supabase = createClient(
 export const isNativePlatform = () => Capacitor.isNativePlatform()
 
 // Register for native push (APNs on iOS, FCM on Android, via Capacitor).
-// Stores the device token as "apns:<token>" or "fcm:<token>" in
-// family_members.push_token so send-push knows which service to call.
+// Stores the device token in its own per-platform column
+// (push_token_ios / push_token_android) so a second device registering
+// doesn't overwrite the first — a parent using both an iPhone and an
+// Android device gets pushed on both.
 export async function registerNativePush(userId) {
   const { PushNotifications } = await import('@capacitor/push-notifications')
   const { receive } = await PushNotifications.requestPermissions()
   if (receive !== 'granted') return { granted: false, denied: true }
 
-  const prefix = Capacitor.getPlatform() === 'ios' ? 'apns' : 'fcm'
+  const column = Capacitor.getPlatform() === 'ios' ? 'push_token_ios' : 'push_token_android'
 
   let resolve
   const promise = new Promise((r) => { resolve = r })
@@ -32,7 +34,7 @@ export async function registerNativePush(userId) {
   const regHandle = await PushNotifications.addListener('registration', async (token) => {
     await supabase
       .from('family_members')
-      .update({ push_token: `${prefix}:${token.value}` })
+      .update({ [column]: token.value })
       .eq('user_id', userId)
     resolve({ granted: true })
   })
@@ -53,8 +55,9 @@ export async function registerNativePush(userId) {
 }
 
 export async function unregisterNativePush(userId) {
-  // APNs tokens can't be revoked from the client — just clear from DB
-  await supabase.from('family_members').update({ push_token: null }).eq('user_id', userId)
+  // APNs/FCM tokens can't be revoked from the client — just clear from DB
+  const column = Capacitor.getPlatform() === 'ios' ? 'push_token_ios' : 'push_token_android'
+  await supabase.from('family_members').update({ [column]: null }).eq('user_id', userId)
 }
 
 export async function registerPushSubscription(userId) {
@@ -73,7 +76,7 @@ export async function registerPushSubscription(userId) {
 
     await supabase
       .from('family_members')
-      .update({ push_token: JSON.stringify(sub) })
+      .update({ push_token_web: JSON.stringify(sub) })
       .eq('user_id', userId)
   } catch (err) {
     console.warn('Push registration failed:', err)
@@ -92,7 +95,7 @@ export async function unregisterPushSubscription(userId) {
     const reg = await navigator.serviceWorker.ready
     const sub = await reg.pushManager.getSubscription()
     if (sub) await sub.unsubscribe()
-    await supabase.from('family_members').update({ push_token: null }).eq('user_id', userId)
+    await supabase.from('family_members').update({ push_token_web: null }).eq('user_id', userId)
   } catch (err) {
     console.warn('Push unregister failed:', err)
   }

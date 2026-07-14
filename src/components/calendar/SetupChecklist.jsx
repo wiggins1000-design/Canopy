@@ -37,7 +37,7 @@ export default function SetupChecklist() {
     {
       id: 'push',
       label: 'Enable push notifications',
-      done: !!member?.push_token,
+      done: !!(member?.push_token_ios || member?.push_token_android || member?.push_token_web),
       href: '/config',
     },
   ].filter(Boolean)

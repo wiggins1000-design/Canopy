@@ -19,6 +19,11 @@
 //   FCM_PRIVATE_KEY   = service account "private_key" field (PEM, \n may be literal or real newlines)
 //
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected.
+//
+// family_members has one token slot per platform (push_token_ios,
+// push_token_android, push_token_web) rather than a single shared column —
+// a person using multiple devices gets pushed on all of them, and one
+// device registering doesn't clobber another's token.
 
 // @ts-ignore
 import webpush from 'npm:web-push@3.6.7'
@@ -208,47 +213,62 @@ Deno.serve(async (req) => {
 
   const { data: member } = await supabase
     .from('family_members')
-    .select('push_token')
+    .select('push_token_ios, push_token_android, push_token_web')
     .eq('family_id', family_id)
     .eq('role', recipient_role)
     .single()
 
-  if (!member?.push_token) {
+  const targets: Array<{ platform: string; send: () => Promise<void> }> = []
+  if (member?.push_token_ios) {
+    targets.push({ platform: 'ios', send: () => sendApns(member.push_token_ios, title, body) })
+  }
+  if (member?.push_token_android) {
+    targets.push({ platform: 'android', send: () => sendFcm(member.push_token_android, title, body) })
+  }
+  if (member?.push_token_web) {
+    targets.push({
+      platform: 'web',
+      send: async () => {
+        const vapidSubject = Deno.env.get('VAPID_SUBJECT')
+        const vapidPublic  = Deno.env.get('VAPID_PUBLIC')
+        const vapidPrivate = Deno.env.get('VAPID_PRIVATE')
+        if (!vapidSubject || !vapidPublic || !vapidPrivate) throw new Error('VAPID not configured')
+        webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate)
+        await webpush.sendNotification(
+          JSON.parse(member.push_token_web),
+          JSON.stringify({ title, body, url }),
+        )
+      },
+    })
+  }
+
+  if (targets.length === 0) {
     return new Response(JSON.stringify({ skipped: 'no push token' }), { status: 200, headers: CORS })
   }
 
-  try {
-    if (member.push_token.startsWith('apns:')) {
-      // Native iOS push via APNs
-      await sendApns(member.push_token.slice(5), title, body)
-    } else if (member.push_token.startsWith('fcm:')) {
-      // Native Android push via FCM
-      await sendFcm(member.push_token.slice(4), title, body)
-    } else {
-      // Web push via VAPID
-      const vapidSubject = Deno.env.get('VAPID_SUBJECT')
-      const vapidPublic  = Deno.env.get('VAPID_PUBLIC')
-      const vapidPrivate = Deno.env.get('VAPID_PRIVATE')
-      if (!vapidSubject || !vapidPublic || !vapidPrivate) {
-        return new Response(JSON.stringify({ error: 'VAPID not configured' }), { status: 500, headers: CORS })
-      }
-      webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate)
-      await webpush.sendNotification(
-        JSON.parse(member.push_token),
-        JSON.stringify({ title, body, url }),
-      )
+  // Send to every registered device for this person — a parent using both an
+  // iPhone and an Android device should get it on both, not just whichever
+  // registered most recently.
+  const results = await Promise.allSettled(targets.map((t) => t.send()))
+  const errors: Record<string, string> = {}
+  let webExpired = false
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      errors[targets[i].platform] = r.reason?.message ?? String(r.reason)
+      if (targets[i].platform === 'web' && r.reason?.statusCode === 410) webExpired = true
     }
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: CORS })
-  } catch (err: any) {
-    if (err.statusCode === 410) {
-      // Web-push: subscription expired — clear it
-      await supabase
-        .from('family_members')
-        .update({ push_token: null })
-        .eq('family_id', family_id)
-        .eq('role', recipient_role)
-    }
-    console.error('Push error:', err.message)
-    return new Response(JSON.stringify({ error: err.message }), { status: 502, headers: CORS })
+  })
+
+  if (webExpired) {
+    await supabase.from('family_members').update({ push_token_web: null })
+      .eq('family_id', family_id).eq('role', recipient_role)
   }
+
+  if (Object.keys(errors).length > 0) console.error('Push error(s):', errors)
+
+  if (Object.keys(errors).length === targets.length) {
+    // Every target failed
+    return new Response(JSON.stringify({ error: errors }), { status: 502, headers: CORS })
+  }
+  return new Response(JSON.stringify({ ok: true, errors: Object.keys(errors).length ? errors : undefined }), { status: 200, headers: CORS })
 })

@@ -134,8 +134,8 @@ export default function AdminFamilyPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs ${m.push_token ? 'text-green-400' : 'text-slate-600'}`}>
-                      {m.push_token ? '✓' : '—'}
+                    <span className={`text-xs ${(m.push_token_ios || m.push_token_android || m.push_token_web) ? 'text-green-400' : 'text-slate-600'}`}>
+                      {[m.push_token_ios && 'iOS', m.push_token_android && 'Android', m.push_token_web && 'Web'].filter(Boolean).join(', ') || '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-400 text-xs">

@@ -1,6 +1,7 @@
 ﻿﻿import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
 import { supabase, registerPushSubscription, unregisterPushSubscription, registerNativePush, unregisterNativePush, isNativePlatform, sendPushNotification } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
@@ -198,9 +199,12 @@ export default function ConfigPage() {
   // Check current push subscription state
   useEffect(() => {
     if (isNativePlatform()) {
-      // On native iOS/Android: push is enabled if we have a stored APNs/FCM token
+      // On native iOS/Android: push is enabled if this device's platform-
+      // specific token is stored (each platform has its own column now, so
+      // registering on one device doesn't affect the other's status).
       setPushSupported(true)
-      setPushEnabled(!!member?.push_token?.startsWith('apns:') || !!member?.push_token?.startsWith('fcm:'))
+      const column = Capacitor.getPlatform() === 'ios' ? 'push_token_ios' : 'push_token_android'
+      setPushEnabled(!!member?.[column])
       return
     }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -213,10 +217,10 @@ export default function ConfigPage() {
     }
     navigator.serviceWorker.ready.then((reg) =>
       reg.pushManager.getSubscription().then((sub) => {
-        setPushEnabled(!!sub && !!member?.push_token)
+        setPushEnabled(!!sub && !!member?.push_token_web)
       })
     )
-  }, [member?.push_token])
+  }, [member?.push_token_ios, member?.push_token_android, member?.push_token_web])
 
   async function togglePush() {
     if (!member) {
