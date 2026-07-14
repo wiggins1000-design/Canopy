@@ -44,7 +44,7 @@ function b64url(buf: ArrayBuffer): string {
 
 async function apnsJwt(keyId: string, teamId: string, pem: string): Promise<string> {
   const enc = new TextEncoder()
-  const pemBody = pem.replace(/-----[^-]+-----/g, '').replace(/\s/g, '')
+  const pemBody = pem.replace(/\\n/g, '\n').replace(/-----[^-]+-----/g, '').replace(/\s/g, '')
   const keyData = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0))
   const key = await crypto.subtle.importKey(
     'pkcs8', keyData,
