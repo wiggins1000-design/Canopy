@@ -57,6 +57,7 @@ export default function ConfigPage() {
   const [pushSupported, setPushSupported] = useState(true)
   const [pushBlocked, setPushBlocked]   = useState(false)
   const [pushError, setPushError]       = useState(null)
+  const [testPushState, setTestPushState] = useState('idle') // idle | sending | sent | error
 
   const [additionalEmails, setAdditionalEmails] = useState([])
   const [newEmail, setNewEmail]               = useState('')
@@ -197,9 +198,9 @@ export default function ConfigPage() {
   // Check current push subscription state
   useEffect(() => {
     if (isNativePlatform()) {
-      // On native iOS: push is enabled if we have a stored APNs token
+      // On native iOS/Android: push is enabled if we have a stored APNs/FCM token
       setPushSupported(true)
-      setPushEnabled(!!member?.push_token?.startsWith('apns:'))
+      setPushEnabled(!!member?.push_token?.startsWith('apns:') || !!member?.push_token?.startsWith('fcm:'))
       return
     }
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -259,6 +260,23 @@ export default function ConfigPage() {
     } finally {
       setPushLoading(false)
     }
+  }
+
+  async function sendTestPush() {
+    setTestPushState('sending')
+    try {
+      const { error } = await sendPushNotification({
+        familyId:      family.id,
+        recipientRole: userRole,
+        title:         'Test notification',
+        body:          'If you can see this, push notifications are working.',
+        url:           '/config',
+      })
+      setTestPushState(error ? 'error' : 'sent')
+    } catch (e) {
+      setTestPushState('error')
+    }
+    setTimeout(() => setTestPushState('idle'), 4000)
   }
 
   async function saveReminderTime() {
@@ -535,6 +553,9 @@ export default function ConfigPage() {
             isNative={isNativePlatform()}
             pushError={pushError}
           />
+          {isNativePlatform() && pushEnabled && (
+            <TestPushRow state={testPushState} onSend={sendTestPush} />
+          )}
         </AccordionGroup>
 
         <AccordionGroup label="Account">
@@ -993,6 +1014,9 @@ export default function ConfigPage() {
           onToggle={togglePush}
           isNative={isNativePlatform()}
         />
+        {isNativePlatform() && pushEnabled && (
+          <TestPushRow state={testPushState} onSend={sendTestPush} />
+        )}
         <div className="border-t border-gray-100 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-gray-500">Evening reminder</p>
           <p className="text-xs text-gray-400">Each evening, whichever parent has the children gets a reminder of tomorrow's events (including PE days).</p>
@@ -1174,7 +1198,7 @@ export default function ConfigPage() {
 
       {/* â"€â"€ Legal â"€â"€ */}
       <AccordionGroup label="Legal">
-        <NavRow label="Export records" description="Download a court-ready PDF of messages and events" onPress={() => navigate('/export')} />
+        <NavRow label="Export records" description="Download a Verified Family Record of messages and events" onPress={() => navigate('/export')} />
         <NavRow label="Privacy Policy" description="How we collect, use, and protect your data" onPress={() => window.open('https://canopy-app.app/privacy.html', '_blank')} />
         <NavRow label="Terms of Use" description="Your rights and responsibilities when using Canopy" onPress={() => window.open('https://canopy-app.app/terms.html', '_blank')} />
       </AccordionGroup>
@@ -1324,6 +1348,26 @@ function PushToggleRow({ pushSupported, pushBlocked, pushEnabled, pushLoading, o
       <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3 ${pushEnabled ? 'bg-canopy-mid' : 'bg-gray-300'} ${pushLoading ? 'opacity-50' : ''}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
       </div>
+    </button>
+  )
+}
+
+function TestPushRow({ state, onSend }) {
+  const labels = {
+    idle:    'Send test notification',
+    sending: 'Sending…',
+    sent:    'Sent — check your notifications',
+    error:   'Failed to send — try again',
+  }
+  return (
+    <button
+      onClick={onSend}
+      disabled={state === 'sending'}
+      className="w-full flex items-center justify-between px-4 py-3 border-t border-gray-100 hover:bg-gray-50 transition-colors"
+    >
+      <p className={`text-sm text-left ${state === 'error' ? 'text-red-500' : 'text-canopy-mid'}`}>
+        {labels[state]}
+      </p>
     </button>
   )
 }

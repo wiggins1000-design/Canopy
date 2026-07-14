@@ -115,7 +115,7 @@ export default function ExportPage() {
           <h1 className="text-xl font-bold text-gray-900">Export records</h1>
         </div>
         <p className="text-sm text-gray-500 mt-1 ml-10">
-          Generate a court-ready PDF of your family's communication and scheduling history.
+          Generate a Verified Family Record — a PDF of your family's communication and scheduling history.
         </p>
       </div>
 

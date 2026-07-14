@@ -1,6 +1,6 @@
 // Canopy — Supabase Edge Function: export-pdf
 //
-// Generates a court-ready PDF export of a family's:
+// Generates a Verified Family Record PDF export of a family's:
 //   - Schedule change history (with holiday flag)
 //   - Notice board posts
 //   - Calendar events
@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
   // The client receives HTML which it opens in a new window for the user to print as PDF.
 
   const now   = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
-  const title = `${family?.name ?? 'Family'} — Court-ready Export`
+  const title = `${family?.name ?? 'Family'} — Verified Family Record`
 
   const html = `<!DOCTYPE html>
 <html lang="en">

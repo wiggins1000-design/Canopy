@@ -13,6 +13,11 @@
 //   APNS_BUNDLE_ID  = app.canopy.app
 //   APNS_PRIVATE_KEY = contents of the .p8 key file (paste full PEM including header/footer)
 //
+// For native Android push (FCM, via a Firebase service account):
+//   FCM_PROJECT_ID    = Firebase project ID (e.g. canopy-98049)
+//   FCM_CLIENT_EMAIL  = service account "client_email" field
+//   FCM_PRIVATE_KEY   = service account "private_key" field (PEM, \n may be literal or real newlines)
+//
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected.
 
 // @ts-ignore
@@ -83,6 +88,77 @@ async function sendApns(deviceToken: string, title: string, body: string) {
   }
 }
 
+// ── FCM (Android) via a Firebase service account ────────────────
+// FCM's HTTP v1 API needs a short-lived OAuth2 access token, obtained by
+// signing a JWT with the service account's private key (RS256) and
+// exchanging it at Google's token endpoint — same shape as the APNs JWT
+// above, but RSA instead of EC, and there's a token-exchange round trip.
+
+async function fcmAccessToken(clientEmail: string, privateKeyPem: string): Promise<string> {
+  const enc = new TextEncoder()
+  const pemBody = privateKeyPem
+    .replace(/\\n/g, '\n')
+    .replace(/-----[^-]+-----/g, '')
+    .replace(/\s/g, '')
+  const keyData = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0))
+  const key = await crypto.subtle.importKey(
+    'pkcs8', keyData,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign'],
+  )
+
+  const now = Math.floor(Date.now() / 1000)
+  const header  = b64url(enc.encode(JSON.stringify({ alg: 'RS256', typ: 'JWT' })))
+  const payload = b64url(enc.encode(JSON.stringify({
+    iss:   clientEmail,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud:   'https://oauth2.googleapis.com/token',
+    iat:   now,
+    exp:   now + 3600,
+  })))
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, enc.encode(`${header}.${payload}`))
+  const jwt = `${header}.${payload}.${b64url(sig)}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+  if (!res.ok) throw new Error(`FCM token exchange ${res.status}: ${await res.text()}`)
+  const { access_token } = await res.json()
+  return access_token
+}
+
+async function sendFcm(deviceToken: string, title: string, body: string) {
+  const projectId  = Deno.env.get('FCM_PROJECT_ID')
+  const clientEmail = Deno.env.get('FCM_CLIENT_EMAIL')
+  const privateKey  = Deno.env.get('FCM_PRIVATE_KEY')
+
+  if (!projectId || !clientEmail || !privateKey) throw new Error('FCM secrets not configured')
+
+  const accessToken = await fcmAccessToken(clientEmail, privateKey)
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: {
+        token: deviceToken,
+        notification: { title, body },
+      },
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(`FCM ${res.status}: ${(err as any).error?.message ?? res.statusText}`)
+  }
+}
+
 // ── Auth guard ────────────────────────────────────────────────
 // Accepts either:
 //   • The service role key  — server-to-server calls (e.g. delete-account)
@@ -145,6 +221,9 @@ Deno.serve(async (req) => {
     if (member.push_token.startsWith('apns:')) {
       // Native iOS push via APNs
       await sendApns(member.push_token.slice(5), title, body)
+    } else if (member.push_token.startsWith('fcm:')) {
+      // Native Android push via FCM
+      await sendFcm(member.push_token.slice(4), title, body)
     } else {
       // Web push via VAPID
       const vapidSubject = Deno.env.get('VAPID_SUBJECT')

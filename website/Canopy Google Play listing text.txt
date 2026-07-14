@@ -33,8 +33,8 @@ Split costs your way, track carer hours, roll them into bills automatically.
 DIRECT MESSAGING
 A private thread between parents.
 
-COURT-READY RECORDS
-Export a tamper-proof, timestamped record of activity for legal proceedings if you ever need it — useful for co-parenting and custody schedule disputes.
+VERIFIED FAMILY RECORDS
+Export a tamper-proof, timestamped record of activity for legal or court proceedings if you ever need it — useful for co-parenting and custody schedule disputes.
 
 READ-ONLY ACCESS FOR GRANDPARENTS & CARERS
 Give trusted family members visibility without full access.

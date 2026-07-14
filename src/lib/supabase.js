@@ -16,12 +16,15 @@ export const supabase = createClient(
 // True when running inside the Capacitor iOS/Android wrapper
 export const isNativePlatform = () => Capacitor.isNativePlatform()
 
-// Register for native APNs push (iOS via Capacitor).
-// Stores the device token as "apns:<hex>" in family_members.push_token.
+// Register for native push (APNs on iOS, FCM on Android, via Capacitor).
+// Stores the device token as "apns:<token>" or "fcm:<token>" in
+// family_members.push_token so send-push knows which service to call.
 export async function registerNativePush(userId) {
   const { PushNotifications } = await import('@capacitor/push-notifications')
   const { receive } = await PushNotifications.requestPermissions()
   if (receive !== 'granted') return { granted: false, denied: true }
+
+  const prefix = Capacitor.getPlatform() === 'ios' ? 'apns' : 'fcm'
 
   let resolve
   const promise = new Promise((r) => { resolve = r })
@@ -29,7 +32,7 @@ export async function registerNativePush(userId) {
   const regHandle = await PushNotifications.addListener('registration', async (token) => {
     await supabase
       .from('family_members')
-      .update({ push_token: `apns:${token.value}` })
+      .update({ push_token: `${prefix}:${token.value}` })
       .eq('user_id', userId)
     resolve({ granted: true })
   })
@@ -78,7 +81,7 @@ export async function registerPushSubscription(userId) {
 }
 
 export async function sendPushNotification({ familyId, recipientRole, title, body, url }) {
-  await supabase.functions.invoke('send-push', {
+  return await supabase.functions.invoke('send-push', {
     body: { family_id: familyId, recipient_role: recipientRole, title, body, url },
   })
 }

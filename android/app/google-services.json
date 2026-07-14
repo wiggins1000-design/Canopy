@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1085885748345",
+    "project_id": "canopy-98049",
+    "storage_bucket": "canopy-98049.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1085885748345:android:273d96193bd9582c00f0a8",
+        "android_client_info": {
+          "package_name": "app.canopy.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB03eYISzUkEpnDlcPnunky7qxdLs4HYdI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
