@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase'
 import OnboardingPage from '../../pages/OnboardingPage'
 import PaywallOverlay from '../subscription/PaywallOverlay'
 import { useSubscription } from '../../hooks/useSubscription'
-import { isNativePlatform } from '../../lib/supabase'
+import { isNativePlatform, registerNativePush } from '../../lib/supabase'
 import { PLAN_IMPORTED_FLAG } from '../../lib/planImport'
 
 async function initNativeStatusBar() {
@@ -57,6 +57,8 @@ function PlanImportedToast({ onDone }) {
 
 function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, onPlanToastDone }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const { member } = useFamily()
 
   useEffect(() => { initNativeStatusBar() }, [])
 
@@ -75,6 +77,29 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     })()
     return () => { handle?.remove() }
   }, [navigate])
+
+  // Firebase/Apple periodically rotate push tokens in the background — this
+  // is normal, but our stored token silently goes stale unless something
+  // re-registers to pick up the new one. Only re-registering is triggered by
+  // the user manually toggling push on in Settings, which most people never
+  // touch again after the first time. So: silently re-register on each app
+  // launch for anyone who already has push enabled (their platform column is
+  // already set), so a rotated token gets refreshed before it ever causes a
+  // real "notifications just stopped" complaint. registerNativePush()'s
+  // permission check is a no-op (no prompt shown) once already granted or
+  // denied, so this is safe to call unprompted.
+  useEffect(() => {
+    if (!isNativePlatform() || !member || !user) return
+    ;(async () => {
+      const { Capacitor } = await import('@capacitor/core')
+      const column = Capacitor.getPlatform() === 'ios' ? 'push_token_ios' : 'push_token_android'
+      if (member[column]) registerNativePush(user.id)
+    })()
+    // Only on initial load of this session, not every time member refetches
+    // (which would otherwise re-fire on every token write this effect itself
+    // causes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!member, user?.id])
 
   return (
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
