@@ -274,7 +274,7 @@ export default function ConfigPage() {
         recipientRole: userRole,
         title:         'Test notification',
         body:          'If you can see this, push notifications are working.',
-        url:           '/config',
+        url:           '/calendar',
       })
       setTestPushState(error ? 'error' : 'sent')
     } catch (e) {

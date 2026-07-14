@@ -65,7 +65,7 @@ async function apnsJwt(keyId: string, teamId: string, pem: string): Promise<stri
   return `${header}.${payload}.${b64url(sig)}`
 }
 
-async function sendApns(deviceToken: string, title: string, body: string) {
+async function sendApns(deviceToken: string, title: string, body: string, url: string) {
   const keyId     = Deno.env.get('APNS_KEY_ID')
   const teamId    = Deno.env.get('APNS_TEAM_ID')
   const bundleId  = Deno.env.get('APNS_BUNDLE_ID') ?? 'app.canopy.app'
@@ -85,6 +85,7 @@ async function sendApns(deviceToken: string, title: string, body: string) {
     },
     body: JSON.stringify({
       aps: { alert: { title, body }, sound: 'default' },
+      url,
     }),
   })
   if (!res.ok) {
@@ -137,7 +138,7 @@ async function fcmAccessToken(clientEmail: string, privateKeyPem: string): Promi
   return access_token
 }
 
-async function sendFcm(deviceToken: string, title: string, body: string) {
+async function sendFcm(deviceToken: string, title: string, body: string, url: string) {
   const projectId  = Deno.env.get('FCM_PROJECT_ID')
   const clientEmail = Deno.env.get('FCM_CLIENT_EMAIL')
   const privateKey  = Deno.env.get('FCM_PRIVATE_KEY')
@@ -155,6 +156,7 @@ async function sendFcm(deviceToken: string, title: string, body: string) {
       message: {
         token: deviceToken,
         notification: { title, body },
+        data: { url },
       },
     }),
   })
@@ -220,10 +222,10 @@ Deno.serve(async (req) => {
 
   const targets: Array<{ platform: string; send: () => Promise<void> }> = []
   if (member?.push_token_ios) {
-    targets.push({ platform: 'ios', send: () => sendApns(member.push_token_ios, title, body) })
+    targets.push({ platform: 'ios', send: () => sendApns(member.push_token_ios, title, body, url) })
   }
   if (member?.push_token_android) {
-    targets.push({ platform: 'android', send: () => sendFcm(member.push_token_android, title, body) })
+    targets.push({ platform: 'android', send: () => sendFcm(member.push_token_android, title, body, url) })
   }
   if (member?.push_token_web) {
     targets.push({

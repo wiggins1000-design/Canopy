@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from 'react-router-dom'
+import { Outlet, Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import BottomNav from './BottomNav'
 import { useAuth } from '../../context/AuthContext'
@@ -56,7 +56,25 @@ function PlanImportedToast({ onDone }) {
 }
 
 function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, onPlanToastDone }) {
+  const navigate = useNavigate()
+
   useEffect(() => { initNativeStatusBar() }, [])
+
+  // Tapping a native push notification should deep-link to whatever page it's
+  // about (e.g. Calendar for the evening reminder), not just resume the app
+  // wherever it happened to be left open.
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    let handle
+    ;(async () => {
+      const { PushNotifications } = await import('@capacitor/push-notifications')
+      handle = await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        const url = action.notification?.data?.url
+        if (url) navigate(url)
+      })
+    })()
+    return () => { handle?.remove() }
+  }, [navigate])
 
   return (
     <div className="h-dvh bg-gray-50 flex flex-col overflow-hidden">
