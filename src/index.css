@@ -19,9 +19,11 @@ html, body, #root {
     );
   }
 
-  /* Safe area insets for notch phones */
+  /* Safe area insets for notch phones. var(--safe-area-inset-*) is Capacitor's
+     injected value (works around an Android WebView bug where env() reports 0);
+     env() is the fallback for browsers/iOS where it's natively supported. */
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   }
 }
 

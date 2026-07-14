@@ -13,9 +13,21 @@ import { PLAN_IMPORTED_FLAG } from '../../lib/planImport'
 async function initNativeStatusBar() {
   if (!isNativePlatform()) return
   try {
+    const { Capacitor } = await import('@capacitor/core')
     const { StatusBar, Style } = await import('@capacitor/status-bar')
-    await StatusBar.setOverlaysWebView({ overlay: true })
+    // iOS's WKWebView natively supports env(safe-area-inset-top), so overlaying
+    // the status bar and padding via CSS works reliably. Android's Chromium
+    // WebView does not reliably report safe-area insets to CSS even with
+    // Capacitor's inset-injection workaround, so instead ask Android to reserve
+    // the status bar's own space rather than drawing under it.
+    const isIOS = Capacitor.getPlatform() === 'ios'
+    await StatusBar.setOverlaysWebView({ overlay: isIOS })
     await StatusBar.setStyle({ style: Style.Light })
+    if (!isIOS) {
+      // Android-only: colour the reserved status bar strip to match the app's
+      // white page backgrounds instead of the plugin's default black.
+      await StatusBar.setBackgroundColor({ color: '#ffffff' })
+    }
   } catch (_) {}
 }
 
@@ -51,7 +63,7 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
       {showSuccessToast && <SubscriptionSuccessToast onDone={onToastDone} />}
       {showPlanImportedToast && <PlanImportedToast onDone={onPlanToastDone} />}
       <PaywallOverlay />
-      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <main className="flex-1 max-w-lg mx-auto w-full overflow-y-auto overflow-x-hidden min-h-0" style={{ paddingTop: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}>
         <Outlet />
       </main>
       <BottomNav />
