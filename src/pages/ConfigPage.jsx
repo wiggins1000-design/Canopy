@@ -1,6 +1,6 @@
 ﻿﻿import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { supabase, registerPushSubscription, unregisterPushSubscription, registerNativePush, unregisterNativePush, isNativePlatform, sendPushNotification } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
@@ -23,6 +23,14 @@ export default function ConfigPage() {
   const regionConfig = useLocale()
   const familyFeedAddress = 'familyfeed@canopy-app.app'
   const navigate    = useNavigate()
+  const location    = useLocation()
+  const targetTab   = new URLSearchParams(location.search).get('tab')
+
+  useEffect(() => {
+    if (!targetTab) return
+    const el = document.getElementById(`config-section-${targetTab}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [targetTab])
 
   const [patternType, setPatternType] = useState('alternating_weeks')
   const [startingParent, setStartingParent] = useState('parent_a')
@@ -547,7 +555,7 @@ export default function ConfigPage() {
       <div className="px-4 py-5 space-y-2">
         <h1 className="text-xl font-bold text-gray-900 mb-4">Settings</h1>
 
-        <AccordionGroup label="Notifications">
+        <AccordionGroup id="config-section-notifications" label="Notifications" defaultOpen={targetTab === 'notifications'}>
           <PushToggleRow
             pushSupported={pushSupported}
             pushBlocked={pushBlocked}
@@ -647,7 +655,7 @@ export default function ConfigPage() {
       </AccordionGroup>
 
       {/* â"€â"€ Family â"€â"€ */}
-      <AccordionGroup label="Children">
+      <AccordionGroup id="config-section-children" label="Children" defaultOpen={targetTab === 'children'}>
         <div className="px-4 py-3 space-y-3">
           <p className="text-xs text-gray-400">Add each child's name. Add school details in Info Bank for better FamilyFeed results.</p>
           {manualTermDatesPrompt && (
@@ -736,7 +744,7 @@ export default function ConfigPage() {
       </AccordionGroup>
 
       {/* â"€â"€ Parenting Schedule â"€â"€ */}
-      <AccordionGroup label="Parenting Schedule">
+      <AccordionGroup id="config-section-schedule" label="Parenting Schedule" defaultOpen={targetTab === 'schedule'}>
         <div className="px-4 py-3 space-y-4">
 
           {/* Pending proposal — shown to the OTHER parent */}
@@ -1009,7 +1017,7 @@ export default function ConfigPage() {
       </AccordionGroup>
 
       {/* â"€â"€ Notifications â"€â"€ */}
-      <AccordionGroup label="Notifications">
+      <AccordionGroup id="config-section-notifications" label="Notifications" defaultOpen={targetTab === 'notifications'}>
         <PushToggleRow
           pushSupported={pushSupported}
           pushBlocked={pushBlocked}
@@ -1283,10 +1291,10 @@ export default function ConfigPage() {
 
 // â"€â"€ Layout helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-function AccordionGroup({ label, children, defaultOpen = false, badge = false }) {
+function AccordionGroup({ label, children, defaultOpen = false, badge = false, id }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="mt-3 first:mt-0">
+    <div id={id} className="mt-3 first:mt-0">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-1 py-2 text-left"

@@ -59,6 +59,7 @@ type RawEvent = {
   time:       string | null
   notes:      string | null
   applies_to: string | null
+  weekday:    string | null
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -128,7 +129,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "end_date": "YYYY-MM-DD or null",
       "time": "HH:MM or null",
       "notes": "any extra detail or null",
-      "applies_to": "the specific year group, key stage, or class named for this event (e.g. 'Year 6', 'KS2', 'Reception'), or null if it applies to the whole school / no group is mentioned"
+      "applies_to": "the specific year group, key stage, or class named for this event (e.g. 'Year 6', 'KS2', 'Reception'), or null if it applies to the whole school / no group is mentioned",
+      "weekday": "the day-of-week name exactly as written next to this date in the source (e.g. 'Thursday'), or null if no weekday is stated"
     }
   ]
 }
@@ -138,6 +140,7 @@ Rules:
 - Use the current year if no year is given
 - If a date range is mentioned, create one event with start + end_date
 - Dates must be YYYY-MM-DD
+- If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
 - Return ONLY valid JSON`
 }
 
@@ -729,7 +732,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "existing_id": "id of matching existing event, or null if this is new",
       "additional_notes": "any new information not already in the existing event's notes, or null",
       "tagged_children": ["child name", ...],
-      "applies_to": "copy exactly from the candidate event's applies_to field if this came from the candidate list, or the year group/key stage/class named in the email body if you found it there yourself, or null if whole-school/not tied to one group — do not re-decide relevance, just copy through what group (if any) this event is for"
+      "applies_to": "copy exactly from the candidate event's applies_to field if this came from the candidate list, or the year group/key stage/class named in the email body if you found it there yourself, or null if whole-school/not tied to one group — do not re-decide relevance, just copy through what group (if any) this event is for",
+      "weekday": "copy exactly from the candidate event's weekday field if this came from the candidate list, or the day-of-week name written next to the date in the email body if you found it there yourself, or null if no weekday is stated"
     }
   ],
   "notice_post": "1-2 sentence summary for parents, or null if nothing important beyond the events"
@@ -740,6 +744,7 @@ Rules:
 - If the same event appears more than once in the candidate list (e.g. mentioned in both an attachment and a linked page), only include it once
 ${yearGroupRule}
 - Set applies_to by copying the candidate event's "applies_to" field exactly (or your own reading of the body for events not in the candidate list) — this is a mechanical copy, not a relevance decision
+- Set weekday by copying the candidate event's "weekday" field exactly (or your own reading of the body for events not in the candidate list) — do not calculate or infer a weekday yourself, only copy one that is explicitly written in the source
 - Use the current year if no year is given
 - If a date range is mentioned create one event with start + end_date
 - If the event matches one of the children's year group, key stage, or class, include the child's name in the event title (e.g. "Lily — Sports Day" instead of "Year 4 Sports Day" or "KS2 Sports Day")
@@ -842,8 +847,47 @@ ${yearGroupRule}
     return !hadAnyChildData
   }
 
+  const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+  function normalizeWeekday(raw: string): number | null {
+    const w = raw.toLowerCase().replace(/[^a-z]/g, '').slice(0, 3)
+    if (w.length < 3) return null
+    const idx = WEEKDAY_NAMES.findIndex((name) => name.startsWith(w))
+    return idx === -1 ? null : idx
+  }
+
+  // Deterministic backstop for date accuracy — confirmed via a real production
+  // case that the LLM can misread a day-of-month digit while correctly
+  // transcribing the weekday name sitting right next to it ("Thursday 3rd
+  // September" extracted as 2026-09-04, which is actually a Wednesday). A
+  // stated weekday is a word, not a digit, so it's far less likely to be
+  // misread — if it disagrees with the extracted date's actual day-of-week,
+  // trust the weekday and shift to the nearest date (within a week either
+  // side) that matches it.
+  function correctDateForWeekday(dateStr: string, weekdayRaw: string | null | undefined): string {
+    if (!weekdayRaw) return dateStr
+    const wanted = normalizeWeekday(weekdayRaw)
+    if (wanted === null) return dateStr
+    const base = new Date(`${dateStr}T00:00:00`)
+    if (base.getDay() === wanted) return dateStr
+
+    for (let offset = 1; offset <= 6; offset++) {
+      for (const sign of [1, -1]) {
+        const d = new Date(`${dateStr}T00:00:00`)
+        d.setDate(d.getDate() + sign * offset)
+        if (d.getDay() === wanted) {
+          const corrected = d.toISOString().split('T')[0]
+          console.log(`Weekday backstop: corrected date ${dateStr} -> ${corrected} to match stated weekday "${weekdayRaw}"`)
+          return corrected
+        }
+      }
+    }
+    return dateStr
+  }
+
   for (const ev of events) {
     if (!ev.title || !ev.date) continue
+    ev.date = correctDateForWeekday(ev.date, ev.weekday)
     if (ev.date < cutoff) continue  // skip events more than 1 month in the past
     if (hasTermDates && isTermDateLike(ev.title, locale)) continue  // official term dates already loaded
 

@@ -95,13 +95,18 @@ export default function InfoBankPage() {
 
       const siblings = children.filter((c) => c.name !== tab)
 
-      // School sync: propagate shared school fields to siblings at the same school
+      // School sync: keep shared fields (address/phone/etc) up to date for siblings
+      // already confirmed to be at the same school. Does NOT populate an empty
+      // sibling automatically — that assumed "empty = same school", which silently
+      // overwrote children who actually attend a different school and just hadn't
+      // opened their School tab yet. An explicit "same school as [child]?" prompt
+      // in SchoolSection now handles that case instead.
       if (section === 'school' && data.school_name) {
         const SHARED = ['school_name', 'school_address', 'school_phone', 'school_email', 'head_teacher', 'hours', 'school_url']
         const sharedPatch = Object.fromEntries(SHARED.map((k) => [k, data[k] ?? '']))
         for (const sibling of siblings) {
           const sibData = allData[`${sibling.name}||school`] ?? {}
-          if (!sibData.school_name || sibData.school_name === data.school_name) {
+          if (sibData.school_name && sibData.school_name === data.school_name) {
             const merged = { ...sibData, ...sharedPatch }
             await supabase.from('info_bank').upsert(
               { family_id: family.id, child_name: sibling.name, section: 'school', data: merged, updated_at: new Date().toISOString() },
@@ -259,6 +264,10 @@ export default function InfoBankPage() {
           isParent={isParent}
           familyId={family.id}
           childName={activeTab}
+          siblingSchools={children
+            .filter((c) => c.name !== activeTab)
+            .map((c) => ({ name: c.name, ...getData(c.name, 'school') }))
+            .filter((s) => s.school_name)}
           onSave={(data) => saveSection(activeTab, 'school', data)}
           onExtracted={(data) => setAllData((prev) => ({ ...prev, [`${activeTab}||school`]: { ...prev[`${activeTab}||school`], ...data } }))}
           updatedAt={getUpdatedAt(activeTab, 'school')}
@@ -481,7 +490,7 @@ const PE_WEEKDAYS = [
   { key: 'Friday',    short: 'Fri' },
 ]
 
-function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracted, updatedAt }) {
+function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [], onSave, onExtracted, updatedAt }) {
   const regionConfig = useLocale()
   const defaults = { year_group: '', class_name: '', school_name: '', school_address: '', school_phone: '', school_email: '', teacher: '', head_teacher: '', hours: '', notes: '', school_url: '', pe_days: [] }
   const [d, setD] = useState({ ...defaults, ...data })
@@ -501,6 +510,32 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   }, [data?.school_url, data?.school_name])
 
   const f = (k) => ({ value: d[k], onChange: (v) => { setD((p) => ({ ...p, [k]: v })); setSaved(false) }, readOnly: !isParent })
+
+  // Group siblings who already share a school into a single offer, so two kids
+  // both at "St Mary's" produce one button, not two.
+  const siblingSchoolGroups = []
+  for (const s of siblingSchools) {
+    const group = siblingSchoolGroups.find((g) => g.school_name === s.school_name)
+    if (group) group.names.push(s.name)
+    else siblingSchoolGroups.push({ school_name: s.school_name, names: [s.name], source: s })
+  }
+  const showSameSchoolPrompt = isParent && !d.school_name && !d._school_prompt_dismissed && siblingSchoolGroups.length > 0
+
+  function applySameSchool(group) {
+    const SHARED = ['school_name', 'school_address', 'school_phone', 'school_email', 'head_teacher', 'hours', 'school_url']
+    const patch = Object.fromEntries(SHARED.map((k) => [k, group.source[k] ?? '']))
+    const next = { ...d, ...patch, _school_prompt_dismissed: true }
+    setD(next)
+    onSave(next)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  function dismissSameSchoolPrompt() {
+    const next = { ...d, _school_prompt_dismissed: true }
+    setD(next)
+    onSave(next)
+  }
 
   async function checkSchoolChange(oldNorm, oldSchoolName) {
     const { data: siblingRows } = await supabase
@@ -690,6 +725,31 @@ function SchoolSection({ data, isParent, familyId, childName, onSave, onExtracte
   return (
     <>
     <SectionWrapper isParent={isParent} onSave={save} saved={saved} updatedAt={updatedAt}>
+      {showSameSchoolPrompt && (
+        <div className="bg-canopy-frost border border-canopy-mist rounded-2xl p-4 space-y-2.5">
+          <p className="text-sm font-medium text-canopy-deep">
+            Is {firstName(childName)} at the same school as {siblingSchoolGroups.map((g) => g.names.map(firstName).join(' & ')).join(', or ')}?
+          </p>
+          <div className="space-y-2">
+            {siblingSchoolGroups.map((g) => (
+              <button
+                key={g.school_name}
+                onClick={() => applySameSchool(g)}
+                className="w-full text-left px-3 py-2.5 rounded-xl border border-canopy-mist bg-white text-sm font-medium text-canopy-deep hover:bg-canopy-mist/40 transition-colors"
+              >
+                Yes — same as {g.names.map(firstName).join(' & ')} ({g.school_name})
+              </button>
+            ))}
+            <button
+              onClick={dismissSameSchoolPrompt}
+              className="w-full text-center px-3 py-2 rounded-xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              No, different school
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* School URL + auto-extract */}
       <div className="space-y-1.5 pb-1">
         <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">School homepage URL</label>

@@ -14,7 +14,7 @@ export default function SetupChecklist() {
       id: 'schedule',
       label: 'Set up the parenting schedule',
       done: !!schedule,
-      href: '/config',
+      href: '/config?tab=schedule',
     },
     userRole === 'parent_a' && {
       id: 'invite',
@@ -26,19 +26,19 @@ export default function SetupChecklist() {
       id: 'children',
       label: "Add children's school details",
       done: (family?.config?.children ?? []).some((c) => c.name),
-      href: '/config',
+      href: '/config?tab=children',
     },
     {
       id: 'phone',
       label: 'Add your mobile number for SMS alerts',
       done: !!member?.phone_number,
-      href: '/config',
+      href: '/config?tab=notifications',
     },
     {
       id: 'push',
       label: 'Enable push notifications',
       done: !!(member?.push_token_ios || member?.push_token_android || member?.push_token_web),
-      href: '/config',
+      href: '/config?tab=notifications',
     },
   ].filter(Boolean)
 
