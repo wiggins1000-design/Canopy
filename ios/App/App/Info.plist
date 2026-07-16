@@ -55,6 +55,17 @@
 <string>Canopy uses your microphone to add calendar events by voice.</string>
 <key>NSSpeechRecognitionUsageDescription</key>
 <string>Canopy uses speech recognition to turn your voice into a calendar event.</string>
+<key>CFBundleURLTypes</key>
+<array>
+	<dict>
+		<key>CFBundleURLSchemes</key>
+		<array>
+			<string>canopy</string>
+		</array>
+		<key>CFBundleURLName</key>
+		<string>app.canopy.app.share</string>
+	</dict>
+</array>
 
 </dict>
 </plist>

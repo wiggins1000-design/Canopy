@@ -35,6 +35,7 @@ const ThreadPage          = lazy(() => import('./pages/ThreadPage'))
 const ExpensesPage        = lazy(() => import('./pages/ExpensesPage'))
 const ChildcarePage       = lazy(() => import('./pages/ChildcarePage'))
 const PlanPage            = lazy(() => import('./pages/PlanPage'))
+const AddFromSharePage    = lazy(() => import('./pages/AddFromSharePage'))
 
 function PageLoader() {
   return (
@@ -89,6 +90,7 @@ export default function App() {
               <Route path="/messages/:threadId" element={<ThreadPage />} />
               <Route path="/expenses" element={<ExpensesPage />} />
               <Route path="/childcare" element={<ChildcarePage />} />
+              <Route path="/add-from-share" element={<AddFromSharePage />} />
             </Route>
           </Routes>
         </Suspense>

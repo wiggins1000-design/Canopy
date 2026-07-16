@@ -108,6 +108,36 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     return () => { handle?.remove() }
   }, [navigate])
 
+  // WhatsApp (or any app) share-sheet support: a share can arrive either
+  // before the app was running (cold launch -- pulled via getPendingShare(),
+  // since a live listener attached after the fact would miss it) or while
+  // already running (warm launch -- live shareReceived listener). See
+  // src/native/canopyShare.js and android/.../CanopySharePlugin.java /
+  // ios/.../CanopySharePlugin.swift for the native side.
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    let handle
+    ;(async () => {
+      const { default: CanopyShare, PENDING_SHARE_KEY } = await import('../../native/canopyShare')
+      // Always clears the native side's pending-share state as its first step,
+      // regardless of whether delivery came via the pull below or the live
+      // listener -- otherwise a share delivered live (listener fires, this
+      // runs) leaves the native static field still set, and a later remount's
+      // getPendingShare() pull would redeliver + reprocess the same share a
+      // second time.
+      const stash = async (share) => {
+        if (!share) return
+        await CanopyShare.clearPendingShare()
+        sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(share))
+        navigate('/add-from-share')
+      }
+      const { share } = await CanopyShare.getPendingShare()
+      if (share) stash(share)
+      handle = await CanopyShare.addListener('shareReceived', stash)
+    })()
+    return () => { handle?.remove() }
+  }, [navigate])
+
   // Firebase/Apple periodically rotate push tokens in the background — this
   // is normal, but our stored token silently goes stale unless something
   // re-registers to pick up the new one. Only re-registering is triggered by
