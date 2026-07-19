@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFamily } from '../context/FamilyContext'
+import { isNativePlatform } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 
@@ -18,6 +19,28 @@ export default function JoinPage() {
   const [authLoading, setAuthLoading] = useState(false)
   const [joining, setJoining] = useState(false)
   const [error, setError] = useState(null)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+  // The WebView here never seems to report the on-screen keyboard as a viewport
+  // change at all (adjustResize, the Keyboard plugin's body-resize mode, and
+  // scrollIntoView all failed identically on-device) — so instead of trusting
+  // anything the browser infers about "visible area", get the real keyboard
+  // height straight from Android's own APIs via the Keyboard plugin's events,
+  // and use it to create genuine extra scroll space at the bottom of the form.
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    let showHandle, hideHandle
+    ;(async () => {
+      const { Keyboard } = await import('@capacitor/keyboard')
+      showHandle = await Keyboard.addListener('keyboardWillShow', (info) => {
+        setKeyboardHeight(info.keyboardHeight)
+      })
+      hideHandle = await Keyboard.addListener('keyboardWillHide', () => {
+        setKeyboardHeight(0)
+      })
+    })()
+    return () => { showHandle?.remove(); hideHandle?.remove() }
+  }, [])
 
   // Already in a family — go straight to the app
   useEffect(() => {
@@ -99,9 +122,27 @@ export default function JoinPage() {
     )
   }
 
+  // Submitting, or waiting for session to catch up after a successful
+  // signIn/signUp before the effects above can navigate away — show a spinner
+  // instead of the interactive form. authLoading alone (as used on the Button)
+  // isn't enough: nothing else in the form below depends on it, so without this
+  // the email/password fields and tab switcher stay fully visible and
+  // interactive during that gap, looking exactly like the page reloaded back to
+  // the same form.
+  if (authLoading && !error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-canopy-mid border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   // Not logged in — show auth form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center px-6 pt-[82px] pb-12 overflow-y-auto">
+    <div
+      className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center px-6 pt-[82px] overflow-y-auto"
+      style={{ paddingBottom: keyboardHeight ? `${keyboardHeight + 48}px` : '48px' }}
+    >
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
