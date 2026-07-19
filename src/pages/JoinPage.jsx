@@ -133,7 +133,22 @@ export default function JoinPage() {
             ))}
           </div>
 
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form
+            onSubmit={handleAuth}
+            className="space-y-4"
+            onFocus={(e) => {
+              // Don't rely on the WebView correctly resizing the viewport for the
+              // on-screen keyboard (adjustResize + the Keyboard plugin's body-resize
+              // mode have both proven unreliable here on-device) — instead directly
+              // scroll whichever field was just focused into view. Delayed to let
+              // the keyboard's own show animation finish first, since scrolling
+              // immediately measures against the pre-keyboard layout.
+              const target = e.target
+              if (target.tagName === 'INPUT') {
+                setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+              }
+            }}
+          >
             {mode === 'signup' && (
               <Field label="Your name" type="text" value={name} onChange={setName} placeholder="e.g. Sarah" required />
             )}
