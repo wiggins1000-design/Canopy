@@ -69,6 +69,21 @@ Deno.serve(async (req) => {
     return new Response('Unauthorized', { status: 401, headers: CORS })
   }
 
+  // Alphanumeric sender ID "Canopy" is only compliant in the UK today — Ireland
+  // blocks unregistered senders outright since 2025-10-03, Australia downgrades
+  // them to "Unverified" since 1 July 2026, and New Zealand can't use alphanumeric
+  // senders at all. Rather than send degraded/blocked messages, skip entirely
+  // outside en-GB until each locale's sender ID is properly registered.
+  const { data: family } = await supabase
+    .from('families')
+    .select('config')
+    .eq('id', family_id)
+    .single()
+
+  if (family?.config?.locale !== 'en-GB') {
+    return new Response(JSON.stringify({ skipped: 'sms not yet available in this locale' }), { status: 200, headers: CORS })
+  }
+
   const { data: member } = await supabase
     .from('family_members')
     .select('phone_number')

@@ -147,6 +147,11 @@ export default function NewPostSheet({ open, onClose }) {
               </button>
             ))}
           </div>
+          {tag === 'urgent' && family?.config?.locale !== 'en-GB' && (
+            <p className="text-xs text-gray-400 mt-2">
+              SMS text alerts for urgent posts are UK-only for now — coming soon in other regions. The other parent will still get a push notification.
+            </p>
+          )}
         </div>
 
         {/* File preview */}
