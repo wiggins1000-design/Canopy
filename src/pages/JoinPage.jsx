@@ -11,7 +11,7 @@ export default function JoinPage() {
   const { session, signInWithEmail, signUpWithEmail, signOut } = useAuth()
   const { family, joinFamily, loading: familyLoading } = useFamily()
 
-  const [mode, setMode] = useState('signin')
+  const [mode, setMode] = useState('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
