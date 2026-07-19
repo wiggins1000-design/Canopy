@@ -1,5 +1,11 @@
 {
   "appId": "app.canopy.app",
   "appName": "Canopy",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    }
+  }
 }
