@@ -5,8 +5,19 @@ import App from './App.jsx'
 import './index.css'
 import { initSentry, ErrorBoundary } from './lib/sentry'
 import { PLAN_IMPORT_STORAGE_KEY } from './lib/planImport'
+import { isNativePlatform } from './lib/supabase'
 
 initSentry()
+
+// Only the web/PWA build needs the service worker (offline caching, web push).
+// The native Capacitor app runs on the https://localhost origin, where
+// registration fails outright and serves no purpose anyway — native push goes
+// through Capacitor's own plugin, not the web Push API.
+if ('serviceWorker' in navigator && !isNativePlatform()) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  })
+}
 
 // Capture a ?plan= handoff from the parenting plan tool into localStorage
 // before any redirect (e.g. ProtectedRoute -> /login, or the email

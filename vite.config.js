@@ -10,6 +10,13 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       registerType: 'autoUpdate',
+      // Registration is done manually in main.jsx, gated on !isNativePlatform() —
+      // the native Capacitor app runs on the https://localhost origin, where
+      // registering a service worker fails outright (see Sentry: "Failed to
+      // register a ServiceWorker for scope ('https://localhost/')") and serves no
+      // purpose anyway, since native push goes through Capacitor's own plugin,
+      // not the web Push API.
+      injectRegister: null,
       manifest: {
         name: 'Canopy',
         short_name: 'Canopy',
