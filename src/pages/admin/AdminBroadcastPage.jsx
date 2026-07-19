@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, APP_ORIGIN } from '../../lib/supabase'
 
 const SEGMENTS = [
   { id: 'all',          label: 'All users',          description: 'Every parent on Canopy' },
@@ -180,7 +180,7 @@ export default function AdminBroadcastPage() {
 }
 
 function plainTextToHtml(text) {
-  const appOrigin = window.location.origin.replace('/admin/broadcast', '')
+  const appOrigin = APP_ORIGIN
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

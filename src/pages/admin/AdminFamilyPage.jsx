@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
-import { supabase } from '../../lib/supabase'
+import { supabase, APP_ORIGIN } from '../../lib/supabase'
 
 const ROLE_BADGE = {
   parent_a:    'bg-blue-900/50 text-blue-300',
@@ -275,7 +275,7 @@ function InviteModal({ familyId, senderName, onClose }) {
     })
     if (rpcErr || !code) { setError(rpcErr?.message ?? 'Failed to generate invite'); setLoading(false); return }
 
-    const inviteLink = `${window.location.origin}/join/${code}`
+    const inviteLink = `${APP_ORIGIN}/join/${code}`
     const { error: emailErr } = await supabase.functions.invoke('send-invite-email', {
       body: {
         recipientEmail: email.trim(),

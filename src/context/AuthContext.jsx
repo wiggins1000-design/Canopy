@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { supabase, registerPushSubscription } from '../lib/supabase'
+import { supabase, registerPushSubscription, APP_ORIGIN } from '../lib/supabase'
 import { setSentryUser } from '../lib/sentry'
 
 const AuthContext = createContext(null)
@@ -104,7 +104,7 @@ export function AuthProvider({ children }) {
 
   async function resetPasswordForEmail(email) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/reset-password',
+      redirectTo: APP_ORIGIN + '/reset-password',
     })
     return { error }
   }

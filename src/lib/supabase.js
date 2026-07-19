@@ -11,6 +11,13 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY,
 )
 
+// Canonical public origin for links that leave the device (invite emails, password
+// reset emails, SMS deep links) — window.location.origin resolves to Capacitor's
+// internal WebView origin (e.g. https://localhost) inside the native app, which is
+// meaningless to whoever opens the link elsewhere. The web/PWA build already runs
+// at this exact domain, so using the fixed constant there changes nothing.
+export const APP_ORIGIN = 'https://my.canopy-app.app'
+
 // ── Push subscription helpers ─────────────────────────────────
 
 // True when running inside the Capacitor iOS/Android wrapper
@@ -107,7 +114,7 @@ export async function sendSmsNotification({ familyId, recipientRole, authorName 
       family_id:      familyId,
       recipient_role: recipientRole,
       author_name:    authorName,
-      app_url:        `${window.location.origin}/board`,
+      app_url:        `${APP_ORIGIN}/board`,
     },
   })
 }

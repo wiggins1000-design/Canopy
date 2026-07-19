@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import { useLocale } from '../hooks/useLocale'
-import { supabase } from '../lib/supabase'
+import { supabase, APP_ORIGIN } from '../lib/supabase'
 import { firstName } from '../lib/childUtils'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -50,7 +50,7 @@ export default function InvitePage() {
     setRateSaving(null)
   }
 
-  const inviteLink = inviteCode ? `${window.location.origin}/join/${inviteCode}` : null
+  const inviteLink = inviteCode ? `${APP_ORIGIN}/join/${inviteCode}` : null
   const senderName = user?.user_metadata?.display_name ?? 'Someone'
 
   async function handleGenerateInvite(role) {
@@ -64,7 +64,7 @@ export default function InvitePage() {
       setCopied(false)
 
       if (inviteEmail.trim()) {
-        const link = `${window.location.origin}/join/${data.code}`
+        const link = `${APP_ORIGIN}/join/${data.code}`
         const { error: emailErr } = await supabase.functions.invoke('send-invite-email', {
           body: {
             recipientEmail: inviteEmail.trim(),
