@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { FamilyProvider } from './context/FamilyContext'
 import { SessionActivityProvider } from './context/SessionActivityContext'
@@ -7,6 +7,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 import AdminRoute from './components/admin/AdminRoute'
 import AdminLayout from './components/admin/AdminLayout'
+import { isNativePlatform } from './lib/supabase'
 
 // Auth + join pages load eagerly — they're on the critical path before the app shell
 import LoginPage from './pages/LoginPage'
@@ -45,11 +46,49 @@ function PageLoader() {
   )
 }
 
+// App Links: tapping an https://my.canopy-app.app/... link (e.g. an invite email,
+// the urgent-notice SMS) should route straight to the intended in-app page instead
+// of landing on the default entry route. Deliberately mounted here, above every
+// route (including /login and /join/:code), rather than inside the authenticated
+// AppLayout shell — a brand-new invitee tapping a /join/:code link has no session
+// yet, so anything nested behind ProtectedRoute would never mount for them and the
+// tapped link's path would be silently dropped, landing on plain LoginPage instead.
+// Same cold/warm-launch split as the share-sheet handling in AppLayout — getLaunchUrl()
+// for a link that started the app, addListener for one tapped while already running.
+// Android side needs the autoVerify intent-filter in AndroidManifest.xml +
+// public/.well-known/assetlinks.json; iOS Universal Links entitlement not yet added
+// (blocked on the Apple org migration, see platform_build_status memory).
+function AppLinksHandler() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    let handle
+    const routeFromUrl = (urlString) => {
+      if (!urlString) return
+      try {
+        const { pathname, search } = new URL(urlString)
+        if (pathname && pathname !== '/') navigate(pathname + search)
+      } catch { /* ignore malformed URLs */ }
+    }
+    ;(async () => {
+      const { App: CapacitorApp } = await import('@capacitor/app')
+      const launch = await CapacitorApp.getLaunchUrl()
+      routeFromUrl(launch?.url)
+      handle = await CapacitorApp.addListener('appUrlOpen', (data) => routeFromUrl(data.url))
+    })()
+    return () => { handle?.remove() }
+  }, [navigate])
+
+  return null
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <FamilyProvider>
         <SessionActivityProvider>
+        <AppLinksHandler />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

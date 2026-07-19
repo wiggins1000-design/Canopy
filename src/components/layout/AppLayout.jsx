@@ -138,31 +138,10 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     return () => { handle?.remove() }
   }, [navigate])
 
-  // App Links: tapping an https://my.canopy-app.app/... link (e.g. the urgent-notice
-  // SMS) should route straight to the intended in-app page instead of landing on the
-  // default entry route. Same cold/warm-launch split as the share-sheet handling above
-  // — getLaunchUrl() for a link that started the app, addListener for one tapped while
-  // already running. Android side needs the autoVerify intent-filter in AndroidManifest.xml
-  // + public/.well-known/assetlinks.json; iOS Universal Links entitlement not yet added
-  // (blocked on the Apple org migration, see platform_build_status memory).
-  useEffect(() => {
-    if (!isNativePlatform()) return
-    let handle
-    const routeFromUrl = (urlString) => {
-      if (!urlString) return
-      try {
-        const { pathname, search } = new URL(urlString)
-        if (pathname && pathname !== '/') navigate(pathname + search)
-      } catch { /* ignore malformed URLs */ }
-    }
-    ;(async () => {
-      const { App: CapacitorApp } = await import('@capacitor/app')
-      const launch = await CapacitorApp.getLaunchUrl()
-      routeFromUrl(launch?.url)
-      handle = await CapacitorApp.addListener('appUrlOpen', (data) => routeFromUrl(data.url))
-    })()
-    return () => { handle?.remove() }
-  }, [navigate])
+  // App Links routing (getLaunchUrl/appUrlOpen) lives in AppLinksHandler at the
+  // top of App.jsx, not here — it needs to run for logged-out visitors too (e.g.
+  // a brand-new invitee tapping a /join/:code link), and this component is
+  // nested behind ProtectedRoute, which never mounts for them.
 
   // Firebase/Apple periodically rotate push tokens in the background — this
   // is normal, but our stored token silently goes stale unless something
