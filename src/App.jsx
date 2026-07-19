@@ -15,28 +15,52 @@ import TwoFAPage from './pages/TwoFAPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import JoinPage from './pages/JoinPage'
 
+// Chunk URLs are content-hashed per deploy — if a tab has been open across a
+// Railway deploy, its already-loaded index.html can still point at a chunk
+// hash the server no longer has, and the dynamic import 404s. That's a dead
+// end for React.lazy (the failure isn't retryable), so catch it once and force
+// a full reload to pick up the current index.html/hashes rather than leaving
+// the user stuck on a broken render.
+const RELOAD_FLAG = 'canopy-chunk-reload'
+function lazyWithReload(componentImport) {
+  return lazy(async () => {
+    try {
+      const mod = await componentImport()
+      sessionStorage.removeItem(RELOAD_FLAG)
+      return mod
+    } catch (error) {
+      if (!sessionStorage.getItem(RELOAD_FLAG)) {
+        sessionStorage.setItem(RELOAD_FLAG, '1')
+        window.location.reload()
+        return new Promise(() => {}) // page is reloading, never resolve
+      }
+      throw error
+    }
+  })
+}
+
 // Everything else is lazy — only downloaded when the user navigates to it
-const AdminLoginPage      = lazy(() => import('./pages/admin/AdminLoginPage'))
-const AdminDashboardPage  = lazy(() => import('./pages/admin/AdminDashboardPage'))
-const AdminFamilyPage     = lazy(() => import('./pages/admin/AdminFamilyPage'))
-const AdminTermDatesPage  = lazy(() => import('./pages/admin/AdminTermDatesPage'))
-const AdminFamilyFeedPage = lazy(() => import('./pages/admin/AdminFamilyFeedPage'))
-const AdminBroadcastPage  = lazy(() => import('./pages/admin/AdminBroadcastPage'))
-const AdminClaudeCostsPage = lazy(() => import('./pages/admin/AdminClaudeCostsPage'))
-const CalendarPage        = lazy(() => import('./pages/CalendarPage'))
-const NoticeBoardPage     = lazy(() => import('./pages/NoticeBoardPage'))
-const MediaPage           = lazy(() => import('./pages/MediaPage'))
-const ConfigPage          = lazy(() => import('./pages/ConfigPage'))
-const InvitePage          = lazy(() => import('./pages/InvitePage'))
-const RequestsPage        = lazy(() => import('./pages/RequestsPage'))
-const InfoBankPage        = lazy(() => import('./pages/InfoBankPage'))
-const ExportPage          = lazy(() => import('./pages/ExportPage'))
-const MessagesPage        = lazy(() => import('./pages/MessagesPage'))
-const ThreadPage          = lazy(() => import('./pages/ThreadPage'))
-const ExpensesPage        = lazy(() => import('./pages/ExpensesPage'))
-const ChildcarePage       = lazy(() => import('./pages/ChildcarePage'))
-const PlanPage            = lazy(() => import('./pages/PlanPage'))
-const AddFromSharePage    = lazy(() => import('./pages/AddFromSharePage'))
+const AdminLoginPage      = lazyWithReload(() => import('./pages/admin/AdminLoginPage'))
+const AdminDashboardPage  = lazyWithReload(() => import('./pages/admin/AdminDashboardPage'))
+const AdminFamilyPage     = lazyWithReload(() => import('./pages/admin/AdminFamilyPage'))
+const AdminTermDatesPage  = lazyWithReload(() => import('./pages/admin/AdminTermDatesPage'))
+const AdminFamilyFeedPage = lazyWithReload(() => import('./pages/admin/AdminFamilyFeedPage'))
+const AdminBroadcastPage  = lazyWithReload(() => import('./pages/admin/AdminBroadcastPage'))
+const AdminClaudeCostsPage = lazyWithReload(() => import('./pages/admin/AdminClaudeCostsPage'))
+const CalendarPage        = lazyWithReload(() => import('./pages/CalendarPage'))
+const NoticeBoardPage     = lazyWithReload(() => import('./pages/NoticeBoardPage'))
+const MediaPage           = lazyWithReload(() => import('./pages/MediaPage'))
+const ConfigPage          = lazyWithReload(() => import('./pages/ConfigPage'))
+const InvitePage          = lazyWithReload(() => import('./pages/InvitePage'))
+const RequestsPage        = lazyWithReload(() => import('./pages/RequestsPage'))
+const InfoBankPage        = lazyWithReload(() => import('./pages/InfoBankPage'))
+const ExportPage          = lazyWithReload(() => import('./pages/ExportPage'))
+const MessagesPage        = lazyWithReload(() => import('./pages/MessagesPage'))
+const ThreadPage          = lazyWithReload(() => import('./pages/ThreadPage'))
+const ExpensesPage        = lazyWithReload(() => import('./pages/ExpensesPage'))
+const ChildcarePage       = lazyWithReload(() => import('./pages/ChildcarePage'))
+const PlanPage            = lazyWithReload(() => import('./pages/PlanPage'))
+const AddFromSharePage    = lazyWithReload(() => import('./pages/AddFromSharePage'))
 
 function PageLoader() {
   return (
