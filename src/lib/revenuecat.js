@@ -9,6 +9,11 @@ import { Sentry } from './sentry'
 const ENTITLEMENT_ID = 'subscriber'
 
 let configured = false
+// Tracks which family the SDK is currently configured for — a device can see more
+// than one family in the same app process during manual testing (sign out of one
+// account, accept an invite as another), and without this initRevenueCat() would
+// silently keep serving the FIRST family's entitlement state forever.
+let configuredFamilyId = null
 // initRevenueCat() is called from FamilyContext as soon as family.id loads, but
 // PaywallOverlay (a descendant) fetches the offering in its own effect around the
 // same time — React fires child effects before parent effects on the same commit,
@@ -16,6 +21,7 @@ let configured = false
 // permanently give up (its caller never retries). Sharing the in-flight promise
 // lets any caller await the same configure() attempt instead of racing it.
 let configuringPromise = null
+let configuringFamilyId = null
 
 // No-ops entirely on web/PWA (Apple/Google IAP only exists in the native app) and
 // if no API key is set yet — mirrors the Sentry init pattern so this is safe to
@@ -25,7 +31,7 @@ export async function initRevenueCat(familyId) {
     Sentry.captureMessage('RevenueCat init skipped: not native platform', 'info')
     return
   }
-  if (configured) return
+  if (configured && configuredFamilyId === familyId) return
   if (!familyId) {
     Sentry.captureMessage('RevenueCat init skipped: no familyId', 'info')
     return
@@ -40,15 +46,20 @@ export async function initRevenueCat(familyId) {
     Sentry.captureMessage('RevenueCat init skipped: no API key configured', 'warning')
     return
   }
-  if (configuringPromise) return configuringPromise
+  if (configuringPromise && configuringFamilyId === familyId) return configuringPromise
 
+  configuringFamilyId = familyId
   configuringPromise = (async () => {
     try {
       // appUserID = family.id, not the individual parent's user id — "both parents
       // included, one price" means whichever parent purchases unlocks the whole
       // family, checked here by keying RevenueCat's identity to the family itself.
+      // Calling configure() again with a different appUserID is the supported way
+      // to switch identities (e.g. testing multiple families in one app session)
+      // rather than requiring a full app restart.
       await Purchases.configure({ apiKey, appUserID: familyId })
       configured = true
+      configuredFamilyId = familyId
       Sentry.captureMessage('RevenueCat configured successfully', 'info')
     } catch (e) {
       console.error('RevenueCat configure failed:', e)
