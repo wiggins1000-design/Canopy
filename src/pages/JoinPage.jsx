@@ -8,7 +8,7 @@ import PasswordField from '../components/ui/PasswordField'
 export default function JoinPage() {
   const { code } = useParams()
   const navigate = useNavigate()
-  const { session, signInWithEmail, signUpWithEmail } = useAuth()
+  const { session, signInWithEmail, signUpWithEmail, signOut } = useAuth()
   const { family, joinFamily, loading: familyLoading } = useFamily()
 
   const [mode, setMode] = useState('signin')
@@ -78,6 +78,13 @@ export default function JoinPage() {
             <>
               <p className="text-sm text-red-600">{error}</p>
               <Button onClick={doJoin}>Try again</Button>
+              <button
+                type="button"
+                onClick={() => signOut()}
+                className="block mx-auto text-sm text-gray-400 hover:text-gray-600 mt-2"
+              >
+                Sign out
+              </button>
             </>
           ) : null}
         </div>

@@ -100,7 +100,12 @@ export function FamilyProvider({ children }) {
 
   const joinFamily = useCallback(async (code) => {
     const { error } = await supabase.rpc('join_family', { p_code: code })
-    if (error) return { error: new Error('Invalid or expired invite code') }
+    if (error) {
+      const message = error.message?.includes('invalid_or_expired_invite')
+        ? 'Invalid or expired invite code'
+        : error.message
+      return { error: new Error(message) }
+    }
     await loadFamily()
     return { error: null }
   }, [loadFamily])
