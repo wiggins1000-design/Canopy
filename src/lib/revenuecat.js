@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { Purchases } from '@revenuecat/purchases-capacitor'
 import { isNativePlatform } from './supabase'
 import { Sentry } from './sentry'
@@ -29,7 +30,12 @@ export async function initRevenueCat(familyId) {
     Sentry.captureMessage('RevenueCat init skipped: no familyId', 'info')
     return
   }
-  const apiKey = import.meta.env.VITE_REVENUECAT_IOS_KEY
+  // Each platform's RevenueCat app has its own public SDK key (appl_.../goog_...) —
+  // configuring with the wrong platform's key still fetches offerings (shared
+  // project-wide metadata) but silently fails the actual native purchase call.
+  const apiKey = Capacitor.getPlatform() === 'android'
+    ? import.meta.env.VITE_REVENUECAT_ANDROID_KEY
+    : import.meta.env.VITE_REVENUECAT_IOS_KEY
   if (!apiKey) {
     Sentry.captureMessage('RevenueCat init skipped: no API key configured', 'warning')
     return

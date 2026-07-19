@@ -23,6 +23,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- App Links: tapping an https://my.canopy-app.app/... link (e.g. the
+                 urgent-notice SMS) opens this app directly and routes to the right
+                 screen, instead of the browser. Verified via public/.well-known/assetlinks.json -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="my.canopy-app.app" />
+            </intent-filter>
+
             <!-- WhatsApp share-sheet support: lets the OS "Share" menu offer Canopy
                  as a destination for a shared text message, photo/screenshot, or PDF -->
             <intent-filter>

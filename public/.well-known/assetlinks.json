@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.canopy.app",
+      "sha256_cert_fingerprints": [
+        "F7:C4:E3:E9:A9:4C:6B:F6:A8:AC:5F:35:BF:26:0F:D0:18:BE:A3:D4:26:81:BA:3B:CF:25:93:6F:B3:E7:0A:E0",
+        "1B:98:61:0B:02:BE:ED:41:B5:24:6A:FE:F8:4B:76:13:D0:27:9C:24:A9:80:19:82:A1:23:E0:1C:51:EF:8A:B0"
+      ]
+    }
+  }
+]
