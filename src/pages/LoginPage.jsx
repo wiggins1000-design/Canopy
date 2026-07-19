@@ -26,8 +26,14 @@ export default function LoginPage() {
     setLoading(true)
 
     if (mode === 'signin') {
+      // Deliberately don't reset loading on success — signInWithEmail() resolving
+      // only means the HTTP call finished, not that `session` has caught up yet
+      // (that happens separately via onAuthStateChange, which can lag a beat
+      // behind). Resetting loading here would briefly re-show this same
+      // interactive form while waiting for the redirect above to kick in.
       const { error } = await signInWithEmail(email, password)
-      if (error) setError(error.message)
+      if (error) { setError(error.message); setLoading(false) }
+      return
     } else if (mode === 'signup') {
       const { error } = await signUpWithEmail(email, password, name)
       if (error) setError(error.message)

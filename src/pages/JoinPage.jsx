@@ -45,14 +45,21 @@ export default function JoinPage() {
     e.preventDefault()
     setError(null)
     setAuthLoading(true)
+    // Deliberately don't reset authLoading on success — signUp()/signInWithEmail()
+    // resolving only means the HTTP call finished, not that AuthContext's `session`
+    // has caught up yet (that happens separately via onAuthStateChange, which can
+    // lag a beat behind, especially on native). Resetting authLoading here would
+    // briefly re-show this exact same interactive form while waiting for session/
+    // family to resolve and the effects above to navigate away — looking exactly
+    // like the page reloaded. Only reset it on a genuine error, since success means
+    // this component is about to unmount anyway.
     if (mode === 'signin') {
       const { error } = await signInWithEmail(email, password)
-      if (error) setError(error.message)
+      if (error) { setError(error.message); setAuthLoading(false) }
     } else {
       const { error } = await signUpWithEmail(email, password, name)
-      if (error) setError(error.message)
+      if (error) { setError(error.message); setAuthLoading(false) }
     }
-    setAuthLoading(false)
   }
 
   // Loading while session or family resolves
