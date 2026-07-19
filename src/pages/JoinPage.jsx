@@ -94,7 +94,7 @@ export default function JoinPage() {
 
   // Not logged in — show auth form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center px-6 pt-[82px] pb-12 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-3">
