@@ -109,11 +109,19 @@ export default function JoinPage() {
           : joinError.message)
       }
 
-      // FamilyContext will pick up the new membership on its own once `user`
-      // updates (already in flight via onAuthStateChange) — no need to wait for
-      // it here. AppLayout already shows its own spinner while family loads,
-      // same as any normal login.
-      navigate('/calendar', { replace: true })
+      // Deliberately a hard reload, not navigate(): by this point `user` in
+      // FamilyContext already updated once (from the signUp/signIn call above)
+      // and its loadFamily() already ran and found nothing, since it fired
+      // before this join RPC had committed. Nothing re-triggers loadFamily
+      // afterward — calling FamilyContext's own reload()/joinFamily() here
+      // would hit the same stale-closure trap noted above. A full reload
+      // reinitializes both contexts from scratch against the now-current DB
+      // state instead, so `family` is never seen as stale-null within this
+      // session (which previously showed as a false "invalid or expired
+      // invite" if the user ever re-landed on this page in the same session,
+      // since the join had already gone through and the code was correctly
+      // marked used).
+      window.location.href = '/calendar'
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -152,7 +160,13 @@ export default function JoinPage() {
           ) : error ? (
             <>
               <p className="text-sm text-red-600">{error}</p>
-              <Button onClick={doJoin}>Try again</Button>
+              {/* Retrying the same code from an invalid/expired/already-used
+                  error would just fail identically forever — send them
+                  somewhere they can actually enter a different one instead.
+                  AppLayout shows OnboardingPage's "Join with an invite code"
+                  step for an authenticated user with no family, which is
+                  still true here. */}
+              <Button onClick={() => navigate('/calendar', { replace: true })}>Enter a different code</Button>
               <button
                 type="button"
                 onClick={() => signOut()}
