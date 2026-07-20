@@ -53,10 +53,13 @@ export default function ChildcarePage() {
   const pbName = parentB?.display_name ?? 'Parent B'
   const today  = formatDate(new Date())
 
-  const [activeTab, setActiveTab] = useState(isChildcare ? 'log' : 'summary')
-  const [logs,      setLogs]      = useState([])
-  const [bills,     setBills]     = useState([])
-  const [loading,   setLoading]   = useState(true)
+  const [activeTab,        setActiveTab]        = useState(isChildcare ? 'log' : 'summary')
+  const [logs,             setLogs]             = useState([])
+  const [bills,            setBills]            = useState([])
+  const [billsHasMore,     setBillsHasMore]     = useState(false)
+  const [billsLoadingMore, setBillsLoadingMore] = useState(false)
+  const [loading,          setLoading]          = useState(true)
+  const [parentFilter,     setParentFilter]     = useState(null) // null | 'parent_a' | 'parent_b' — tap a totals card to filter Entries, tap again to clear
 
   // Log form
   const [logDate,      setLogDate]      = useState(today)
@@ -91,17 +94,43 @@ export default function ChildcarePage() {
     return fresh
   }, [family?.id])
 
+  const BILLS_PAGE_SIZE = 8
+
   const loadBills = useCallback(async () => {
     if (!family?.id) return []
     const { data } = await supabase
       .from('childcare_bills')
       .select('*')
       .eq('family_id', family.id)
+      // Tiebreaker matters: the per-parent bill split (migration 078) created
+      // pairs of invoices sharing the exact same created_at, and Postgres
+      // doesn't guarantee stable order for ties -- without a deterministic
+      // secondary key, an unrelated UPDATE (e.g. toggling paid status) could
+      // shuffle which one comes first on the next fetch.
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(0, BILLS_PAGE_SIZE - 1)
     const fresh = data ?? []
     setBills(fresh)
+    setBillsHasMore(fresh.length === BILLS_PAGE_SIZE)
     return fresh
   }, [family?.id])
+
+  async function loadMoreBills() {
+    if (!family?.id) return
+    setBillsLoadingMore(true)
+    const { data } = await supabase
+      .from('childcare_bills')
+      .select('*')
+      .eq('family_id', family.id)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(bills.length, bills.length + BILLS_PAGE_SIZE - 1)
+    const fresh = data ?? []
+    setBills((prev) => [...prev, ...fresh])
+    setBillsHasMore(fresh.length === BILLS_PAGE_SIZE)
+    setBillsLoadingMore(false)
+  }
 
   useEffect(() => {
     loadLogs().then((fresh) => {
@@ -162,13 +191,14 @@ export default function ChildcarePage() {
     setDeleting(null)
   }
 
-  async function createBill(carerId) {
+  async function createBill(carerId, payerRole = null) {
     setBillCreating(carerId)
     setBillError(null)
     const { error } = await supabase.rpc('create_childcare_bill', {
-      p_carer_id: carerId,
-      p_from:     periodFrom,
-      p_to:       periodTo,
+      p_carer_id:   carerId,
+      p_from:       periodFrom,
+      p_to:         periodTo,
+      p_payer_role: payerRole,
     })
     if (error) setBillError(error.message)
     await Promise.all([loadLogs(), loadBills()])
@@ -207,6 +237,10 @@ export default function ChildcarePage() {
     return isParent ? filtered : filtered.filter((l) => l.logged_by === member?.user_id)
   })()
 
+  const filteredEntries = parentFilter
+    ? summaryLogs.filter((l) => l.paying_parent === parentFilter)
+    : summaryLogs
+
   const rates = family?.config?.childcare_rates ?? {}
 
   // Per-carer breakdown: [ { carerId, carerName, rate, paHours, pbHours, totalHours, paWages, pbWages, totalWages, hasRate } ]
@@ -244,11 +278,28 @@ export default function ChildcarePage() {
   const paWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.paWages ?? 0), 0) : null
   const pbWages    = carerBreakdown.every((c) => c.hasRate) ? carerBreakdown.reduce((s, c) => s + (c.pbWages ?? 0), 0) : null
 
+  // Unbilled hours for whichever parent is currently selected — only meaningful
+  // for a carer viewing their own already-self-scoped summaryLogs (a parent's
+  // summaryLogs can span multiple carers with different rates, so a single
+  // "create invoice" action wouldn't be unambiguous for them).
+  const unbilledForSelectedParent = (!isParent && parentFilter)
+    ? summaryLogs.filter((l) => l.paying_parent === parentFilter && !l.bill_id).reduce((s, l) => s + Number(l.hours_decimal), 0)
+    : 0
+
   function fmt(majorUnits) {
     return new Intl.NumberFormat(regionConfig.locale, {
       style: 'currency',
       currency: regionConfig.currency.code,
     }).format(majorUnits)
+  }
+
+  // Invoiced (rolled into a bill, money not yet received) vs Paid (bill's been
+  // marked paid) are different states, not synonyms — an entry's bill_id alone
+  // only tells you it's been rolled up, not whether it's actually been settled.
+  function entryStatus(log) {
+    if (!log.bill_id) return null
+    const bill = bills.find((b) => b.id === log.bill_id)
+    return bill?.status === 'paid' ? 'Paid' : 'Invoiced'
   }
 
   function memberName(userId) {
@@ -293,7 +344,7 @@ export default function ChildcarePage() {
         {[
           ...(isChildcare ? [{ id: 'log', label: 'Log hours' }] : []),
           { id: 'summary', label: 'Summary' },
-          { id: 'bills', label: 'Bills' },
+          { id: 'bills', label: 'Invoices' },
         ].map((t) => (
           <button
             key={t.id}
@@ -429,7 +480,9 @@ export default function ChildcarePage() {
                     </p>
                   </button>
                   {log.bill_id ? (
-                    <span className="shrink-0 text-xs text-gray-400 py-1">Billed</span>
+                    <span className={`shrink-0 text-xs py-1 ${entryStatus(log) === 'Paid' ? 'text-canopy-mid font-semibold' : 'text-gray-400'}`}>
+                      {entryStatus(log)}
+                    </span>
                   ) : (
                     <button
                       onClick={() => deleteLog(log.id)}
@@ -500,19 +553,46 @@ export default function ChildcarePage() {
 
           {summaryLogs.length > 0 ? (
             <>
-              {/* Per-parent totals */}
+              {/* Per-parent totals — tap to filter Entries below to just that
+                  parent's logs, tap the same one again to clear the filter */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setParentFilter((f) => (f === 'parent_a' ? null : 'parent_a'))}
+                  className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
+                    parentFilter === 'parent_a' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                  }`}
+                >
                   <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{paName}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(paHours)}</p>
                   {paWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(paWages)}</p>}
-                </div>
-                <div className="bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setParentFilter((f) => (f === 'parent_b' ? null : 'parent_b'))}
+                  className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
+                    parentFilter === 'parent_b' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                  }`}
+                >
                   <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{pbName}</p>
                   <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(pbHours)}</p>
                   {pbWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(pbWages)}</p>}
-                </div>
+                </button>
               </div>
+
+              {/* Carer-only: create an invoice for just the selected parent's
+                  unbilled hours. Parents don't get this action at all — they
+                  only ever view entries/summary/invoice status. */}
+              {!isParent && parentFilter && unbilledForSelectedParent > 0 && (
+                <Button
+                  className="w-full"
+                  onClick={() => createBill(member.user_id, parentFilter)}
+                  loading={billCreating === member.user_id}
+                >
+                  Create invoice for {formatHours(unbilledForSelectedParent)} unbilled ({parentFilter === 'parent_a' ? paName : pbName})
+                </Button>
+              )}
+
               <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-700">Total</p>
                 <div className="text-right">
@@ -521,8 +601,12 @@ export default function ChildcarePage() {
                 </div>
               </div>
 
-              {/* Per-carer breakdown (shown when multiple carers or when a rate is set) */}
-              {(carerBreakdown.length > 1 || carerBreakdown.some((c) => c.hasRate)) && (
+              {/* Per-carer breakdown — parents only. A carer's own summaryLogs are
+                  already filtered to just their own hours (see isParent ? filtered
+                  : filtered.filter(...) above), so this would only ever show their
+                  own single card under a "By carer" heading — pure redundant
+                  repetition of the totals already shown above, not a real breakdown. */}
+              {isParent && (carerBreakdown.length > 1 || carerBreakdown.some((c) => c.hasRate)) && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By carer</p>
                   {carerBreakdown.map((c) => (
@@ -552,24 +636,18 @@ export default function ChildcarePage() {
                           {formatHours(c.totalHours)}{c.totalWages !== null ? ` = ${fmt(c.totalWages)}` : ''}
                         </span>
                       </div>
-                      {isParent && c.hasRate && c.unbilledHours > 0 && (
-                        <button
-                          onClick={() => createBill(c.carerId)}
-                          disabled={billCreating === c.carerId}
-                          className="w-full py-1.5 rounded-lg text-xs font-semibold bg-canopy-mid text-white hover:bg-canopy-deep transition-colors disabled:opacity-50"
-                        >
-                          {billCreating === c.carerId ? 'Creating bill…' : `Create bill for ${formatHours(c.unbilledHours)} unbilled`}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Log entries */}
+              {/* Log entries — filtered to the selected parent, if any */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Entries</p>
-                {summaryLogs.map((log) => {
+                {filteredEntries.length === 0 && (
+                  <p className="text-sm text-gray-400 py-2">No entries for {parentFilter === 'parent_a' ? paName : pbName} in this period.</p>
+                )}
+                {filteredEntries.map((log) => {
                   const ratePence = rates[log.logged_by] ?? 0
                   const wages = ratePence > 0 ? (Number(log.hours_decimal) * ratePence / 100) : null
                   return (
@@ -585,7 +663,7 @@ export default function ChildcarePage() {
                         {isParent && <>{memberName(log.logged_by)} · </>}
                         {log.paying_parent === 'parent_a' ? paName : pbName} paying
                         {log.notes ? ` · ${log.notes}` : ''}
-                        {log.bill_id ? ' · Billed' : ''}
+                        {entryStatus(log) && ` · ${entryStatus(log)}`}
                       </p>
                     </div>
                   )
@@ -600,7 +678,7 @@ export default function ChildcarePage() {
         </div>
       )}
 
-      {/* ── Bills ────────────────────────────────────────────── */}
+      {/* ── Invoices ─────────────────────────────────────────── */}
       {activeTab === 'bills' && (
         <div className="space-y-3">
           {billError && (
@@ -609,7 +687,7 @@ export default function ChildcarePage() {
 
           {bills.length === 0 ? (
             <div className="text-center py-10 text-sm text-gray-400">
-              No bills created yet. Create one from a carer's breakdown in Summary.
+              No invoices created yet. Create one from a carer's breakdown in Summary.
             </div>
           ) : (
             bills.map((bill) => (
@@ -635,7 +713,11 @@ export default function ChildcarePage() {
                   </span>
                 </div>
 
-                {isParent && (
+                {/* Carer-only: the parent only ever sees invoices and their status,
+                    never acts on them. The carer this invoice belongs to marks it
+                    paid/unpaid (confirming they've actually received the money)
+                    and can delete it while still unpaid if created by mistake. */}
+                {member?.user_id === bill.carer_id && (
                   <div className="flex gap-2 pt-1 border-t border-gray-100">
                     <button
                       onClick={() => toggleBillPaid(bill)}
@@ -657,6 +739,17 @@ export default function ChildcarePage() {
                 )}
               </div>
             ))
+          )}
+
+          {billsHasMore && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={loadMoreBills}
+              loading={billsLoadingMore}
+            >
+              Load more
+            </Button>
           )}
         </div>
       )}
