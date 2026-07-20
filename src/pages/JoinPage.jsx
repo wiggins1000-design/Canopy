@@ -121,7 +121,16 @@ export default function JoinPage() {
       // invite" if the user ever re-landed on this page in the same session,
       // since the join had already gone through and the code was correctly
       // marked used).
-      window.location.href = '/calendar'
+      //
+      // Reload the *current* path, not '/calendar' directly — in the native
+      // Capacitor WebView, window.location.href to a different path is a real
+      // browser-level navigation, and the local static-asset server has no
+      // SPA fallback for arbitrary paths (only the client-side router, which
+      // doesn't exist yet on a fresh load, handles those) — landed on a blank
+      // page with nothing to load. Reloading this exact URL is guaranteed to
+      // resolve (it's the page already loaded), and once contexts re-init
+      // fresh, the "already in family" effect above navigates on client-side.
+      window.location.reload()
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
