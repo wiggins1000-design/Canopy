@@ -74,7 +74,7 @@ function ccDateRange(period, from, to) {
 
 export default function ExpensesPage() {
   const { unsettled, settled, loading, balancePence, otherParent, settleExpenses, createExpense, otherShare, myShare } = useExpenses()
-  const { family, member, members, isParent, parentA, parentB } = useFamily()
+  const { family, member, members, isParent } = useFamily()
   const { user } = useAuth()
   const regionConfig = useLocale()
   const navigate = useNavigate()
@@ -183,14 +183,15 @@ export default function ExpensesPage() {
       </div>
 
       {tab === 'childcare' ? (() => {
-        const paName   = parentA?.display_name ?? 'Parent A'
-        const pbName   = parentB?.display_name ?? 'Parent B'
+        // This widget is parent-only (see showChildcare above -- isChildcare
+        // can never be true here). RLS (migration 081) already scopes
+        // childcareLogs to just this parent's own paying_parent entries, so
+        // there's no other-parent split to show anymore -- one total, and no
+        // need to spell out "paying" per entry since it's always this viewer.
         const rates    = family?.config?.childcare_rates ?? {}
-        const paHours  = childcareLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal), 0)
-        const pbHours  = childcareLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal), 0)
+        const totalHours = childcareLogs.reduce((s, l) => s + Number(l.hours_decimal), 0)
         const allHaveRate = childcareLogs.length > 0 && [...new Set(childcareLogs.map((l) => l.logged_by))].every((id) => (rates[id] ?? 0) > 0)
-        const paWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_a').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
-        const pbWages  = allHaveRate ? childcareLogs.filter((l) => l.paying_parent === 'parent_b').reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
+        const totalWages = allHaveRate ? childcareLogs.reduce((s, l) => s + Number(l.hours_decimal) * (rates[l.logged_by] ?? 0) / 100, 0) : null
         const fmt      = (p) => formatMoney(p * 100, regionConfig)
 
         return (
@@ -231,16 +232,11 @@ export default function ExpensesPage() {
               <p className="text-xs text-amber-700">No hours logged this month.</p>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/60 rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-amber-700 truncate">{paName}</p>
-                    <p className="text-lg font-bold text-amber-900">{formatHours(paHours)}</p>
-                    {paWages !== null && <p className="text-xs font-semibold text-amber-700">{fmt(paWages)}</p>}
-                  </div>
-                  <div className="bg-white/60 rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-amber-700 truncate">{pbName}</p>
-                    <p className="text-lg font-bold text-amber-900">{formatHours(pbHours)}</p>
-                    {pbWages !== null && <p className="text-xs font-semibold text-amber-700">{fmt(pbWages)}</p>}
+                <div className="bg-white/60 rounded-xl px-3 py-2 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-amber-700">Total</p>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-amber-900">{formatHours(totalHours)}</p>
+                    {totalWages !== null && <p className="text-xs font-semibold text-amber-700">{fmt(totalWages)}</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -253,8 +249,7 @@ export default function ExpensesPage() {
                       <div key={log.id} className="flex items-center justify-between text-xs">
                         <span className="text-amber-800">
                           {new Date(log.log_date + 'T00:00:00').toLocaleDateString(regionConfig.locale, { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {carerName && isParent ? ` · ${carerName}` : ''}
-                          {` · ${log.paying_parent === 'parent_a' ? paName : pbName} paying`}
+                          {carerName ? ` · ${carerName}` : ''}
                         </span>
                         <span className="font-semibold text-amber-900 shrink-0 ml-2">
                           {formatHours(log.hours_decimal)}{wages !== null ? ` = ${fmt(wages)}` : ''}
