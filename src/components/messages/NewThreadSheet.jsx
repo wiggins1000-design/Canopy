@@ -48,8 +48,8 @@ export default function NewThreadSheet({ open, onClose, existingPresets = [], on
       <div className="px-5 py-4 space-y-5">
 
         {/* Prompt */}
-        <div className="bg-canopy-frost border border-canopy-mist rounded-xl px-4 py-3">
-          <p className="text-sm text-canopy-deep leading-relaxed">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+          <p className="text-sm text-gray-600 leading-relaxed">
             Keeping different topics in separate conversations helps you both stay focused and makes your records clearer — especially if they're ever needed legally.
           </p>
         </div>

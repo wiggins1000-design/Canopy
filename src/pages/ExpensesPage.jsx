@@ -195,7 +195,7 @@ export default function ExpensesPage() {
         const fmt      = (p) => formatMoney(p * 100, regionConfig)
 
         return (
-          <div className="bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3 space-y-3">
+          <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-canopy-deep">Childcare hours</p>
               <button onClick={() => navigate('/childcare')} className="text-xs text-canopy-mid hover:underline">
@@ -209,7 +209,7 @@ export default function ExpensesPage() {
                 <button
                   key={p.id}
                   onClick={() => setCcPeriod(p.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${ccPeriod === p.id ? 'bg-canopy-mid text-white' : 'bg-canopy-mist text-canopy-deep'}`}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${ccPeriod === p.id ? 'bg-canopy-mid text-white' : 'bg-gray-100 text-gray-600'}`}
                 >
                   {p.label}
                 </button>
@@ -219,11 +219,11 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-semibold text-canopy-mid uppercase tracking-wide block mb-1">From</label>
-                  <input type="date" value={ccFrom} onChange={(e) => setCcFrom(e.target.value)} className="w-full border border-canopy-mist rounded-xl px-2.5 py-1.5 text-xs bg-white/60 focus:outline-none focus:ring-1 focus:ring-canopy-green" />
+                  <input type="date" value={ccFrom} onChange={(e) => setCcFrom(e.target.value)} className="w-full border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-canopy-green" />
                 </div>
                 <div>
                   <label className="text-[10px] font-semibold text-canopy-mid uppercase tracking-wide block mb-1">To</label>
-                  <input type="date" value={ccTo} onChange={(e) => setCcTo(e.target.value)} className="w-full border border-canopy-mist rounded-xl px-2.5 py-1.5 text-xs bg-white/60 focus:outline-none focus:ring-1 focus:ring-canopy-green" />
+                  <input type="date" value={ccTo} onChange={(e) => setCcTo(e.target.value)} className="w-full border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-canopy-green" />
                 </div>
               </div>
             )}
@@ -232,7 +232,7 @@ export default function ExpensesPage() {
               <p className="text-xs text-canopy-mid">No hours logged this month.</p>
             ) : (
               <>
-                <div className="bg-white/60 rounded-xl px-3 py-2 flex items-center justify-between">
+                <div className="bg-gray-50 rounded-xl px-3 py-2 flex items-center justify-between">
                   <p className="text-xs font-semibold text-canopy-mid">Total</p>
                   <div className="text-right">
                     <p className="text-lg font-bold text-canopy-deep">{formatHours(totalHours)}</p>
@@ -334,7 +334,7 @@ function ExpenseCard({ expense, members, userId, otherName, regionConfig }) {
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-semibold text-gray-900 truncate">{expense.description}</p>
             {expense.child_name && (
-              <span className="text-xs text-canopy-mid bg-canopy-frost px-2 py-0.5 rounded-full shrink-0">{firstName(expense.child_name)}</span>
+              <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">{firstName(expense.child_name)}</span>
             )}
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">

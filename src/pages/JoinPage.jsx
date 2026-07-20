@@ -244,8 +244,8 @@ export default function JoinPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="bg-canopy-frost border border-canopy-mist rounded-xl px-4 py-2.5 mb-5 text-center">
-            <p className="text-xs text-canopy-green font-semibold uppercase tracking-wide">Invite code</p>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 mb-5 text-center">
+            <p className="text-xs text-canopy-mid font-semibold uppercase tracking-wide">Invite code</p>
             <p className="font-mono text-xl font-bold text-canopy-deep tracking-widest mt-0.5">{code?.toUpperCase()}</p>
           </div>
 

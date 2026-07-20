@@ -224,7 +224,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
                   {ev.tagged_children?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {ev.tagged_children.map((name) => (
-                        <span key={name} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-canopy-frost text-canopy-deep border border-canopy-mist">
+                        <span key={name} className="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
                           {firstName(name)}
                         </span>
                       ))}

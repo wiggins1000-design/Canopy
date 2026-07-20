@@ -105,8 +105,8 @@ export default function InvitePage() {
 
       {/* Children */}
       {family?.config?.children?.filter((c) => c.name).length > 0 && (
-        <div className="bg-canopy-frost rounded-2xl px-4 py-3 border border-canopy-mist">
-          <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide">Children</p>
+        <div className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-200">
+          <p className="text-xs font-semibold text-canopy-mid uppercase tracking-wide">Children</p>
           <p className="font-bold text-gray-900 mt-0.5">
             {family.config.children.filter((c) => c.name).map((c) => firstName(c.name)).join(' & ')}
           </p>

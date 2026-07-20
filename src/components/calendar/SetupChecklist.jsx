@@ -45,7 +45,7 @@ export default function SetupChecklist() {
   if (items.every((i) => i.done)) return null
 
   return (
-    <div className="mx-3 mb-3 bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3">
+    <div className="mx-3 mb-3 bg-white border border-gray-200 rounded-2xl px-4 py-3">
       <p className="text-xs font-semibold text-canopy-mid uppercase tracking-wide mb-2.5">Getting started</p>
       <div className="space-y-2.5">
         {items.map((item) => (

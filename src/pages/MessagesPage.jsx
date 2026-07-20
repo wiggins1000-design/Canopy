@@ -76,10 +76,10 @@ export default function MessagesPage() {
               <button
                 key={thread.id}
                 onClick={() => navigate(`/messages/${thread.id}`)}
-                className="w-full flex items-center gap-3 bg-canopy-frost border border-canopy-mist rounded-2xl px-4 py-3.5 text-left hover:border-canopy-light transition-colors"
+                className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-4 py-3.5 text-left hover:border-canopy-light transition-colors"
               >
                 {/* Emoji */}
-                <div className="w-11 h-11 rounded-xl bg-white border border-canopy-mist flex items-center justify-center text-xl shrink-0 shadow-sm">
+                <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-xl shrink-0 shadow-sm">
                   {preset?.emoji ?? '💬'}
                 </div>
 

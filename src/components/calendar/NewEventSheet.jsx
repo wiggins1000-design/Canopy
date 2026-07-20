@@ -326,7 +326,7 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
 
         {/* Extraction states */}
         {extracting && (
-          <div className="flex items-center gap-2 text-sm text-canopy-mid bg-canopy-frost rounded-xl px-3 py-2.5">
+          <div className="flex items-center gap-2 text-sm text-canopy-mid bg-gray-50 rounded-xl px-3 py-2.5">
             <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
             Extracting event details…
           </div>

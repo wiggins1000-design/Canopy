@@ -581,8 +581,8 @@ export default function ChildcarePage() {
                     <button
                       type="button"
                       onClick={() => setParentFilter((f) => (f === 'parent_a' ? null : 'parent_a'))}
-                      className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
-                        parentFilter === 'parent_a' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                      className={`text-left border rounded-2xl px-4 py-3 transition-colors ${
+                        parentFilter === 'parent_a' ? 'bg-canopy-frost border-canopy-green ring-2 ring-canopy-green' : 'bg-white border-gray-200'
                       }`}
                     >
                       <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{paName}</p>
@@ -592,8 +592,8 @@ export default function ChildcarePage() {
                     <button
                       type="button"
                       onClick={() => setParentFilter((f) => (f === 'parent_b' ? null : 'parent_b'))}
-                      className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
-                        parentFilter === 'parent_b' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                      className={`text-left border rounded-2xl px-4 py-3 transition-colors ${
+                        parentFilter === 'parent_b' ? 'bg-canopy-frost border-canopy-green ring-2 ring-canopy-green' : 'bg-white border-gray-200'
                       }`}
                     >
                       <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{pbName}</p>

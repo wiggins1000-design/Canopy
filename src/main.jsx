@@ -35,7 +35,7 @@ if ('serviceWorker' in navigator && !isNativePlatform()) {
 
 function ErrorFallback() {
   return (
-    <div className="min-h-dvh flex items-center justify-center px-6 bg-canopy-frost">
+    <div className="min-h-dvh flex items-center justify-center px-6 bg-gray-50">
       <div className="max-w-sm text-center space-y-4">
         <h1 className="text-xl font-bold text-gray-900">Something went wrong</h1>
         <p className="text-sm text-gray-500">

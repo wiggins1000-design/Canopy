@@ -131,7 +131,7 @@ export default function ThreadPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
         </button>
-        <div className="w-9 h-9 rounded-xl bg-canopy-frost border border-canopy-mist flex items-center justify-center text-lg">
+        <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-lg">
           {preset?.emoji ?? '💬'}
         </div>
         <div className="flex-1 min-w-0">

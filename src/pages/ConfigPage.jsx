@@ -749,7 +749,7 @@ export default function ConfigPage() {
 
           {/* Pending proposal — shown to the OTHER parent */}
           {hasPendingProposal && !isMyProposal && (
-            <div className="bg-canopy-frost border border-canopy-mist rounded-xl p-3 space-y-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-3">
               <div>
                 <p className="text-sm font-semibold text-canopy-deep">{proposerName} proposed a new schedule</p>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -1411,7 +1411,7 @@ function SubscriptionSection() {
 
         {/* Active subscription */}
         {isActive && (
-          <div className="rounded-xl p-3.5 bg-canopy-frost border border-canopy-mist space-y-2.5">
+          <div className="rounded-xl p-3.5 bg-white border border-gray-200 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-canopy-deep">Family plan</span>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">Active</span>

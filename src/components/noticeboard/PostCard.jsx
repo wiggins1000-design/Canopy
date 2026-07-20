@@ -5,9 +5,9 @@ import { useLocale } from '../../hooks/useLocale'
 import { tagById } from '../../lib/noticeTags'
 
 const AUTHOR_STYLES = {
-  parent_a:    { dot: 'bg-pa-400',     leftColor: '#52b788', name: 'text-canopy-mid'   },
-  parent_b:    { dot: 'bg-pb-400',     leftColor: '#9ca3af', name: 'text-gray-600'     },
-  third_party: { dot: 'bg-yellow-400', leftColor: '#f59e0b', name: 'text-yellow-700'   },
+  parent_a:    { dot: 'bg-pa-400',     name: 'text-canopy-mid' },
+  parent_b:    { dot: 'bg-pb-400',     name: 'text-gray-600'   },
+  third_party: { dot: 'bg-yellow-400', name: 'text-amber-800'  },
 }
 
 const ROLE_DISC_COLOUR = {
@@ -70,8 +70,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
   return (
     <div
       ref={cardRef}
-      className="bg-canopy-frost rounded-2xl border border-canopy-mist border-l-4 p-4 space-y-3 shadow-sm"
-      style={{ borderLeftColor: styles.leftColor }}
+      className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3 shadow-sm"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">

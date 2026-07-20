@@ -259,7 +259,7 @@ export default function CalendarPage() {
 
       {/* Selecting end date hint */}
       {selectingEndDate && (
-        <div className="mb-2 bg-canopy-frost border border-canopy-mist rounded-xl px-3 py-2 text-sm text-canopy-deep font-medium">
+        <div className="mb-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-canopy-deep font-medium">
           Tap a day on the calendar to set the end date
         </div>
       )}

@@ -403,9 +403,9 @@ function AccountSheet({ open, onClose, account, onSave }) {
         </div>
 
         {/* Security notice */}
-        <div className="flex items-start gap-2.5 bg-canopy-frost border border-canopy-mist rounded-xl px-3 py-2.5">
+        <div className="flex items-start gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
           <LockIcon className="w-4 h-4 text-canopy-deep shrink-0 mt-0.5" />
-          <p className="text-xs text-canopy-deep">Usernames and passwords are encrypted at rest using Supabase Vault. Neither is ever stored as plain text.</p>
+          <p className="text-xs text-gray-600">Usernames and passwords are encrypted at rest using Supabase Vault. Neither is ever stored as plain text.</p>
         </div>
 
         <Button

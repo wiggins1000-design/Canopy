@@ -7,7 +7,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // capacitor.config.json's backgroundColor only covers the WKWebView's own
+        // background -- it doesn't reach the native UIWindow/root view sitting
+        // behind it, which defaults to black. That's exactly the gap exposed when
+        // the WebView's frame shrinks for iOS's native keyboard resize (confirmed
+        // on-device: the previous fix shrank a half-screen black gap down to a
+        // thin sliver, not eliminated it). Setting it explicitly here closes the
+        // remaining gap at the source.
+        self.window?.backgroundColor = .white
         return true
     }
 
