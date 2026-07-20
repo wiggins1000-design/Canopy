@@ -2,9 +2,11 @@
   "appId": "app.canopy.app",
   "appName": "Canopy",
   "webDir": "dist",
-  "plugins": {
-    "Keyboard": {
-      "resize": "none"
+  "android": {
+    "plugins": {
+      "Keyboard": {
+        "resize": "none"
+      }
     }
   }
 }

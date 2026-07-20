@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function PasswordField({ label, value, onChange, placeholder, required, dark }) {
+export default function PasswordField({ label, value, onChange, placeholder, required, dark, disabled }) {
   const [show, setShow] = useState(false)
 
   return (
@@ -15,7 +15,8 @@ export default function PasswordField({ label, value, onChange, placeholder, req
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          className={`w-full rounded-xl px-3 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green ${
+          disabled={disabled}
+          className={`w-full rounded-xl px-3 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-canopy-green disabled:opacity-50 ${
             dark
               ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-500'
               : 'border border-gray-200'

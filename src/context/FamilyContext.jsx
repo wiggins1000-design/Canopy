@@ -27,7 +27,7 @@ export function FamilyProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const loadFamily = useCallback(async () => {
-    if (!user) { setLoading(false); return }
+    if (!user) { setFamily(null); setMember(null); setLoading(false); return }
 
     const { data: memberRow } = await supabase
       .from('family_members')
