@@ -60,6 +60,9 @@ export default function ChildcarePage() {
   const [billsLoadingMore, setBillsLoadingMore] = useState(false)
   const [loading,          setLoading]          = useState(true)
   const [parentFilter,     setParentFilter]     = useState(null) // null | 'parent_a' | 'parent_b' — tap a totals card to filter Entries, tap again to clear
+  const [carerFilter,      setCarerFilter]      = useState(null) // null | carerId — tap a "By carer" card to filter Entries, tap again to clear
+  const ENTRIES_PAGE_SIZE = 8
+  const [entriesLimit,     setEntriesLimit]     = useState(ENTRIES_PAGE_SIZE)
 
   // Log form
   const [logDate,      setLogDate]      = useState(today)
@@ -240,9 +243,19 @@ export default function ChildcarePage() {
     return logs.filter((l) => l.log_date >= periodFrom && l.log_date <= periodTo)
   })()
 
-  const filteredEntries = parentFilter
-    ? summaryLogs.filter((l) => l.paying_parent === parentFilter)
-    : summaryLogs
+  const filteredEntries = summaryLogs.filter((l) =>
+    (!parentFilter || l.paying_parent === parentFilter) &&
+    (!carerFilter || l.logged_by === carerFilter)
+  )
+
+  const visibleEntries = filteredEntries.slice(0, entriesLimit)
+
+  // Reset back to the first page whenever the underlying entry list changes —
+  // otherwise switching period/filter could leave entriesLimit referencing a
+  // scroll depth that no longer matches what's actually being shown.
+  useEffect(() => {
+    setEntriesLimit(ENTRIES_PAGE_SIZE)
+  }, [period, customFrom, customTo, parentFilter, carerFilter])
 
   const rates = family?.config?.childcare_rates ?? {}
 
@@ -615,12 +628,22 @@ export default function ChildcarePage() {
                   redundant repetition of the totals already shown above.
                   For a parent, RLS now also scopes summaryLogs to just their own
                   paying_parent's entries — so unlike before, there's no PA/PB
-                  split to show per carer anymore, just one meaningful total. */}
+                  split to show per carer anymore, just one meaningful total.
+                  Cards are tappable — a parent's entries can span multiple
+                  carers, so filtering Entries below by carer is meaningful here
+                  the same way filtering by parent is meaningful for a carer. */}
               {isParent && (carerBreakdown.length > 1 || carerBreakdown.some((c) => c.hasRate)) && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By carer</p>
                   {carerBreakdown.map((c) => (
-                    <div key={c.carerId} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+                    <button
+                      key={c.carerId}
+                      type="button"
+                      onClick={() => setCarerFilter((f) => (f === c.carerId ? null : c.carerId))}
+                      className={`w-full text-left bg-white border rounded-2xl px-4 py-3 flex items-center justify-between transition-colors ${
+                        carerFilter === c.carerId ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-gray-200'
+                      }`}
+                    >
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{c.carerName}</p>
                         {c.hasRate
@@ -632,18 +655,24 @@ export default function ChildcarePage() {
                         <p className="text-sm font-bold text-gray-800">{formatHours(c.totalHours)}</p>
                         {c.totalWages !== null && <p className="text-xs font-semibold text-canopy-mid">{fmt(c.totalWages)}</p>}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
 
-              {/* Log entries — filtered to the selected parent, if any */}
+              {/* Log entries — filtered by parent and/or carer, whichever's
+                  selected, paginated 8 at a time */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Entries</p>
                 {filteredEntries.length === 0 && (
-                  <p className="text-sm text-gray-400 py-2">No entries for {parentFilter === 'parent_a' ? paName : pbName} in this period.</p>
+                  <p className="text-sm text-gray-400 py-2">
+                    No entries
+                    {parentFilter ? ` for ${parentFilter === 'parent_a' ? paName : pbName}` : ''}
+                    {carerFilter ? ` with ${memberName(carerFilter)}` : ''}
+                    {' '}in this period.
+                  </p>
                 )}
-                {filteredEntries.map((log) => {
+                {visibleEntries.map((log) => {
                   const ratePence = rates[log.logged_by] ?? 0
                   const wages = ratePence > 0 ? (Number(log.hours_decimal) * ratePence / 100) : null
                   return (
@@ -656,14 +685,32 @@ export default function ChildcarePage() {
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {isParent && <>{memberName(log.logged_by)} · </>}
-                        {log.paying_parent === 'parent_a' ? paName : pbName} paying
-                        {log.notes ? ` · ${log.notes}` : ''}
-                        {entryStatus(log) && ` · ${entryStatus(log)}`}
+                        {/* "{parent} paying" is only meaningful for a carer's
+                            own view (their entries genuinely span both
+                            parents) — for a parent, RLS already scopes every
+                            entry shown here to themselves, so it'd always
+                            just restate their own name. Built as a joined
+                            array rather than inline conditionals so omitting
+                            a segment never leaves a dangling " · ". */}
+                        {[
+                          isParent ? memberName(log.logged_by) : null,
+                          !isParent ? `${log.paying_parent === 'parent_a' ? paName : pbName} paying` : null,
+                          log.notes,
+                          entryStatus(log),
+                        ].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                   )
                 })}
+                {filteredEntries.length > entriesLimit && (
+                  <button
+                    type="button"
+                    onClick={() => setEntriesLimit((n) => n + ENTRIES_PAGE_SIZE)}
+                    className="w-full py-2 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    Load more
+                  </button>
+                )}
               </div>
             </>
           ) : (
