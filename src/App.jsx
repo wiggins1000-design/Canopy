@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { FamilyProvider } from './context/FamilyContext'
@@ -84,15 +84,28 @@ function PageLoader() {
 // (blocked on the Apple org migration, see platform_build_status memory).
 function AppLinksHandler() {
   const navigate = useNavigate()
+  // Android's singleTask launch mode (AndroidManifest.xml) can redeliver the
+  // original launch intent as a fresh appUrlOpen event when the activity
+  // resumes from background — with this listener mounted for the entire app
+  // lifetime, that silently force-navigates back to the original invite link
+  // at unpredictable moments, overriding any in-app navigation the user just
+  // did (confirmed on-device: tapping a button elsewhere in the app to
+  // navigate away from a stale invite link's error page bounced straight
+  // back to it with no visible transition). Dedupe consecutive identical
+  // URLs so a redelivered event for the same link is a no-op.
+  const lastUrlRef = useRef(null)
 
   useEffect(() => {
     if (!isNativePlatform()) return
     let handle
     const routeFromUrl = (urlString) => {
-      if (!urlString) return
+      if (!urlString || urlString === lastUrlRef.current) return
       try {
         const { pathname, search } = new URL(urlString)
-        if (pathname && pathname !== '/') navigate(pathname + search)
+        if (pathname && pathname !== '/') {
+          lastUrlRef.current = urlString
+          navigate(pathname + search)
+        }
       } catch { /* ignore malformed URLs */ }
     }
     ;(async () => {
