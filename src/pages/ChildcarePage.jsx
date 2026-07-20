@@ -626,18 +626,14 @@ export default function ChildcarePage() {
                   </span>
                 </div>
 
+                <p className="text-xs text-gray-400">Owed by {bill.payer_role === 'parent_a' ? paName : pbName}</p>
+
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{formatHours(bill.total_hours)}</span>
                   <span className="font-bold text-gray-900">
                     {bill.total_amount_pence != null ? fmt(bill.total_amount_pence / 100) : '— (no rate set)'}
                   </span>
                 </div>
-
-                {(bill.pa_hours > 0 && bill.pb_hours > 0) && (
-                  <p className="text-xs text-gray-400">
-                    {paName}: {formatHours(bill.pa_hours)} · {pbName}: {formatHours(bill.pb_hours)}
-                  </p>
-                )}
 
                 {isParent && (
                   <div className="flex gap-2 pt-1 border-t border-gray-100">
