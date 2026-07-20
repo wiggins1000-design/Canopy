@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { useAuth } from '../context/AuthContext'
 import { useFamily } from '../context/FamilyContext'
-import { supabase } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 
@@ -11,7 +10,44 @@ export default function JoinPage() {
   const { code } = useParams()
   const navigate = useNavigate()
   const { session, signInWithEmail, signUpWithEmail, signOut } = useAuth()
-  const { family, joinFamily, loading: familyLoading } = useFamily()
+  const familyCtx = useFamily()
+  const { family, joinFamily, loading: familyLoading } = familyCtx
+
+  // handleAuth spans an await over signup/signin, during which FamilyContext
+  // re-renders once `user` updates and produces a freshly-bound joinFamily
+  // (its useCallback depends on [user]) — but handleAuth's own closure,
+  // captured at the render before that async function started, still holds
+  // the OLD joinFamily bound to user=null. A ref always mirrors the latest
+  // render's context value, so reading familyCtxRef.current after the await
+  // gets the freshly-bound version instead of the stale one.
+  //
+  // Confirmed by debug logging that this alone isn't sufficient: GoTrue's
+  // onAuthStateChange fires before signUp()'s own promise resolves, but that
+  // only means React's setState calls have been *made* by that point, not
+  // that React has actually committed the resulting re-render and run this
+  // ref-updating effect yet — that happens on its own scheduled tick, which
+  // handleAuth's continuation can race ahead of. Reading familyCtxRef.current
+  // immediately after the signUp await genuinely still got the stale
+  // pre-signup value in testing (joinFamily's RPC call succeeded regardless,
+  // since that doesn't depend on the closure — but its internal loadFamily()
+  // call did, and silently reset family back to null seeing the stale
+  // user=null). sessionRef + waitForSession() below forces a wait for at
+  // least one real committed render reflecting the new session before
+  // touching familyCtxRef at all, since AuthContext and FamilyContext update
+  // together in the same render pass.
+  const familyCtxRef = useRef(familyCtx)
+  useEffect(() => { familyCtxRef.current = familyCtx })
+
+  const sessionRef = useRef(session)
+  useEffect(() => { sessionRef.current = session })
+
+  async function waitForSession(timeoutMs = 5000) {
+    const start = Date.now()
+    while (!sessionRef.current) {
+      if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for session to update after sign in.')
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }
 
   const [mode, setMode] = useState('signup')
   const [email, setEmail] = useState('')
@@ -82,16 +118,30 @@ export default function JoinPage() {
   // navigate). That's five separate async hops across two contexts, each hoping
   // to fire in the right order — fragile, and it never actually got the join code
   // right at least once on Android (the "flash back to the form" investigation
-  // from 2026-07-19, unresolved after ~6 hours). Replaced with a single linear
-  // sequence: the Supabase client's own internal session is already valid the
-  // instant signUp()/signInWithPassword() resolves (that's what triggers
-  // onAuthStateChange in the first place) — so the join RPC can be called
-  // directly right here without waiting for React state to catch up at all.
-  // Calling supabase.rpc() directly (not FamilyContext's joinFamily helper)
-  // deliberately avoids a stale-closure trap: joinFamily's internal loadFamily
-  // is a useCallback bound to whatever `user` was in scope on this component's
-  // last render before submit — i.e. still null for a brand-new signup — so
-  // calling it here would silently no-op instead of fetching anything.
+  // from 2026-07-19, unresolved after ~6 hours).
+  //
+  // First replacement attempt called the join RPC directly via supabase.rpc(),
+  // bypassing FamilyContext's own joinFamily entirely to dodge the stale-closure
+  // problem described above familyCtxRef — but that meant nothing ever told
+  // FamilyContext to refresh afterward, so `family` stayed stale-null for the
+  // rest of the session (a false "invalid or expired invite" if the user ever
+  // re-landed on this page), which then got "fixed" with a hard
+  // window.location reload — which repeatedly broke on native instead, since
+  // neither '/calendar' nor this page's own URL is a real file the Capacitor
+  // WebView's local server can serve on a raw browser-level navigation (only
+  // React Router's client-side routing resolves those, and that doesn't exist
+  // yet before index.html has booted). Confirmed on-device 3 separate times:
+  // signup+join always succeeded correctly server-side, but the client hung on
+  // a blank screen every time regardless of which path was reloaded to.
+  //
+  // Proven working alternative: OnboardingPage's own "join with an invite
+  // code" step calls FamilyContext's joinFamily() directly and needs no
+  // navigation at all, because it's already inside the same always-mounted
+  // app shell (AppLayout swaps it out for the real app the instant `family`
+  // becomes truthy — plain conditional rendering, no route change) — this
+  // works reliably on native. The real fix here is to get JoinPage back to
+  // that same plain-navigate mechanism, by actually fixing the stale-closure
+  // problem (via familyCtxRef, see above) instead of routing around it.
   async function handleAuth(e) {
     e.preventDefault()
     setError(null)
@@ -102,36 +152,18 @@ export default function JoinPage() {
         : await signUpWithEmail(email, password, name)
       if (authError) throw new Error(authError.message)
 
-      const { error: joinError } = await supabase.rpc('join_family', { p_code: code.toUpperCase() })
+      await waitForSession()
+      const { error: joinError } = await familyCtxRef.current.joinFamily(code.toUpperCase())
       if (joinError) {
         throw new Error(joinError.message?.includes('invalid_or_expired_invite')
           ? 'Invalid or expired invite code'
           : joinError.message)
       }
 
-      // Deliberately a hard navigation, not React Router's navigate(): by this
-      // point `user` in FamilyContext already updated once (from the
-      // signUp/signIn call above) and its loadFamily() already ran and found
-      // nothing, since it fired before this join RPC had committed. Nothing
-      // re-triggers loadFamily afterward — calling FamilyContext's own
-      // reload()/joinFamily() here would hit the same stale-closure trap
-      // noted above. A full reload reinitializes both contexts from scratch
-      // against the now-current DB state instead.
-      //
-      // Must be the root path specifically, not '/calendar' or the current
-      // /join/:code URL — a real browser-level navigation/reload asks the
-      // Capacitor WebView's local static-asset server for that exact path,
-      // and it has no SPA fallback for arbitrary paths (only React Router's
-      // client-side routing resolves those, which doesn't exist yet before
-      // index.html has booted). Confirmed via direct DB check both prior
-      // attempts (navigate to '/calendar', then reload() on '/join/:code')
-      // left the app on a permanent blank screen despite the join succeeding
-      // server-side every time — neither path is a real file, only the root
-      // is. Landing at '/' boots index.html fresh (guaranteed to resolve),
-      // then App.jsx's own already-proven <Route index> redirect (a normal
-      // client-side <Navigate>, not a raw navigation) carries it to
-      // /calendar the same way every ordinary login already does.
-      window.location.href = '/'
+      // joinFamily() (the freshly-bound one via the ref) internally reloads
+      // FamilyContext's family/member state before resolving — `family`
+      // becomes truthy, and the "already in family" effect above navigates
+      // client-side. No explicit navigate/reload needed here at all.
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
