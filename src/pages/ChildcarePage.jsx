@@ -231,10 +231,13 @@ export default function ChildcarePage() {
 
   const { from: periodFrom, to: periodTo } = getPeriodRange(period, customFrom, customTo)
 
+  // RLS (migration 081) already scopes what `logs` contains per role -- a carer
+  // only ever receives what they themselves logged, a parent only ever receives
+  // entries where they're the paying parent. No need to filter by viewer here
+  // anymore, just by the selected period.
   const summaryLogs = (() => {
     if (!periodFrom || !periodTo) return []
-    const filtered = logs.filter((l) => l.log_date >= periodFrom && l.log_date <= periodTo)
-    return isParent ? filtered : filtered.filter((l) => l.logged_by === member?.user_id)
+    return logs.filter((l) => l.log_date >= periodFrom && l.log_date <= periodTo)
   })()
 
   const filteredEntries = parentFilter
@@ -553,44 +556,49 @@ export default function ChildcarePage() {
 
           {summaryLogs.length > 0 ? (
             <>
-              {/* Per-parent totals — tap to filter Entries below to just that
-                  parent's logs, tap the same one again to clear the filter */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setParentFilter((f) => (f === 'parent_a' ? null : 'parent_a'))}
-                  className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
-                    parentFilter === 'parent_a' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
-                  }`}
-                >
-                  <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{paName}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(paHours)}</p>
-                  {paWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(paWages)}</p>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setParentFilter((f) => (f === 'parent_b' ? null : 'parent_b'))}
-                  className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
-                    parentFilter === 'parent_b' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
-                  }`}
-                >
-                  <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{pbName}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(pbHours)}</p>
-                  {pbWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(pbWages)}</p>}
-                </button>
-              </div>
+              {/* Per-parent totals + tappable filter — carer only. A parent's
+                  own summaryLogs (RLS migration 081) only ever contains entries
+                  where THEY are the paying parent, so a two-card PA/PB
+                  comparison would always show the other parent's card as a
+                  meaningless zero. A carer's own logged hours genuinely do span
+                  both parents' liability, so this stays meaningful for them. */}
+              {!isParent && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setParentFilter((f) => (f === 'parent_a' ? null : 'parent_a'))}
+                      className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
+                        parentFilter === 'parent_a' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                      }`}
+                    >
+                      <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{paName}</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(paHours)}</p>
+                      {paWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(paWages)}</p>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setParentFilter((f) => (f === 'parent_b' ? null : 'parent_b'))}
+                      className={`text-left bg-canopy-frost border rounded-2xl px-4 py-3 transition-colors ${
+                        parentFilter === 'parent_b' ? 'border-canopy-green ring-2 ring-canopy-green' : 'border-canopy-mist'
+                      }`}
+                    >
+                      <p className="text-xs font-semibold text-canopy-green uppercase tracking-wide truncate">{pbName}</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-0.5">{formatHours(pbHours)}</p>
+                      {pbWages !== null && <p className="text-sm font-semibold text-canopy-mid mt-0.5">{fmt(pbWages)}</p>}
+                    </button>
+                  </div>
 
-              {/* Carer-only: create an invoice for just the selected parent's
-                  unbilled hours. Parents don't get this action at all — they
-                  only ever view entries/summary/invoice status. */}
-              {!isParent && parentFilter && unbilledForSelectedParent > 0 && (
-                <Button
-                  className="w-full"
-                  onClick={() => createBill(member.user_id, parentFilter)}
-                  loading={billCreating === member.user_id}
-                >
-                  Create invoice for {formatHours(unbilledForSelectedParent)} unbilled ({parentFilter === 'parent_a' ? paName : pbName})
-                </Button>
+                  {parentFilter && unbilledForSelectedParent > 0 && (
+                    <Button
+                      className="w-full"
+                      onClick={() => createBill(member.user_id, parentFilter)}
+                      loading={billCreating === member.user_id}
+                    >
+                      Create invoice for {formatHours(unbilledForSelectedParent)} unbilled ({parentFilter === 'parent_a' ? paName : pbName})
+                    </Button>
+                  )}
+                </>
               )}
 
               <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
@@ -602,39 +610,27 @@ export default function ChildcarePage() {
               </div>
 
               {/* Per-carer breakdown — parents only. A carer's own summaryLogs are
-                  already filtered to just their own hours (see isParent ? filtered
-                  : filtered.filter(...) above), so this would only ever show their
-                  own single card under a "By carer" heading — pure redundant
-                  repetition of the totals already shown above, not a real breakdown. */}
+                  already self-scoped (RLS migration 081), so this would only ever
+                  show their own single card under a "By carer" heading — pure
+                  redundant repetition of the totals already shown above.
+                  For a parent, RLS now also scopes summaryLogs to just their own
+                  paying_parent's entries — so unlike before, there's no PA/PB
+                  split to show per carer anymore, just one meaningful total. */}
               {isParent && (carerBreakdown.length > 1 || carerBreakdown.some((c) => c.hasRate)) && (
                 <div className="space-y-3">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By carer</p>
                   {carerBreakdown.map((c) => (
-                    <div key={c.carerId} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 space-y-2">
-                      <div className="flex items-center justify-between">
+                    <div key={c.carerId} className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
+                      <div>
                         <p className="text-sm font-semibold text-gray-900">{c.carerName}</p>
                         {c.hasRate
                           ? <span className="text-xs text-gray-500">{fmt(c.rate / 100)}/hr</span>
                           : <span className="text-xs text-amber-600">No rate set</span>
                         }
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-gray-50 rounded-xl px-3 py-2">
-                          <p className="font-semibold text-gray-500 truncate">{paName}</p>
-                          <p className="font-bold text-gray-800 mt-0.5">{formatHours(c.paHours)}</p>
-                          {c.paWages !== null && <p className="text-canopy-mid font-semibold">{fmt(c.paWages)}</p>}
-                        </div>
-                        <div className="bg-gray-50 rounded-xl px-3 py-2">
-                          <p className="font-semibold text-gray-500 truncate">{pbName}</p>
-                          <p className="font-bold text-gray-800 mt-0.5">{formatHours(c.pbHours)}</p>
-                          {c.pbWages !== null && <p className="text-canopy-mid font-semibold">{fmt(c.pbWages)}</p>}
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-xs pt-1 border-t border-gray-100">
-                        <span className="text-gray-500">Total</span>
-                        <span className="font-bold text-gray-800">
-                          {formatHours(c.totalHours)}{c.totalWages !== null ? ` = ${fmt(c.totalWages)}` : ''}
-                        </span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-gray-800">{formatHours(c.totalHours)}</p>
+                        {c.totalWages !== null && <p className="text-xs font-semibold text-canopy-mid">{fmt(c.totalWages)}</p>}
                       </div>
                     </div>
                   ))}
