@@ -109,28 +109,29 @@ export default function JoinPage() {
           : joinError.message)
       }
 
-      // Deliberately a hard reload, not navigate(): by this point `user` in
-      // FamilyContext already updated once (from the signUp/signIn call above)
-      // and its loadFamily() already ran and found nothing, since it fired
-      // before this join RPC had committed. Nothing re-triggers loadFamily
-      // afterward — calling FamilyContext's own reload()/joinFamily() here
-      // would hit the same stale-closure trap noted above. A full reload
-      // reinitializes both contexts from scratch against the now-current DB
-      // state instead, so `family` is never seen as stale-null within this
-      // session (which previously showed as a false "invalid or expired
-      // invite" if the user ever re-landed on this page in the same session,
-      // since the join had already gone through and the code was correctly
-      // marked used).
+      // Deliberately a hard navigation, not React Router's navigate(): by this
+      // point `user` in FamilyContext already updated once (from the
+      // signUp/signIn call above) and its loadFamily() already ran and found
+      // nothing, since it fired before this join RPC had committed. Nothing
+      // re-triggers loadFamily afterward — calling FamilyContext's own
+      // reload()/joinFamily() here would hit the same stale-closure trap
+      // noted above. A full reload reinitializes both contexts from scratch
+      // against the now-current DB state instead.
       //
-      // Reload the *current* path, not '/calendar' directly — in the native
-      // Capacitor WebView, window.location.href to a different path is a real
-      // browser-level navigation, and the local static-asset server has no
-      // SPA fallback for arbitrary paths (only the client-side router, which
-      // doesn't exist yet on a fresh load, handles those) — landed on a blank
-      // page with nothing to load. Reloading this exact URL is guaranteed to
-      // resolve (it's the page already loaded), and once contexts re-init
-      // fresh, the "already in family" effect above navigates on client-side.
-      window.location.reload()
+      // Must be the root path specifically, not '/calendar' or the current
+      // /join/:code URL — a real browser-level navigation/reload asks the
+      // Capacitor WebView's local static-asset server for that exact path,
+      // and it has no SPA fallback for arbitrary paths (only React Router's
+      // client-side routing resolves those, which doesn't exist yet before
+      // index.html has booted). Confirmed via direct DB check both prior
+      // attempts (navigate to '/calendar', then reload() on '/join/:code')
+      // left the app on a permanent blank screen despite the join succeeding
+      // server-side every time — neither path is a real file, only the root
+      // is. Landing at '/' boots index.html fresh (guaranteed to resolve),
+      // then App.jsx's own already-proven <Route index> redirect (a normal
+      // client-side <Navigate>, not a raw navigation) carries it to
+      // /calendar the same way every ordinary login already does.
+      window.location.href = '/'
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
