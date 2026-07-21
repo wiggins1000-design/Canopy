@@ -213,57 +213,65 @@ Deno.serve(async (req) => {
     return new Response('Unauthorized', { status: 401, headers: CORS })
   }
 
-  const { data: member } = await supabase
+  // .eq('role', recipient_role) without .single(): 'parent_a'/'parent_b' are
+  // always unique per family, but 'third_party' isn't -- a family can have
+  // multiple carers (e.g. Michelle and Rose), and .single() would throw for
+  // any of them instead of just silently picking one. Fetching all matching
+  // rows and sending to everyone found handles both cases uniformly.
+  const { data: members } = await supabase
     .from('family_members')
-    .select('push_token_ios, push_token_android, push_token_web')
+    .select('user_id, push_token_ios, push_token_android, push_token_web')
     .eq('family_id', family_id)
     .eq('role', recipient_role)
-    .single()
 
-  const targets: Array<{ platform: string; send: () => Promise<void> }> = []
-  if (member?.push_token_ios) {
-    targets.push({ platform: 'ios', send: () => sendApns(member.push_token_ios, title, body, url) })
-  }
-  if (member?.push_token_android) {
-    targets.push({ platform: 'android', send: () => sendFcm(member.push_token_android, title, body, url) })
-  }
-  if (member?.push_token_web) {
-    targets.push({
-      platform: 'web',
-      send: async () => {
-        const vapidSubject = Deno.env.get('VAPID_SUBJECT')
-        const vapidPublic  = Deno.env.get('VAPID_PUBLIC')
-        const vapidPrivate = Deno.env.get('VAPID_PRIVATE')
-        if (!vapidSubject || !vapidPublic || !vapidPrivate) throw new Error('VAPID not configured')
-        webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate)
-        await webpush.sendNotification(
-          JSON.parse(member.push_token_web),
-          JSON.stringify({ title, body, url }),
-        )
-      },
-    })
+  const targets: Array<{ platform: string; userId: string; send: () => Promise<void> }> = []
+  for (const member of members ?? []) {
+    if (member.push_token_ios) {
+      targets.push({ platform: 'ios', userId: member.user_id, send: () => sendApns(member.push_token_ios, title, body, url) })
+    }
+    if (member.push_token_android) {
+      targets.push({ platform: 'android', userId: member.user_id, send: () => sendFcm(member.push_token_android, title, body, url) })
+    }
+    if (member.push_token_web) {
+      targets.push({
+        platform: 'web',
+        userId: member.user_id,
+        send: async () => {
+          const vapidSubject = Deno.env.get('VAPID_SUBJECT')
+          const vapidPublic  = Deno.env.get('VAPID_PUBLIC')
+          const vapidPrivate = Deno.env.get('VAPID_PRIVATE')
+          if (!vapidSubject || !vapidPublic || !vapidPrivate) throw new Error('VAPID not configured')
+          webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate)
+          await webpush.sendNotification(
+            JSON.parse(member.push_token_web),
+            JSON.stringify({ title, body, url }),
+          )
+        },
+      })
+    }
   }
 
   if (targets.length === 0) {
     return new Response(JSON.stringify({ skipped: 'no push token' }), { status: 200, headers: CORS })
   }
 
-  // Send to every registered device for this person — a parent using both an
-  // iPhone and an Android device should get it on both, not just whichever
-  // registered most recently.
+  // Send to every registered device for every matching person — a parent
+  // using both an iPhone and an Android device should get it on both, not
+  // just whichever registered most recently, and multiple carers should all
+  // get notified, not just one.
   const results = await Promise.allSettled(targets.map((t) => t.send()))
   const errors: Record<string, string> = {}
-  let webExpired = false
+  const expiredWebUserIds = new Set<string>()
   results.forEach((r, i) => {
     if (r.status === 'rejected') {
-      errors[targets[i].platform] = r.reason?.message ?? String(r.reason)
-      if (targets[i].platform === 'web' && r.reason?.statusCode === 410) webExpired = true
+      errors[`${targets[i].platform}:${targets[i].userId}`] = r.reason?.message ?? String(r.reason)
+      if (targets[i].platform === 'web' && r.reason?.statusCode === 410) expiredWebUserIds.add(targets[i].userId)
     }
   })
 
-  if (webExpired) {
+  if (expiredWebUserIds.size > 0) {
     await supabase.from('family_members').update({ push_token_web: null })
-      .eq('family_id', family_id).eq('role', recipient_role)
+      .eq('family_id', family_id).in('user_id', Array.from(expiredWebUserIds))
   }
 
   if (Object.keys(errors).length > 0) console.error('Push error(s):', errors)

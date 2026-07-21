@@ -30,6 +30,19 @@ export function SessionActivityProvider({ children }) {
             url:          '/board',
           })
         }
+
+        // Same Notice Board audience as NewPostSheet.jsx -- carers were
+        // never wired into any push trigger in the app (all of them only
+        // ever targeted "the other parent"). Safe to call unconditionally;
+        // the edge function no-ops gracefully if there's no third_party
+        // member or no registered device.
+        await sendPushNotification({
+          familyId:      family.id,
+          recipientRole: 'third_party',
+          title:         `${authorName} made some updates`,
+          body:          description,
+          url:           '/board',
+        })
       }
     } catch (e) {
       console.warn('trackActivity failed:', e)

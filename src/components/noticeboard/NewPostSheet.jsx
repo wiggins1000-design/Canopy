@@ -87,13 +87,16 @@ export default function NewPostSheet({ open, onClose }) {
 
     if (dbErr) { setError(dbErr.message); setSaving(false); return }
 
+    const postTitle = tag === 'urgent' ? '🚨 Urgent notice board post' : 'New notice board post'
+    const postBody  = content.trim().slice(0, 100)
+
     if (recipientMember) {
       await sendPushNotification({
-        familyId:      family.id,
+        familyId: family.id,
         recipientRole,
-        title:         tag === 'urgent' ? '🚨 Urgent notice board post' : 'New notice board post',
-        body:          content.trim().slice(0, 100),
-        url:           '/board',
+        title:    postTitle,
+        body:     postBody,
+        url:      '/board',
       })
 
       if (tag === 'urgent') {
@@ -104,6 +107,18 @@ export default function NewPostSheet({ open, onClose }) {
         })
       }
     }
+
+    // Carers see the Notice Board too, but were never wired into this at
+    // all (every push trigger in the app only ever targeted "the other
+    // parent") -- the edge function handles zero/one/many third_party
+    // members gracefully, so this is safe to call unconditionally.
+    await sendPushNotification({
+      familyId:      family.id,
+      recipientRole: 'third_party',
+      title:         postTitle,
+      body:          postBody,
+      url:           '/board',
+    })
 
     setContent('')
     setTag(null)
