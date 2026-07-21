@@ -51,8 +51,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
-        if url.scheme == "canopy" {
-            CanopyShare.handleShareURLOpen()
+        //
+        // WhatsApp share-sheet handling (CanopyShare) is blocked on the Apple
+        // Individual->Organization migration (App Groups capability unavailable
+        // until that completes -- see legal_entity/whatsapp_share_feature memory)
+        // and CanopySharePlugin.swift is deliberately not committed while that's
+        // true. This used to be a local-only MacinCloud workaround that had to be
+        // reapplied by hand after every git pull, which got a lot more painful
+        // once other AppDelegate.swift changes started landing on main and
+        // colliding with it on every pull. Committing the disabled state directly
+        // removes that friction entirely -- restore the real call and commit
+        // CanopySharePlugin.swift together, in one deliberate change, once the
+        // org migration unblocks the feature for real.
+        if false && url.scheme == "canopy" {
+            // CanopyShare.handleShareURLOpen()
         }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
