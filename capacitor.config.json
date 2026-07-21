@@ -3,11 +3,9 @@
   "appName": "Canopy",
   "webDir": "dist",
   "backgroundColor": "#ffffff",
-  "android": {
-    "plugins": {
-      "Keyboard": {
-        "resize": "none"
-      }
+  "plugins": {
+    "Keyboard": {
+      "resize": "none"
     }
   }
 }

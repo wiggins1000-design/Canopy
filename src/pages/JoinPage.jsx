@@ -58,18 +58,19 @@ export default function JoinPage() {
   const [error, setError] = useState(null)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
 
-  // Android's WebView never reliably reports the on-screen keyboard as a
+  // Neither platform's WebView reliably reports the on-screen keyboard as a
   // viewport change (adjustResize, the Keyboard plugin's own body-resize mode,
-  // and scrollIntoView alone all failed identically on-device) — so instead of
-  // trusting anything the browser infers about "visible area", get the real
-  // keyboard height straight from Android's own APIs via the Keyboard plugin's
-  // events and use it as genuine extra scroll space at the bottom of the form.
-  // iOS's native resize already handles this correctly on its own (always did,
-  // until capacitor.config.json briefly set resize:"none" globally on 2026-07-19
-  // and broke it there too) — scoped to Android only so iOS isn't double-padded
-  // on top of its own native resize.
+  // and scrollIntoView alone all failed identically on Android; iOS's native
+  // resize mode does technically work, but shrinking the WKWebView frame for
+  // it exposes a black gap behind it that two separate fixes couldn't paint
+  // over — confirmed on-device even after a full delete+reinstall, so the
+  // gap itself is inherent to native resize on this app, not a caching
+  // artifact). Both platforms now use resize:"none" (capacitor.config.json)
+  // and this same JS-driven approach instead: get the real keyboard height
+  // straight from the OS's own APIs via the Keyboard plugin's events, and
+  // use it as genuine extra scroll space at the bottom of the form.
   useEffect(() => {
-    if (Capacitor.getPlatform() !== 'android') return
+    if (!Capacitor.isNativePlatform()) return
     let showHandle, hideHandle
     ;(async () => {
       const { Keyboard } = await import('@capacitor/keyboard')

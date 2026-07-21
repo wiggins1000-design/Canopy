@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
@@ -15,6 +15,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(location.state?.message ?? null)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
+
+  // Neither platform's WebView reliably reports the on-screen keyboard as a
+  // viewport change -- both now use resize:"none" (capacitor.config.json)
+  // and this JS-driven approach instead, same as JoinPage.jsx: get the real
+  // keyboard height from the OS's own APIs via the Keyboard plugin's events
+  // and use it as genuine extra scroll space at the bottom of the form.
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    let showHandle, hideHandle
+    ;(async () => {
+      const { Keyboard } = await import('@capacitor/keyboard')
+      showHandle = await Keyboard.addListener('keyboardWillShow', (info) => {
+        setKeyboardHeight(info.keyboardHeight)
+      })
+      hideHandle = await Keyboard.addListener('keyboardWillHide', () => {
+        setKeyboardHeight(0)
+      })
+    })()
+    return () => { showHandle?.remove(); hideHandle?.remove() }
+  }, [])
 
   if (session && !needsTwoFa) return <Navigate to="/calendar" replace />
   if (session && needsTwoFa) return <Navigate to="/2fa" replace />
@@ -52,8 +73,20 @@ export default function LoginPage() {
     setSuccess(null)
   }
 
+  // Delayed to let the keyboard's own show animation finish first, since
+  // scrolling immediately measures against the pre-keyboard layout.
+  function scrollFieldIntoView(e) {
+    const target = e.target
+    if (target.tagName === 'INPUT') {
+      setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center px-6 pt-[82px] pb-12 overflow-y-auto">
+    <div
+      className="min-h-screen bg-gradient-to-br from-pa-50 via-white to-pb-50 flex flex-col items-center px-6 pt-[82px] overflow-y-auto"
+      style={{ paddingBottom: keyboardHeight ? `${keyboardHeight + 48}px` : '48px' }}
+    >
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-4">
@@ -72,7 +105,7 @@ export default function LoginPage() {
               </button>
               <h2 className="text-base font-semibold text-gray-900 mb-1">Reset your password</h2>
               <p className="text-xs text-gray-400 mb-4">Enter your email and we'll send a reset link.</p>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" onFocus={scrollFieldIntoView}>
                 <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" required />
                 {error && <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-700">{error}</div>}
                 {success && <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-sm text-green-700">{success}</div>}
@@ -99,7 +132,7 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" onFocus={scrollFieldIntoView}>
                 {mode === 'signup' && (
                   <Field label="Your name" type="text" value={name} onChange={setName} placeholder="e.g. Sarah" required />
                 )}
