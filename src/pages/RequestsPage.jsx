@@ -27,8 +27,14 @@ export default function RequestsPage() {
     })
   }, [family?.id])
 
-  function memberName(userId) {
-    return members.find((m) => m.user_id === userId)?.display_name ?? 'Unknown'
+  const REQUESTER_ROLE_LABELS = { parent_a: 'Parent A', parent_b: 'Parent B' }
+
+  // Fallback once the requester has left the family — their role at request
+  // time is snapshotted on the row itself (see migration 082).
+  function memberName(userId, requesterRole) {
+    return members.find((m) => m.user_id === userId)?.display_name
+      ?? REQUESTER_ROLE_LABELS[requesterRole]
+      ?? 'Unknown'
   }
 
   // Combine into a unified list sorted by created_at desc
@@ -112,7 +118,7 @@ function ChangeCard({ change, memberName, members }) {
         <StatusBadge status={change.status} />
       </div>
       <p className="text-xs text-gray-500">
-        Requested by <span className="font-medium text-gray-700">{memberName(change.requested_by)}</span>
+        Requested by <span className="font-medium text-gray-700">{memberName(change.requested_by, change.requester_role)}</span>
         {' · '}assign to <span className="font-medium text-gray-700">{assignedName}</span>
       </p>
       {change.note && <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">"{change.note}"</p>}

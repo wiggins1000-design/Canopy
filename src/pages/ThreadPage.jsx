@@ -77,6 +77,14 @@ export default function ThreadPage() {
     return members.find((m) => m.user_id === msg.sender_id)
   }
 
+  // Fallback once the sender has left the family — their role at send time
+  // is snapshotted on the message itself (see migration 082), messages are
+  // parent-only so third_party never applies here.
+  const SENDER_ROLE_LABELS = { parent_a: 'Parent A', parent_b: 'Parent B' }
+  function senderLabel(msg) {
+    return senderOf(msg)?.display_name ?? SENDER_ROLE_LABELS[msg.sender_role] ?? 'Unknown'
+  }
+
   function isOwn(msg) {
     return msg.sender_id === user?.id
   }
@@ -165,13 +173,12 @@ export default function ThreadPage() {
 
             const { msg } = item
             const own    = isOwn(msg)
-            const sender = senderOf(msg)
             const seenBy = seenByFor(msg)
 
             return (
               <div key={msg.id} className={`flex flex-col ${own ? 'items-end' : 'items-start'} mb-1`}>
                 {!own && (
-                  <p className="text-xs text-gray-400 ml-1 mb-0.5">{sender?.display_name ?? 'Unknown'}</p>
+                  <p className="text-xs text-gray-400 ml-1 mb-0.5">{senderLabel(msg)}</p>
                 )}
                 <div
                   className={[

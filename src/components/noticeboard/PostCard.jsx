@@ -16,6 +16,15 @@ const ROLE_DISC_COLOUR = {
   third_party: 'bg-yellow-300',
 }
 
+// Fallback labels once the author has left the family (their family_members
+// row — and with it display_name — is gone, but the role they had when they
+// posted is snapshotted on the post itself, see migration 082).
+const ROLE_LABELS = {
+  parent_a:    'Parent A',
+  parent_b:    'Parent B',
+  third_party: 'External',
+}
+
 export default function PostCard({ post, reads = new Set(), onVisible }) {
   const { members, isParent } = useFamily()
   const regionConfig = useLocale()
@@ -51,7 +60,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
   }, [post.id, onVisible])
 
   const author      = members.find((m) => m.user_id === post.author_id)
-  const authorRole  = author?.role ?? 'third_party'
+  const authorRole  = author?.role ?? post.author_role ?? 'third_party'
   const styles      = AUTHOR_STYLES[authorRole] ?? AUTHOR_STYLES.third_party
 
   async function togglePin() {
@@ -77,7 +86,7 @@ export default function PostCard({ post, reads = new Set(), onVisible }) {
         <div className="flex items-center gap-2">
           <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${styles.dot}`} />
           <span className={`text-sm font-semibold ${styles.name}`}>
-            {author?.display_name ?? 'External'}
+            {author?.display_name ?? ROLE_LABELS[post.author_role] ?? 'External'}
           </span>
           <span className="text-xs text-gray-400">
             {new Intl.DateTimeFormat(regionConfig.locale, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(post.created_at))}
