@@ -636,6 +636,8 @@ export default function ConfigPage() {
             </div>
           </div>
         </AccordionGroup>
+
+        <SettingsFooter appInfo={appInfo} />
       </div>
     )
   }
@@ -1286,6 +1288,20 @@ export default function ConfigPage() {
         </div>
       </AccordionGroup>
 
+      <SettingsFooter appInfo={appInfo} />
+    </div>
+  )
+}
+
+// Shared by both the parent and carer Settings views below -- these two views
+// render almost entirely different JSX (see the `if (!isParent)` branch
+// above), which is exactly how this footer went missing from the carer view
+// for a month (Help & FAQ) and would have happened again immediately with
+// the new version display if it'd been added inline a second time. Anything
+// that both views should always carry belongs here, not copy-pasted.
+function SettingsFooter({ appInfo }) {
+  return (
+    <>
       <div className="mt-3 border-t border-gray-100 pt-3 pb-1 flex justify-center">
         <a
           href="https://canopy-app.app/faq.html"
@@ -1307,7 +1323,7 @@ export default function ConfigPage() {
       )}
 
       <div className="h-4" />
-    </div>
+    </>
   )
 }
 
