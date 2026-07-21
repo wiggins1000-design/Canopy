@@ -32,6 +32,22 @@ export default function ConfigPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [targetTab])
 
+  // versionName alone (e.g. "1.1.0") is deliberately kept fixed across many
+  // internal test builds -- only the build/versionCode actually changes each
+  // round, so it's the only reliable way to tell which exact build is
+  // installed. App.getInfo() reads both directly from the native bundle at
+  // runtime, so this can never drift out of sync with reality the way a
+  // hardcoded string could. Not available on web (App plugin is native-only).
+  const [appInfo, setAppInfo] = useState(null)
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    ;(async () => {
+      const { App } = await import('@capacitor/app')
+      const info = await App.getInfo()
+      setAppInfo(info)
+    })()
+  }, [])
+
   const [patternType, setPatternType] = useState('alternating_weeks')
   const [startingParent, setStartingParent] = useState('parent_a')
   const [startDate, setStartDate] = useState(formatDate(new Date()))
@@ -1283,6 +1299,12 @@ export default function ConfigPage() {
           Help &amp; FAQ
         </a>
       </div>
+
+      {appInfo && (
+        <p className="text-center text-xs text-gray-300 pb-1">
+          Version {appInfo.version} ({appInfo.build})
+        </p>
+      )}
 
       <div className="h-4" />
     </div>
