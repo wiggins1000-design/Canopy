@@ -109,45 +109,39 @@ export default function AddFromSharePage() {
       return
     }
 
-    setDrafts(
-      (data.events ?? []).map((ev) => {
-        // Only trust child names the extraction returned that actually match
-        // a real child on file — same defensive filter NewEventSheet.jsx
-        // applies to its own extraction results.
-        const matchedChildren = Array.isArray(ev.tagged_children)
-          ? ev.tagged_children.filter((n) => children.some((c) => c.name === n))
-          : []
-        return {
-          id:             newDraftId(),
-          included:       true,
-          title:          ev.title ?? '',
-          date:           ev.date ?? '',
-          end_date:       ev.end_date ?? '',
-          time:           ev.time ?? '',
-          notes:          ev.notes ?? '',
-          tagged_children: matchedChildren,
-        }
-      })
-    )
+    const parsed = (data.events ?? []).map((ev) => {
+      // Only trust child names the extraction returned that actually match
+      // a real child on file — same defensive filter NewEventSheet.jsx
+      // applies to its own extraction results.
+      const matchedChildren = Array.isArray(ev.tagged_children)
+        ? ev.tagged_children.filter((n) => children.some((c) => c.name === n))
+        : []
+      return {
+        id:             newDraftId(),
+        included:       true,
+        title:          ev.title ?? '',
+        date:           ev.date ?? '',
+        end_date:       ev.end_date ?? '',
+        time:           ev.time ?? '',
+        notes:          ev.notes ?? '',
+        tagged_children: matchedChildren,
+      }
+    })
+
+    // Anything with both a title and a date is unambiguous enough to add
+    // straight away, no confirmation tap needed -- this is the common case
+    // (WhatsApp shares are usually one clear event). Anything missing either
+    // still goes through the editable review screen below rather than being
+    // silently dropped or saved with garbage data.
+    const complete = parsed.filter((d) => d.title.trim() && d.date)
+    const incomplete = parsed.filter((d) => !(d.title.trim() && d.date))
+
     setLoading(false)
+    setDrafts(incomplete)
+    if (complete.length > 0) await saveEvents(complete, { autoNavigate: incomplete.length === 0 })
   }
 
-  function updateDraft(id, field, value) {
-    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)))
-  }
-
-  function toggleChild(id, childName) {
-    setDrafts((prev) => prev.map((d) => {
-      if (d.id !== id) return d
-      const has = d.tagged_children.includes(childName)
-      return { ...d, tagged_children: has ? d.tagged_children.filter((n) => n !== childName) : [...d.tagged_children, childName] }
-    }))
-  }
-
-  async function addSelected() {
-    const toAdd = drafts.filter((d) => d.included && d.title.trim() && d.date)
-    if (toAdd.length === 0) { setError('Nothing selected to add.'); return }
-
+  async function saveEvents(toAdd, { autoNavigate } = {}) {
     setSaving(true)
     setError(null)
     let count = 0
@@ -174,12 +168,30 @@ export default function AddFromSharePage() {
     }
 
     setSaving(false)
-    setSavedCount(count)
-    if (count > 0) {
+    setSavedCount((prev) => prev + count)
+    if (count > 0 && autoNavigate) {
       setTimeout(() => navigate('/calendar'), 1200)
-    } else {
+    } else if (count === 0) {
       setError('Could not add those events — please try again.')
     }
+  }
+
+  function updateDraft(id, field, value) {
+    setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)))
+  }
+
+  function toggleChild(id, childName) {
+    setDrafts((prev) => prev.map((d) => {
+      if (d.id !== id) return d
+      const has = d.tagged_children.includes(childName)
+      return { ...d, tagged_children: has ? d.tagged_children.filter((n) => n !== childName) : [...d.tagged_children, childName] }
+    }))
+  }
+
+  async function addSelected() {
+    const toAdd = drafts.filter((d) => d.included && d.title.trim() && d.date)
+    if (toAdd.length === 0) { setError('Nothing selected to add.'); return }
+    await saveEvents(toAdd, { autoNavigate: true })
   }
 
   return (
@@ -190,6 +202,13 @@ export default function AddFromSharePage() {
         <div className="flex items-center gap-2 text-sm text-canopy-mid bg-gray-50 rounded-xl px-3 py-2.5">
           <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
           Finding dates…
+        </div>
+      )}
+
+      {!loading && saving && savedCount === 0 && drafts.length === 0 && (
+        <div className="flex items-center gap-2 text-sm text-canopy-mid bg-gray-50 rounded-xl px-3 py-2.5">
+          <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
+          Adding to your calendar…
         </div>
       )}
 
@@ -208,10 +227,13 @@ export default function AddFromSharePage() {
       )}
 
       {!loading && savedCount > 0 && (
-        <p className="text-sm text-green-600 font-medium">✓ Added {savedCount} event{savedCount !== 1 ? 's' : ''} — heading to your calendar…</p>
+        <p className="text-sm text-green-600 font-medium">
+          ✓ Added {savedCount} event{savedCount !== 1 ? 's' : ''}
+          {drafts.length === 0 ? ' — heading to your calendar…' : ' — a few more need details below:'}
+        </p>
       )}
 
-      {!loading && drafts.length > 0 && savedCount === 0 && (
+      {!loading && drafts.length > 0 && (
         <div className="space-y-4">
           {drafts.map((d) => (
             <div key={d.id} className={`bg-white border rounded-2xl p-4 space-y-3 ${d.included ? 'border-gray-200' : 'border-gray-100 opacity-50'}`}>
@@ -309,7 +331,7 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && drafts.length === 0 && !error && (
+      {!loading && !saving && drafts.length === 0 && !error && savedCount === 0 && (
         <div className="space-y-3 text-center py-8">
           <p className="text-sm text-gray-500">No dates found in what was shared.</p>
           <Button variant="secondary" className="mx-auto" onClick={() => navigate('/calendar')}>
