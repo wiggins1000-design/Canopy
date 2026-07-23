@@ -23,7 +23,8 @@
 import UIKit
 import UniformTypeIdentifiers
 
-class ShareViewController: UIViewController {
+@objc
+public class ShareViewController: UIViewController {
 
     static let appGroupId = "group.app.canopy.app.share"
     static let pendingShareKey = "canopy_pending_share"
