@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		121E6CA33012143100E0EC4E /* CanopySharePlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 121E6CA13012143100E0EC4E /* CanopySharePlugin.m */; };
 		121E6CA43012143100E0EC4E /* CanopySharePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121E6CA23012143100E0EC4E /* CanopySharePlugin.swift */; };
+		43DB77BDE13A0D3A18C553EF /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FE09BC44C79740F969A2EA /* MainViewController.swift */; };
 		121E6CB33012197100E0EC4E /* CanopyShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 121E6CA93012197100E0EC4E /* CanopyShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
@@ -50,6 +51,7 @@
 		120DB4A92FEC79290069D44B /* AppRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AppRelease.entitlements; sourceTree = "<group>"; };
 		121E6CA13012143100E0EC4E /* CanopySharePlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CanopySharePlugin.m; sourceTree = "<group>"; };
 		121E6CA23012143100E0EC4E /* CanopySharePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanopySharePlugin.swift; sourceTree = "<group>"; };
+		32FE09BC44C79740F969A2EA /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		121E6CA93012197100E0EC4E /* CanopyShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CanopyShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		121E6CB93012264500E0EC4E /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 				121E6CB93012264500E0EC4E /* App.entitlements */,
 				121E6CA13012143100E0EC4E /* CanopySharePlugin.m */,
 				121E6CA23012143100E0EC4E /* CanopySharePlugin.swift */,
+				32FE09BC44C79740F969A2EA /* MainViewController.swift */,
 				120DB4A92FEC79290069D44B /* AppRelease.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -284,6 +287,7 @@
 			files = (
 				121E6CA33012143100E0EC4E /* CanopySharePlugin.m in Sources */,
 				121E6CA43012143100E0EC4E /* CanopySharePlugin.swift in Sources */,
+				43DB77BDE13A0D3A18C553EF /* MainViewController.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				66A780D9978FDCF61790B109 /* SpeechRecognitionPlugin.swift in Sources */,
 				A65122135FFDCDFC9F5EDBF9 /* SpeechRecognitionPlugin.m in Sources */,
