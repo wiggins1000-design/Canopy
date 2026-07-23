@@ -11,6 +11,15 @@
 // Shows no UI at all -- the OS's own "opening Canopy..." transition is the
 // only visible feedback, matching the instant one-tap feel of the Android
 // share-target flow.
+//
+// DIAGNOSTIC MODE (added 2026-07-23, remove once the "share never launches
+// Canopy" bug is confirmed fixed): every exit path now writes a debug string
+// into the App Group under debugKey AND always calls openHostAppAndComplete()
+// -- even on failure -- instead of silently completeAndExit()ing. There's no
+// way to attach a live debugger to this extension without a cable + MacinCloud
+// Dedicated-plan USB passthrough, which isn't set up, so this makes the
+// failure visible on-device instead: the app opens, finds no pending share,
+// but does find debug text and can show it. See AppLayout.jsx / canopyShare.js.
 import UIKit
 import UniformTypeIdentifiers
 
@@ -18,42 +27,44 @@ class ShareViewController: UIViewController {
 
     static let appGroupId = "group.app.canopy.app.share"
     static let pendingShareKey = "canopy_pending_share"
+    static let debugKey = "canopy_share_debug"
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        storeDebug("handleShare called")
         handleShare()
     }
 
     private func handleShare() {
-        print("CanopyShare: handleShare called")
         guard let item = extensionContext?.inputItems.first as? NSExtensionItem else {
-            print("CanopyShare: no input item, exiting")
-            completeAndExit()
+            appendDebug("no input item at all (inputItems.count = \(extensionContext?.inputItems.count ?? -1))")
+            openHostAppAndComplete()
             return
         }
 
         guard let attachment = item.attachments?.first else {
             // Some apps (WhatsApp forwarded text, in particular) deliver plain
             // text via attributedContentText instead of populating attachments
-            // at all -- without this fallback the extension exits silently here,
-            // which looks like "nothing happens" from the sending app's side.
+            // at all -- without this fallback the extension used to exit
+            // silently here, which looks like "nothing happens" from the
+            // sending app's side.
             if let text = item.attributedContentText?.string,
                !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                print("CanopyShare: no attachments, using attributedContentText fallback")
+                appendDebug("no attachments; used attributedContentText fallback, length \(text.count)")
                 store(payload: ["type": "text", "text": text])
-                openHostAppAndComplete()
             } else {
-                print("CanopyShare: no attachment and no attributedContentText, exiting")
-                completeAndExit()
+                appendDebug("no attachments and no usable attributedContentText (attachments = \(item.attachments?.count ?? -1), attributedContentText = \(item.attributedContentText?.string ?? "nil"))")
             }
+            openHostAppAndComplete()
             return
         }
-        print("CanopyShare: attachment types = \(attachment.registeredTypeIdentifiers)")
+        appendDebug("attachment types = \(attachment.registeredTypeIdentifiers)")
 
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] data, _ in
                 guard let text = data as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self?.completeAndExit()
+                    self?.appendDebug("plainText loadItem returned empty/non-String data")
+                    self?.openHostAppAndComplete()
                     return
                 }
                 self?.store(payload: ["type": "text", "text": text])
@@ -68,7 +79,8 @@ class ShareViewController: UIViewController {
                 self?.handleFileAttachment(data, kind: "pdf")
             }
         } else {
-            completeAndExit()
+            appendDebug("attachment present but no matching type")
+            openHostAppAndComplete()
         }
     }
 
@@ -86,7 +98,8 @@ class ShareViewController: UIViewController {
         }
 
         guard let fileBytes = bytes, !fileBytes.isEmpty else {
-            completeAndExit()
+            appendDebug("\(kind) attachment loaded but bytes empty/nil")
+            openHostAppAndComplete()
             return
         }
 
@@ -109,8 +122,19 @@ class ShareViewController: UIViewController {
         defaults.set(json, forKey: ShareViewController.pendingShareKey)
     }
 
+    private func storeDebug(_ message: String) {
+        UserDefaults(suiteName: ShareViewController.appGroupId)?.set(message, forKey: ShareViewController.debugKey)
+    }
+
+    private func appendDebug(_ message: String) {
+        guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) else { return }
+        let existing = defaults.string(forKey: ShareViewController.debugKey) ?? ""
+        defaults.set(existing.isEmpty ? message : "\(existing) | \(message)", forKey: ShareViewController.debugKey)
+    }
+
     private func openHostAppAndComplete() {
         guard let url = URL(string: "canopy://share") else {
+            appendDebug("failed to construct canopy://share URL")
             completeAndExit()
             return
         }
@@ -118,7 +142,7 @@ class ShareViewController: UIViewController {
         // ask the OS to open a URL in the host app -- UIApplication.shared
         // isn't available from an extension process at all.
         extensionContext?.open(url, completionHandler: { [weak self] success in
-            print("CanopyShare: extensionContext.open success = \(success)")
+            self?.appendDebug("extensionContext.open success = \(success)")
             self?.completeAndExit()
         })
     }

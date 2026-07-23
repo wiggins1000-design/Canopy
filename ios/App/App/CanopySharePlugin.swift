@@ -20,6 +20,10 @@ public class CanopyShare: CAPPlugin {
 
     static let appGroupId = "group.app.canopy.app.share"
     static let pendingShareKey = "canopy_pending_share"
+    // DIAGNOSTIC MODE (2026-07-23, remove once the "share never launches
+    // Canopy" bug is confirmed fixed) -- see ShareViewController.swift's
+    // header comment for why this exists instead of live Xcode debugging.
+    static let debugKey = "canopy_share_debug"
     static var instance: CanopyShare?
 
     public override func load() {
@@ -33,6 +37,13 @@ public class CanopyShare: CAPPlugin {
     @objc func clearPendingShare(_ call: CAPPluginCall) {
         CanopyShare.clearStoredShare()
         call.resolve()
+    }
+
+    @objc func getShareDebug(_ call: CAPPluginCall) {
+        let defaults = UserDefaults(suiteName: CanopyShare.appGroupId)
+        let debug = defaults?.string(forKey: CanopyShare.debugKey)
+        defaults?.removeObject(forKey: CanopyShare.debugKey)
+        call.resolve(["debug": debug ?? NSNull()])
     }
 
     // Called from AppDelegate when the app opens via the canopy:// URL scheme.

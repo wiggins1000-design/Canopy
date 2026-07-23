@@ -6,4 +6,5 @@
 CAP_PLUGIN(CanopyShare, "CanopyShare",
         CAP_PLUGIN_METHOD(getPendingShare, CAPPluginReturnPromise);
         CAP_PLUGIN_METHOD(clearPendingShare, CAPPluginReturnPromise);
+        CAP_PLUGIN_METHOD(getShareDebug, CAPPluginReturnPromise);
 )
