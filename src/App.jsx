@@ -134,12 +134,17 @@ function AppLinksHandler() {
   useEffect(() => {
     if (!isNativePlatform()) { setDiagText(null); return }
     ;(async () => {
-      const { Capacitor } = await import('@capacitor/core')
-      if (Capacitor.getPlatform() !== 'ios') { setDiagText(null); return }
-      const { default: CanopyShare } = await import('./native/canopyShare')
-      if (!CanopyShare.getShareDebug) { setDiagText('no getShareDebug method on plugin'); return }
-      const { debug } = await CanopyShare.getShareDebug()
-      setDiagText(debug ? `share debug: ${debug}` : 'JS booted, no share debug found')
+      try {
+        const { Capacitor } = await import('@capacitor/core')
+        if (Capacitor.getPlatform() !== 'ios') { setDiagText(null); return }
+        const { default: CanopyShare } = await import('./native/canopyShare')
+        if (!CanopyShare.getShareDebug) { setDiagText('no getShareDebug method on plugin'); return }
+        setDiagText('calling getShareDebug()…')
+        const { debug } = await CanopyShare.getShareDebug()
+        setDiagText(debug ? `share debug: ${debug}` : 'JS booted, no share debug found')
+      } catch (err) {
+        setDiagText(`getShareDebug threw: ${err?.message ?? String(err)}`)
+      }
     })()
   }, [])
 
