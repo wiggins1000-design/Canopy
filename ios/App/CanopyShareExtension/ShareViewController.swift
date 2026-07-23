@@ -31,12 +31,15 @@ class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        NSLog("CanopyShare: viewDidLoad called")
         storeDebug("handleShare called")
         handleShare()
     }
 
     private func handleShare() {
+        NSLog("CanopyShare: handleShare entered")
         guard let item = extensionContext?.inputItems.first as? NSExtensionItem else {
+            NSLog("CanopyShare: no input item at all")
             appendDebug("no input item at all (inputItems.count = \(extensionContext?.inputItems.count ?? -1))")
             openHostAppAndComplete()
             return
@@ -133,7 +136,9 @@ class ShareViewController: UIViewController {
     }
 
     private func openHostAppAndComplete() {
+        NSLog("CanopyShare: openHostAppAndComplete entered")
         guard let url = URL(string: "canopy://share") else {
+            NSLog("CanopyShare: failed to construct canopy://share URL")
             appendDebug("failed to construct canopy://share URL")
             completeAndExit()
             return
@@ -141,7 +146,9 @@ class ShareViewController: UIViewController {
         // extensionContext.open(_:) is the documented API for an extension to
         // ask the OS to open a URL in the host app -- UIApplication.shared
         // isn't available from an extension process at all.
+        NSLog("CanopyShare: calling extensionContext.open")
         extensionContext?.open(url, completionHandler: { [weak self] success in
+            NSLog("CanopyShare: extensionContext.open completion, success = \(success)")
             self?.appendDebug("extensionContext.open success = \(success)")
             self?.completeAndExit()
         })
