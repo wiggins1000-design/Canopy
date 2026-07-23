@@ -30,7 +30,7 @@ public class ShareViewController: UIViewController {
     static let pendingShareKey = "canopy_pending_share"
     static let debugKey = "canopy_share_debug"
 
-    override func viewDidLoad() {
+    public override func viewDidLoad() {
         super.viewDidLoad()
         NSLog("CanopyShare: viewDidLoad called")
         storeDebug("handleShare called")
