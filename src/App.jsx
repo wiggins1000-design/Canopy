@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { FamilyProvider } from './context/FamilyContext'
@@ -84,6 +84,20 @@ function PageLoader() {
 // (blocked on the Apple org migration, see platform_build_status memory).
 function AppLinksHandler() {
   const navigate = useNavigate()
+  // DIAGNOSTIC MODE (2026-07-23round2, remove alongside the other diagnostic
+  // code once the white-screen hang is confirmed fixed): the debug alert
+  // below (window.alert()) has never once appeared across every white-screen
+  // repro so far, even on builds where the share extension's own debug trail
+  // confirms it wrote real debug text into the App Group. That's ambiguous on
+  // its own -- it could mean React never gets this far during a share-
+  // triggered launch (something upstream: WebView/bridge), OR it could mean
+  // this effect DOES run but window.alert() silently fails to present because
+  // the WKWebView's window isn't in a state WKUIDelegate can show a native
+  // dialog from yet (a known timing pitfall, unrelated to whether the JS
+  // itself ran). Rendering directly into the page sidesteps that ambiguity
+  // entirely -- it'll show up the instant React paints anything, with no
+  // dependency on native dialog presentation timing.
+  const [diagText, setDiagText] = useState('JS booted, checking for share debug…')
   // Android's singleTask launch mode (AndroidManifest.xml) can redeliver the
   // original launch intent as a fresh appUrlOpen event when the activity
   // resumes from background — with this listener mounted for the entire app
@@ -117,27 +131,23 @@ function AppLinksHandler() {
     return () => { handle?.remove() }
   }, [navigate])
 
-  // DIAGNOSTIC MODE (2026-07-23, remove once the share-triggered white-screen
-  // hang is confirmed fixed): the previous version of this alert lived inside
-  // AppLayout.jsx, gated behind auth/family loading -- so it never fired
-  // during the white-screen hang, which meant it couldn't tell us whether the
-  // hang was a JS-level stall (after this component mounted) or something
-  // upstream (WebView/bridge never getting this far at all). Mounted here
-  // instead since AppLinksHandler runs unconditionally, immediately, before
-  // any auth/family gate. See ShareViewController.swift's header comment.
   useEffect(() => {
-    if (!isNativePlatform()) return
+    if (!isNativePlatform()) { setDiagText(null); return }
     ;(async () => {
       const { Capacitor } = await import('@capacitor/core')
-      if (Capacitor.getPlatform() !== 'ios') return
+      if (Capacitor.getPlatform() !== 'ios') { setDiagText(null); return }
       const { default: CanopyShare } = await import('./native/canopyShare')
-      if (!CanopyShare.getShareDebug) return
+      if (!CanopyShare.getShareDebug) { setDiagText('no getShareDebug method on plugin'); return }
       const { debug } = await CanopyShare.getShareDebug()
-      if (debug) window.alert(`CanopyShare debug (early boot):\n${debug}`)
+      setDiagText(debug ? `share debug: ${debug}` : 'JS booted, no share debug found')
     })()
   }, [])
 
-  return null
+  return diagText ? (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999, background: '#1b4332', color: 'white', fontSize: 11, padding: '4px 8px', wordBreak: 'break-word' }}>
+      {diagText}
+    </div>
+  ) : null
 }
 
 export default function App() {
