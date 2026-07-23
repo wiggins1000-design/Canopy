@@ -65,9 +65,14 @@ public class ShareViewController: UIViewController {
         appendDebug("attachment types = \(attachment.registeredTypeIdentifiers)")
 
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] data, _ in
-                guard let text = data as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self?.appendDebug("plainText loadItem returned empty/non-String data")
+            // loadObject(ofClass:) is the modern NSItemProviderReading-based API --
+            // switched from loadItem(forTypeIdentifier:) after finding a live-device
+            // syslog <Fault> from ExtensionFoundation's compatibility bridge
+            // (_EXSinkLoadOperator ... nil expectedValueClass) specifically pointing
+            // at that older, pre-ExtensionFoundation API.
+            attachment.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
+                guard let text = reading as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    self?.appendDebug("plainText loadObject returned empty/non-String data")
                     self?.openHostAppAndComplete()
                     return
                 }
