@@ -25,11 +25,30 @@ class ShareViewController: UIViewController {
     }
 
     private func handleShare() {
-        guard let item = extensionContext?.inputItems.first as? NSExtensionItem,
-              let attachment = item.attachments?.first else {
+        print("CanopyShare: handleShare called")
+        guard let item = extensionContext?.inputItems.first as? NSExtensionItem else {
+            print("CanopyShare: no input item, exiting")
             completeAndExit()
             return
         }
+
+        guard let attachment = item.attachments?.first else {
+            // Some apps (WhatsApp forwarded text, in particular) deliver plain
+            // text via attributedContentText instead of populating attachments
+            // at all -- without this fallback the extension exits silently here,
+            // which looks like "nothing happens" from the sending app's side.
+            if let text = item.attributedContentText?.string,
+               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                print("CanopyShare: no attachments, using attributedContentText fallback")
+                store(payload: ["type": "text", "text": text])
+                openHostAppAndComplete()
+            } else {
+                print("CanopyShare: no attachment and no attributedContentText, exiting")
+                completeAndExit()
+            }
+            return
+        }
+        print("CanopyShare: attachment types = \(attachment.registeredTypeIdentifiers)")
 
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] data, _ in
@@ -98,7 +117,8 @@ class ShareViewController: UIViewController {
         // extensionContext.open(_:) is the documented API for an extension to
         // ask the OS to open a URL in the host app -- UIApplication.shared
         // isn't available from an extension process at all.
-        extensionContext?.open(url, completionHandler: { [weak self] _ in
+        extensionContext?.open(url, completionHandler: { [weak self] success in
+            print("CanopyShare: extensionContext.open success = \(success)")
             self?.completeAndExit()
         })
     }
