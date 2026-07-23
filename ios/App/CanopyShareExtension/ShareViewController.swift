@@ -75,16 +75,32 @@ public class ShareViewController: UIViewController {
             // it appears regardless of which of these APIs is used.
             // loadDataRepresentation sidesteps class-bridging entirely (raw bytes, no
             // NSSecureCoding/NSItemProviderReading involved), so it works regardless of
-            // how the sending app's item provider is implemented.
+            // how the sending app's item provider is implemented -- IN THEORY. Live
+            // testing 2026-07-23 found it can still come back empty (a provider that
+            // only implements the older loadItem(forTypeIdentifier:) selector-based
+            // mechanism has nothing to hand back to the newer data-representation API).
+            // Falls back to that older API rather than assuming which one a given
+            // sending app actually supports.
             attachment.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { [weak self] data, _ in
-                guard let data = data, let text = String(data: data, encoding: .utf8),
-                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self?.appendDebug("plainText loadDataRepresentation returned empty/non-UTF8 data")
+                if let data = data, let text = String(data: data, encoding: .utf8),
+                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self?.appendDebug("plainText loadDataRepresentation succeeded, length \(text.count)")
+                    self?.store(payload: ["type": "text", "text": text])
                     self?.openHostAppAndComplete()
                     return
                 }
-                self?.store(payload: ["type": "text", "text": text])
-                self?.openHostAppAndComplete()
+                self?.appendDebug("plainText loadDataRepresentation returned empty/non-UTF8 data, trying loadItem fallback")
+                attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] reading, _ in
+                    let text = (reading as? String) ?? (reading as? NSString) as String?
+                    guard let text = text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                        self?.appendDebug("plainText loadItem fallback also returned empty/non-String data")
+                        self?.openHostAppAndComplete()
+                        return
+                    }
+                    self?.appendDebug("plainText loadItem fallback succeeded, length \(text.count)")
+                    self?.store(payload: ["type": "text", "text": text])
+                    self?.openHostAppAndComplete()
+                }
             }
         } else if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
             attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] data, _ in
@@ -149,6 +165,19 @@ public class ShareViewController: UIViewController {
     }
 
     private func openHostAppAndComplete() {
+        // NSItemProvider completion handlers (loadDataRepresentation/loadItem/
+        // loadObject) are explicitly documented as NOT guaranteed to run on the
+        // main thread -- this function is called from inside those completion
+        // handlers, and extensionContext.open(_:) is a UIKit-adjacent API.
+        // Live-device testing 2026-07-23 found `success = false` specifically
+        // on the loadDataRepresentation path (background-thread completion)
+        // while the synchronous attributedContentText fallback path (already on
+        // the main thread) succeeded -- forcing main-thread dispatch here
+        // removes that inconsistency regardless of which caller path led here.
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in self?.openHostAppAndComplete() }
+            return
+        }
         NSLog("CanopyShare: openHostAppAndComplete entered")
         guard let url = URL(string: "canopy://share") else {
             NSLog("CanopyShare: failed to construct canopy://share URL")
