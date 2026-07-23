@@ -1106,6 +1106,7 @@ async function sendFeedbackEmail(opts: {
       </p>`
   }
 
+  const appOrigin = 'https://my.canopy-app.app'
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1114,9 +1115,9 @@ async function sendFeedbackEmail(opts: {
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
 
-        <tr><td style="background:#ffffff;padding:24px 40px 16px;border-bottom:3px solid #1b4332;">
-          <p style="margin:0;font-size:18px;font-weight:700;color:#111827;">FamilyFeed</p>
-          <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Canopy · Share what matters.</p>
+        <tr><td style="background:#ffffff;padding:24px 40px 16px;text-align:center;border-bottom:3px solid #1b4332;">
+          <img src="${appOrigin}/logo.png" alt="Canopy" height="40" style="height:40px;width:auto;display:inline-block;" />
+          <p style="margin:8px 0 0;color:#6b7280;font-size:12px;">FamilyFeed · Share what matters.</p>
         </td></tr>
 
         <tr><td style="padding:28px 40px;">
@@ -1160,6 +1161,7 @@ async function sendRejectionEmail(opts: { to: string; originalSubject: string })
 
   const { to, originalSubject } = opts
 
+  const appOrigin = 'https://my.canopy-app.app'
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1168,9 +1170,9 @@ async function sendRejectionEmail(opts: { to: string; originalSubject: string })
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
 
-        <tr><td style="background:#ffffff;padding:24px 40px 16px;border-bottom:3px solid #1b4332;">
-          <p style="margin:0;font-size:18px;font-weight:700;color:#111827;">FamilyFeed</p>
-          <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Canopy · Share what matters.</p>
+        <tr><td style="background:#ffffff;padding:24px 40px 16px;text-align:center;border-bottom:3px solid #1b4332;">
+          <img src="${appOrigin}/logo.png" alt="Canopy" height="40" style="height:40px;width:auto;display:inline-block;" />
+          <p style="margin:8px 0 0;color:#6b7280;font-size:12px;">FamilyFeed · Share what matters.</p>
         </td></tr>
 
         <tr><td style="padding:28px 40px;">

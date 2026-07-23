@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
   }
 
   // Send via Resend
+  const appOrigin = 'https://my.canopy-app.app'
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -65,9 +66,9 @@ Deno.serve(async (req) => {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf4;padding:40px 16px;">
     <tr><td align="center">
       <table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #d8f3dc;">
-        <tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-bottom:3px solid #1b4332;">
-          <p style="margin:0;font-size:22px;font-weight:700;color:#1b4332;">Canopy</p>
-          <p style="margin:6px 0 0;color:#6b7280;font-size:13px;">Share what matters.</p>
+        <tr><td style="background:#ffffff;padding:32px 40px 20px;text-align:center;border-bottom:3px solid #1b4332;">
+          <img src="${appOrigin}/logo.png" alt="Canopy" height="48" style="height:48px;width:auto;display:inline-block;" />
+          <p style="margin:10px 0 0;color:#6b7280;font-size:13px;">Share what matters.</p>
         </td></tr>
         <tr><td style="padding:36px 40px;">
           <h1 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#111827;">Your sign-in code</h1>
