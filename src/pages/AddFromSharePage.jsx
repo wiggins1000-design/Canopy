@@ -152,10 +152,10 @@ export default function AddFromSharePage() {
     setLoading(false)
     setDrafts(incomplete)
     if (parsed.length === 0 && anyFailure) setError(lastMessage)
-    if (complete.length > 0) await saveEvents(complete, { autoNavigate: incomplete.length === 0 })
+    if (complete.length > 0) await saveEvents(complete)
   }
 
-  async function saveEvents(toAdd, { autoNavigate } = {}) {
+  async function saveEvents(toAdd) {
     setSaving(true)
     setError(null)
     const added = []
@@ -183,9 +183,7 @@ export default function AddFromSharePage() {
 
     setSaving(false)
     setSavedLabels((prev) => [...prev, ...added])
-    if (added.length > 0 && autoNavigate) {
-      setTimeout(() => navigate('/calendar'), 1600)
-    } else if (added.length === 0) {
+    if (added.length === 0) {
       setError('Could not add those events — please try again.')
     }
   }
@@ -205,7 +203,7 @@ export default function AddFromSharePage() {
   async function addSelected() {
     const toAdd = drafts.filter((d) => d.included && d.title.trim() && d.date)
     if (toAdd.length === 0) { setError('Nothing selected to add.'); return }
-    await saveEvents(toAdd, { autoNavigate: true })
+    await saveEvents(toAdd)
   }
 
   return (
@@ -244,12 +242,18 @@ export default function AddFromSharePage() {
         <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 space-y-1">
           <p className="text-sm text-green-700 font-medium">
             ✓ Added {savedLabels.length} event{savedLabels.length !== 1 ? 's' : ''}
-            {drafts.length === 0 ? ' — heading to your calendar…' : ' — a few more need details below:'}
+            {drafts.length > 0 && ' — a few more need details below:'}
           </p>
           <ul className="text-sm text-green-700 list-disc list-inside">
             {savedLabels.map((label, i) => <li key={i}>{label}</li>)}
           </ul>
         </div>
+      )}
+
+      {!loading && !saving && savedLabels.length > 0 && drafts.length === 0 && (
+        <Button className="w-full py-3" onClick={() => navigate('/calendar')}>
+          Close
+        </Button>
       )}
 
       {!loading && drafts.length > 0 && (
