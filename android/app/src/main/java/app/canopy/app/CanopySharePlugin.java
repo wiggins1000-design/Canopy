@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -11,6 +12,8 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 // Bridges Android's OS share sheet (e.g. "Share" from WhatsApp) into JS.
@@ -22,33 +25,47 @@ import java.util.Locale;
 @CapacitorPlugin(name = "CanopyShare")
 public class CanopySharePlugin extends Plugin {
 
-    // Cold-launch case: JS calls getPendingShare() on mount, after
-    // handleOnNewIntent() has already run and populated this.
-    private static JSObject pendingShare = null;
+    // Queued, not a single value -- sharing several things before the app is
+    // next opened used to silently lose everything but the last one, since
+    // this used to be one static field that each new intent overwrote.
+    private static final List<JSObject> pendingShares = new ArrayList<>();
 
     @Override
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
         JSObject share = parseShareIntent(intent);
         if (share != null) {
-            pendingShare = share;
+            pendingShares.add(share);
             // Warm-launch case: fires immediately if a JS listener is already
             // attached. Harmless no-op if nothing is listening yet -- the
-            // cold-launch pull above covers that case instead.
-            notifyListeners("shareReceived", share);
+            // cold-launch pull above covers that case instead. Sends the
+            // whole current queue (matching getPendingShares()'s shape), not
+            // just this one item, in case more than one arrived before the
+            // app got a chance to process any of them.
+            JSObject event = new JSObject();
+            JSArray shares = new JSArray();
+            for (JSObject s : pendingShares) {
+                shares.put(s);
+            }
+            event.put("shares", shares);
+            notifyListeners("shareReceived", event);
         }
     }
 
     @PluginMethod
-    public void getPendingShare(PluginCall call) {
+    public void getPendingShares(PluginCall call) {
         JSObject result = new JSObject();
-        result.put("share", pendingShare);
+        JSArray shares = new JSArray();
+        for (JSObject share : pendingShares) {
+            shares.put(share);
+        }
+        result.put("shares", shares);
         call.resolve(result);
     }
 
     @PluginMethod
-    public void clearPendingShare(PluginCall call) {
-        pendingShare = null;
+    public void clearPendingShares(PluginCall call) {
+        pendingShares.clear();
         call.resolve();
     }
 

@@ -11,15 +11,18 @@ function newDraftId() {
 }
 
 // A hung extraction call used to leave this page spinning forever with no
-// way out and no signal of what stalled -- see whatsapp_share_feature memory,
-// 2026-07-23 white-screen-hang investigation. Race against a timeout so a
-// stall becomes a visible, retryable error instead.
+// way out and no signal of what stalled. Race against a timeout so a stall
+// becomes a visible, retryable error instead.
 function withTimeout(promise, ms, label) {
   let timer
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
   })
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
+function formatDraftLabel(d) {
+  return d.date ? `${d.title.trim()} (${d.date})` : d.title.trim()
 }
 
 export default function AddFromSharePage() {
@@ -32,12 +35,14 @@ export default function AddFromSharePage() {
   const [error, setError]       = useState(null)
   const [drafts, setDrafts]     = useState([])
   const [saving, setSaving]     = useState(false)
-  const [savedCount, setSavedCount] = useState(0)
+  const [savedLabels, setSavedLabels] = useState([])
   // undefined = not read yet, null = read but nothing was there. Kept in state
   // (rather than only reading sessionStorage once inline) so "Try again" after
   // a timeout can re-run the same extraction instead of hitting the now-empty
-  // sessionStorage key a second time.
-  const [sharePayload, setSharePayload] = useState(undefined)
+  // sessionStorage key a second time. Always an array -- sharing several
+  // things before the app is next opened queues them natively rather than
+  // the last one overwriting the rest.
+  const [sharePayloads, setSharePayloads] = useState(undefined)
 
   useEffect(() => {
     // Dev-only seam (see plan step 1): lets this page be tested from a normal
@@ -45,71 +50,79 @@ export default function AddFromSharePage() {
     // plugin exists. Real shares arrive via sessionStorage (see PENDING_SHARE_KEY).
     const debugText = searchParams.get('debugText')
     if (debugText) {
-      setSharePayload({ type: 'text', text: debugText })
+      setSharePayloads([{ type: 'text', text: debugText }])
       return
     }
     const raw = sessionStorage.getItem(PENDING_SHARE_KEY)
     sessionStorage.removeItem(PENDING_SHARE_KEY)
-    if (!raw) { setSharePayload(null); return }
-    try { setSharePayload(JSON.parse(raw)) } catch { setSharePayload(null) }
+    if (!raw) { setSharePayloads(null); return }
+    try {
+      const parsed = JSON.parse(raw)
+      const asArray = Array.isArray(parsed) ? parsed : [parsed] // tolerate an old single-object shape too
+      setSharePayloads(asArray.length > 0 ? asArray : null)
+    } catch { setSharePayloads(null) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (sharePayload === undefined) return
-    if (sharePayload === null) {
+    if (sharePayloads === undefined) return
+    if (sharePayloads === null) {
       setError('No shared content found.')
       setLoading(false)
       return
     }
-    runExtraction(sharePayload)
-  }, [sharePayload]) // eslint-disable-line react-hooks/exhaustive-deps
+    runExtraction(sharePayloads)
+  }, [sharePayloads]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function runExtraction(payload) {
+  async function runExtraction(payloads) {
     setLoading(true)
     setError(null)
 
-    const body =
-      payload.type === 'text'  ? { type: 'text', text: payload.text } :
-      payload.type === 'pdf'   ? { type: 'pdf', pdf_base64: payload.base64 } :
-      payload.type === 'image' ? { type: 'image', image_base64: payload.base64, media_type: payload.mediaType } :
-      null
+    const allEvents = []
+    let anyFailure = false
+    let lastMessage = null
 
-    if (!body) {
-      setError('Unrecognised shared content.')
-      setLoading(false)
-      return
-    }
+    for (const payload of payloads) {
+      const body =
+        payload.type === 'text'  ? { type: 'text', text: payload.text } :
+        payload.type === 'pdf'   ? { type: 'pdf', pdf_base64: payload.base64 } :
+        payload.type === 'image' ? { type: 'image', image_base64: payload.base64, media_type: payload.mediaType } :
+        null
 
-    let result
-    try {
-      result = await withTimeout(
-        supabase.functions.invoke('extract-event-from-share', { body }),
-        20000,
-        'Finding dates'
-      )
-    } catch (timeoutErr) {
-      setError(`${timeoutErr.message} — check your connection and try again.`)
-      setLoading(false)
-      return
-    }
-    const { data, error: fnError } = result
+      if (!body) { anyFailure = true; lastMessage = 'Unrecognised shared content.'; continue }
 
-    if (fnError || !data?.ok) {
-      // On a non-2xx response, supabase-js routes the error into fnError
-      // (a FunctionsHttpError whose own .message is just a generic "non-2xx
-      // status code" string) rather than into data -- the actual JSON body
-      // this edge function returned (with the real error message) is only
-      // reachable via fnError.context, the raw Response object.
-      let message = data?.error
-      if (!message && fnError?.context) {
-        try { message = (await fnError.context.json())?.error } catch { /* body already consumed or not JSON */ }
+      let result
+      try {
+        result = await withTimeout(
+          supabase.functions.invoke('extract-event-from-share', { body }),
+          20000,
+          'Finding dates'
+        )
+      } catch (timeoutErr) {
+        anyFailure = true
+        lastMessage = `${timeoutErr.message} — check your connection and try again.`
+        continue
       }
-      setError(message || 'Could not extract event details from what was shared.')
-      setLoading(false)
-      return
+      const { data, error: fnError } = result
+
+      if (fnError || !data?.ok) {
+        // On a non-2xx response, supabase-js routes the error into fnError
+        // (a FunctionsHttpError whose own .message is just a generic "non-2xx
+        // status code" string) rather than into data -- the actual JSON body
+        // this edge function returned (with the real error message) is only
+        // reachable via fnError.context, the raw Response object.
+        let message = data?.error
+        if (!message && fnError?.context) {
+          try { message = (await fnError.context.json())?.error } catch { /* body already consumed or not JSON */ }
+        }
+        anyFailure = true
+        lastMessage = message || 'Could not extract event details from what was shared.'
+        continue
+      }
+
+      allEvents.push(...(data.events ?? []))
     }
 
-    const parsed = (data.events ?? []).map((ev) => {
+    const parsed = allEvents.map((ev) => {
       // Only trust child names the extraction returned that actually match
       // a real child on file — same defensive filter NewEventSheet.jsx
       // applies to its own extraction results.
@@ -138,13 +151,14 @@ export default function AddFromSharePage() {
 
     setLoading(false)
     setDrafts(incomplete)
+    if (parsed.length === 0 && anyFailure) setError(lastMessage)
     if (complete.length > 0) await saveEvents(complete, { autoNavigate: incomplete.length === 0 })
   }
 
   async function saveEvents(toAdd, { autoNavigate } = {}) {
     setSaving(true)
     setError(null)
-    let count = 0
+    const added = []
 
     for (const d of toAdd) {
       const { error: dbErr } = await supabase.rpc('create_family_event', {
@@ -164,14 +178,14 @@ export default function AddFromSharePage() {
         console.error('create_family_event error:', dbErr)
         continue
       }
-      count += 1
+      added.push(formatDraftLabel(d))
     }
 
     setSaving(false)
-    setSavedCount((prev) => prev + count)
-    if (count > 0 && autoNavigate) {
-      setTimeout(() => navigate('/calendar'), 1200)
-    } else if (count === 0) {
+    setSavedLabels((prev) => [...prev, ...added])
+    if (added.length > 0 && autoNavigate) {
+      setTimeout(() => navigate('/calendar'), 1600)
+    } else if (added.length === 0) {
       setError('Could not add those events — please try again.')
     }
   }
@@ -205,7 +219,7 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && saving && savedCount === 0 && drafts.length === 0 && (
+      {!loading && saving && savedLabels.length === 0 && drafts.length === 0 && (
         <div className="flex items-center gap-2 text-sm text-canopy-mid bg-gray-50 rounded-xl px-3 py-2.5">
           <div className="w-4 h-4 border-2 border-canopy-mid border-t-transparent rounded-full animate-spin shrink-0" />
           Adding to your calendar…
@@ -215,8 +229,8 @@ export default function AddFromSharePage() {
       {!loading && error && drafts.length === 0 && (
         <div className="space-y-3">
           <p className="text-sm text-red-600">{error}</p>
-          {sharePayload && (
-            <Button className="w-full py-3" onClick={() => runExtraction(sharePayload)}>
+          {sharePayloads && (
+            <Button className="w-full py-3" onClick={() => runExtraction(sharePayloads)}>
               Try again
             </Button>
           )}
@@ -226,11 +240,16 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && savedCount > 0 && (
-        <p className="text-sm text-green-600 font-medium">
-          ✓ Added {savedCount} event{savedCount !== 1 ? 's' : ''}
-          {drafts.length === 0 ? ' — heading to your calendar…' : ' — a few more need details below:'}
-        </p>
+      {!loading && savedLabels.length > 0 && (
+        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 space-y-1">
+          <p className="text-sm text-green-700 font-medium">
+            ✓ Added {savedLabels.length} event{savedLabels.length !== 1 ? 's' : ''}
+            {drafts.length === 0 ? ' — heading to your calendar…' : ' — a few more need details below:'}
+          </p>
+          <ul className="text-sm text-green-700 list-disc list-inside">
+            {savedLabels.map((label, i) => <li key={i}>{label}</li>)}
+          </ul>
+        </div>
       )}
 
       {!loading && drafts.length > 0 && (
@@ -331,7 +350,7 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && !saving && drafts.length === 0 && !error && savedCount === 0 && (
+      {!loading && !saving && drafts.length === 0 && !error && savedLabels.length === 0 && (
         <div className="space-y-3 text-center py-8">
           <p className="text-sm text-gray-500">No dates found in what was shared.</p>
           <Button variant="secondary" className="mx-auto" onClick={() => navigate('/calendar')}>

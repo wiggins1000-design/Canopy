@@ -4,7 +4,6 @@
 #import <Capacitor/Capacitor.h>
 
 CAP_PLUGIN(CanopyShare, "CanopyShare",
-        CAP_PLUGIN_METHOD(getPendingShare, CAPPluginReturnPromise);
-        CAP_PLUGIN_METHOD(clearPendingShare, CAPPluginReturnPromise);
-        CAP_PLUGIN_METHOD(getShareDebug, CAPPluginReturnPromise);
+        CAP_PLUGIN_METHOD(getPendingShares, CAPPluginReturnPromise);
+        CAP_PLUGIN_METHOD(clearPendingShares, CAPPluginReturnPromise);
 )

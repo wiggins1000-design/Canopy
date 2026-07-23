@@ -3,23 +3,15 @@
 // This file belongs to the CanopyShareExtension target (created in Xcode via
 // File > New > Target > Share Extension), NOT the main App target. It runs in
 // its own separate process with no direct access to the running app or its JS
-// runtime, so its only job is: read whatever was shared, write it into a
-// shared App Group container, then hand off to the main app via the canopy://
-// URL scheme. CanopySharePlugin.swift (in the main App target) picks it up
-// from there -- see that file's header comment for the full round trip.
+// runtime, so its only job is: read whatever was shared, append it into a
+// shared App Group container's queue, then hand off to the main app via the
+// canopy:// URL scheme. CanopySharePlugin.swift (in the main App target)
+// picks it up from there -- see that file's header comment for the full round
+// trip.
 //
 // Shows no UI at all -- the OS's own "opening Canopy..." transition is the
 // only visible feedback, matching the instant one-tap feel of the Android
 // share-target flow.
-//
-// DIAGNOSTIC MODE (added 2026-07-23, remove once the "share never launches
-// Canopy" bug is confirmed fixed): every exit path now writes a debug string
-// into the App Group under debugKey AND always calls openHostAppAndComplete()
-// -- even on failure -- instead of silently completeAndExit()ing. There's no
-// way to attach a live debugger to this extension without a cable + MacinCloud
-// Dedicated-plan USB passthrough, which isn't set up, so this makes the
-// failure visible on-device instead: the app opens, finds no pending share,
-// but does find debug text and can show it. See AppLayout.jsx / canopyShare.js.
 import UIKit
 import UniformTypeIdentifiers
 
@@ -28,20 +20,14 @@ public class ShareViewController: UIViewController {
 
     static let appGroupId = "group.app.canopy.app.share"
     static let pendingShareKey = "canopy_pending_share"
-    static let debugKey = "canopy_share_debug"
 
     public override func viewDidLoad() {
         super.viewDidLoad()
-        NSLog("CanopyShare: viewDidLoad called")
-        storeDebug("handleShare called")
         handleShare()
     }
 
     private func handleShare() {
-        NSLog("CanopyShare: handleShare entered")
         guard let item = extensionContext?.inputItems.first as? NSExtensionItem else {
-            NSLog("CanopyShare: no input item at all")
-            appendDebug("no input item at all (inputItems.count = \(extensionContext?.inputItems.count ?? -1))")
             openHostAppAndComplete()
             return
         }
@@ -54,51 +40,32 @@ public class ShareViewController: UIViewController {
             // sending app's side.
             if let text = item.attributedContentText?.string,
                !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                appendDebug("no attachments; used attributedContentText fallback, length \(text.count)")
-                store(payload: ["type": "text", "text": text])
-            } else {
-                appendDebug("no attachments and no usable attributedContentText (attachments = \(item.attachments?.count ?? -1), attributedContentText = \(item.attributedContentText?.string ?? "nil"))")
+                enqueue(payload: ["type": "text", "text": text])
             }
             openHostAppAndComplete()
             return
         }
-        appendDebug("attachment types = \(attachment.registeredTypeIdentifiers)")
 
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            // Live-device syslog (2026-07-23, build 29 test) showed loadObject(ofClass:
-            // NSString.self) reaching Foundation's own error path: "Instantiation of
-            // class NSString failed" (NSCocoaErrorDomain code 4864) -- WhatsApp's shared
-            // text item isn't decodable via the NSItemProviderReading class-bridging
-            // loadObject relies on. The _EXSinkLoadOperator "nil expectedValueClass"
-            // <Fault> seen both before and after that change turned out to be a generic
-            // ExtensionFoundation compatibility-bridge log line, not the actual bug --
-            // it appears regardless of which of these APIs is used.
-            // loadDataRepresentation sidesteps class-bridging entirely (raw bytes, no
-            // NSSecureCoding/NSItemProviderReading involved), so it works regardless of
-            // how the sending app's item provider is implemented -- IN THEORY. Live
-            // testing 2026-07-23 found it can still come back empty (a provider that
-            // only implements the older loadItem(forTypeIdentifier:) selector-based
-            // mechanism has nothing to hand back to the newer data-representation API).
-            // Falls back to that older API rather than assuming which one a given
-            // sending app actually supports.
+            // loadDataRepresentation sidesteps NSItemProviderReading class-
+            // bridging entirely (raw bytes, decoded as UTF-8 manually) -- but
+            // some sending apps' NSItemProvider only implements the older
+            // loadItem(forTypeIdentifier:) selector-based mechanism and has
+            // nothing to hand back to the newer data-representation API, so
+            // fall back to that rather than assuming which one a given
+            // sending app supports.
             attachment.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { [weak self] data, _ in
                 if let data = data, let text = String(data: data, encoding: .utf8),
                    !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    self?.appendDebug("plainText loadDataRepresentation succeeded, length \(text.count)")
-                    self?.store(payload: ["type": "text", "text": text])
+                    self?.enqueue(payload: ["type": "text", "text": text])
                     self?.openHostAppAndComplete()
                     return
                 }
-                self?.appendDebug("plainText loadDataRepresentation returned empty/non-UTF8 data, trying loadItem fallback")
                 attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] reading, _ in
                     let text = (reading as? String) ?? (reading as? NSString) as String?
-                    guard let text = text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        self?.appendDebug("plainText loadItem fallback also returned empty/non-String data")
-                        self?.openHostAppAndComplete()
-                        return
+                    if let text = text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        self?.enqueue(payload: ["type": "text", "text": text])
                     }
-                    self?.appendDebug("plainText loadItem fallback succeeded, length \(text.count)")
-                    self?.store(payload: ["type": "text", "text": text])
                     self?.openHostAppAndComplete()
                 }
             }
@@ -111,7 +78,6 @@ public class ShareViewController: UIViewController {
                 self?.handleFileAttachment(data, kind: "pdf")
             }
         } else {
-            appendDebug("attachment present but no matching type")
             openHostAppAndComplete()
         }
     }
@@ -129,69 +95,58 @@ public class ShareViewController: UIViewController {
             bytes = nil
         }
 
-        guard let fileBytes = bytes, !fileBytes.isEmpty else {
-            appendDebug("\(kind) attachment loaded but bytes empty/nil")
-            openHostAppAndComplete()
-            return
-        }
-
-        if kind == "image" {
-            // Same lesson learned the hard way on Android: don't trust the
-            // OS/sending-app-reported type -- sniff the actual file bytes'
-            // magic number instead, since it's authoritative regardless of
-            // what any UTI metadata claims.
-            let mediaType = ShareViewController.sniffImageMediaType(fileBytes) ?? "image/jpeg"
-            store(payload: ["type": "image", "base64": fileBytes.base64EncodedString(), "mediaType": mediaType])
-        } else {
-            store(payload: ["type": "pdf", "base64": fileBytes.base64EncodedString()])
+        if let fileBytes = bytes, !fileBytes.isEmpty {
+            if kind == "image" {
+                // Same lesson learned the hard way on Android: don't trust the
+                // OS/sending-app-reported type -- sniff the actual file bytes'
+                // magic number instead, since it's authoritative regardless of
+                // what any UTI metadata claims.
+                let mediaType = ShareViewController.sniffImageMediaType(fileBytes) ?? "image/jpeg"
+                enqueue(payload: ["type": "image", "base64": fileBytes.base64EncodedString(), "mediaType": mediaType])
+            } else {
+                enqueue(payload: ["type": "pdf", "base64": fileBytes.base64EncodedString()])
+            }
         }
         openHostAppAndComplete()
     }
 
-    private func store(payload: [String: Any]) {
-        guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId),
-              let json = try? JSONSerialization.data(withJSONObject: payload) else { return }
+    // Appends to the queue rather than overwriting it -- sharing several
+    // things before the app is next opened used to silently lose everything
+    // but the last one, since this used to store a single value.
+    private func enqueue(payload: [String: Any]) {
+        guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) else { return }
+        var pending: [[String: Any]] = []
+        if let existingData = defaults.data(forKey: ShareViewController.pendingShareKey),
+           let existingArray = (try? JSONSerialization.jsonObject(with: existingData)) as? [[String: Any]] {
+            pending = existingArray
+        }
+        pending.append(payload)
+        guard let json = try? JSONSerialization.data(withJSONObject: pending) else { return }
         defaults.set(json, forKey: ShareViewController.pendingShareKey)
     }
 
-    private func storeDebug(_ message: String) {
-        UserDefaults(suiteName: ShareViewController.appGroupId)?.set(message, forKey: ShareViewController.debugKey)
-    }
-
-    private func appendDebug(_ message: String) {
-        guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) else { return }
-        let existing = defaults.string(forKey: ShareViewController.debugKey) ?? ""
-        defaults.set(existing.isEmpty ? message : "\(existing) | \(message)", forKey: ShareViewController.debugKey)
-    }
-
     private func openHostAppAndComplete() {
-        // NSItemProvider completion handlers (loadDataRepresentation/loadItem/
-        // loadObject) are explicitly documented as NOT guaranteed to run on the
-        // main thread -- this function is called from inside those completion
-        // handlers, and extensionContext.open(_:) is a UIKit-adjacent API.
-        // Live-device testing 2026-07-23 found `success = false` specifically
-        // on the loadDataRepresentation path (background-thread completion)
-        // while the synchronous attributedContentText fallback path (already on
-        // the main thread) succeeded -- forcing main-thread dispatch here
-        // removes that inconsistency regardless of which caller path led here.
+        // NSItemProvider completion handlers (loadDataRepresentation/loadItem)
+        // are explicitly documented as NOT guaranteed to run on the main
+        // thread -- this function is called from inside those completion
+        // handlers, and extensionContext.open(_:) is a UIKit-adjacent API that
+        // needs to run on the main thread to behave reliably.
         if !Thread.isMainThread {
             DispatchQueue.main.async { [weak self] in self?.openHostAppAndComplete() }
             return
         }
-        NSLog("CanopyShare: openHostAppAndComplete entered")
         guard let url = URL(string: "canopy://share") else {
-            NSLog("CanopyShare: failed to construct canopy://share URL")
-            appendDebug("failed to construct canopy://share URL")
             completeAndExit()
             return
         }
         // extensionContext.open(_:) is the documented API for an extension to
         // ask the OS to open a URL in the host app -- UIApplication.shared
-        // isn't available from an extension process at all.
-        NSLog("CanopyShare: calling extensionContext.open")
-        extensionContext?.open(url, completionHandler: { [weak self] success in
-            NSLog("CanopyShare: extensionContext.open completion, success = \(success)")
-            self?.appendDebug("extensionContext.open success = \(success)")
+        // isn't available from an extension process at all. This can still
+        // fail to bring Canopy to the foreground automatically on some iOS
+        // versions (a known Share Extension limitation) -- when it does, the
+        // shared content still waits in the queue above for whenever the user
+        // next opens Canopy themselves.
+        extensionContext?.open(url, completionHandler: { [weak self] _ in
             self?.completeAndExit()
         })
     }

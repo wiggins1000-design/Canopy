@@ -108,10 +108,12 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     return () => { handle?.remove() }
   }, [navigate])
 
-  // WhatsApp (or any app) share-sheet support: a share can arrive either
-  // before the app was running (cold launch -- pulled via getPendingShare(),
+  // WhatsApp (or any app) share-sheet support: shares can arrive either
+  // before the app was running (cold launch -- pulled via getPendingShares(),
   // since a live listener attached after the fact would miss it) or while
-  // already running (warm launch -- live shareReceived listener). See
+  // already running (warm launch -- live shareReceived listener). Always an
+  // array -- sharing several things before the app is next opened queues them
+  // natively rather than the last one overwriting the rest. See
   // src/native/canopyShare.js and android/.../CanopySharePlugin.java /
   // ios/.../CanopySharePlugin.swift for the native side.
   useEffect(() => {
@@ -119,26 +121,21 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     let handle
     ;(async () => {
       const { default: CanopyShare, PENDING_SHARE_KEY } = await import('../../native/canopyShare')
-      // Always clears the native side's pending-share state as its first step,
-      // regardless of whether delivery came via the pull below or the live
-      // listener -- otherwise a share delivered live (listener fires, this
-      // runs) leaves the native static field still set, and a later remount's
-      // getPendingShare() pull would redeliver + reprocess the same share a
-      // second time.
-      const stash = async (share) => {
-        if (!share) return
-        await CanopyShare.clearPendingShare()
-        sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(share))
+      // Always clears the native side's queue as its first step, regardless
+      // of whether delivery came via the pull below or the live listener --
+      // otherwise a share delivered live (listener fires, this runs) leaves
+      // the native queue still populated, and a later remount's
+      // getPendingShares() pull would redeliver + reprocess the same shares
+      // a second time.
+      const stash = async (shares) => {
+        if (!shares || shares.length === 0) return
+        await CanopyShare.clearPendingShares()
+        sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(shares))
         navigate('/add-from-share')
       }
-      const { share } = await CanopyShare.getPendingShare()
-      if (share) stash(share)
-      handle = await CanopyShare.addListener('shareReceived', stash)
-      // The debug-trail alert used to live here, but this effect only runs once
-      // AppLayout has cleared auth/family loading -- during the white-screen
-      // hang it never fired at all, which was a diagnostic dead end. Moved to
-      // AppLinksHandler (App.jsx), which mounts unconditionally and immediately,
-      // so the next test tells us whether the hang is before or after this point.
+      const { shares } = await CanopyShare.getPendingShares()
+      if (shares?.length) stash(shares)
+      handle = await CanopyShare.addListener('shareReceived', (data) => stash(data.shares))
     })()
     return () => { handle?.remove() }
   }, [navigate])
