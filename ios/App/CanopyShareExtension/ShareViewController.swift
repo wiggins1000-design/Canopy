@@ -65,14 +65,21 @@ public class ShareViewController: UIViewController {
         appendDebug("attachment types = \(attachment.registeredTypeIdentifiers)")
 
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-            // loadObject(ofClass:) is the modern NSItemProviderReading-based API --
-            // switched from loadItem(forTypeIdentifier:) after finding a live-device
-            // syslog <Fault> from ExtensionFoundation's compatibility bridge
-            // (_EXSinkLoadOperator ... nil expectedValueClass) specifically pointing
-            // at that older, pre-ExtensionFoundation API.
-            attachment.loadObject(ofClass: NSString.self) { [weak self] reading, _ in
-                guard let text = reading as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self?.appendDebug("plainText loadObject returned empty/non-String data")
+            // Live-device syslog (2026-07-23, build 29 test) showed loadObject(ofClass:
+            // NSString.self) reaching Foundation's own error path: "Instantiation of
+            // class NSString failed" (NSCocoaErrorDomain code 4864) -- WhatsApp's shared
+            // text item isn't decodable via the NSItemProviderReading class-bridging
+            // loadObject relies on. The _EXSinkLoadOperator "nil expectedValueClass"
+            // <Fault> seen both before and after that change turned out to be a generic
+            // ExtensionFoundation compatibility-bridge log line, not the actual bug --
+            // it appears regardless of which of these APIs is used.
+            // loadDataRepresentation sidesteps class-bridging entirely (raw bytes, no
+            // NSSecureCoding/NSItemProviderReading involved), so it works regardless of
+            // how the sending app's item provider is implemented.
+            attachment.loadDataRepresentation(forTypeIdentifier: UTType.plainText.identifier) { [weak self] data, _ in
+                guard let data = data, let text = String(data: data, encoding: .utf8),
+                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    self?.appendDebug("plainText loadDataRepresentation returned empty/non-UTF8 data")
                     self?.openHostAppAndComplete()
                     return
                 }
