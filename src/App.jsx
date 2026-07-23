@@ -117,6 +117,26 @@ function AppLinksHandler() {
     return () => { handle?.remove() }
   }, [navigate])
 
+  // DIAGNOSTIC MODE (2026-07-23, remove once the share-triggered white-screen
+  // hang is confirmed fixed): the previous version of this alert lived inside
+  // AppLayout.jsx, gated behind auth/family loading -- so it never fired
+  // during the white-screen hang, which meant it couldn't tell us whether the
+  // hang was a JS-level stall (after this component mounted) or something
+  // upstream (WebView/bridge never getting this far at all). Mounted here
+  // instead since AppLinksHandler runs unconditionally, immediately, before
+  // any auth/family gate. See ShareViewController.swift's header comment.
+  useEffect(() => {
+    if (!isNativePlatform()) return
+    ;(async () => {
+      const { Capacitor } = await import('@capacitor/core')
+      if (Capacitor.getPlatform() !== 'ios') return
+      const { default: CanopyShare } = await import('./native/canopyShare')
+      if (!CanopyShare.getShareDebug) return
+      const { debug } = await CanopyShare.getShareDebug()
+      if (debug) window.alert(`CanopyShare debug (early boot):\n${debug}`)
+    })()
+  }, [])
+
   return null
 }
 

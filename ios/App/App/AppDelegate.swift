@@ -67,6 +67,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         
         if url.scheme == "canopy" {
+            NSLog("CanopyShare: AppDelegate application(open:) fired for canopy:// url, bridge instance present = \(CanopyShare.instance != nil)")
             CanopyShare.handleShareURLOpen()
         }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)

@@ -10,6 +10,18 @@ function newDraftId() {
   return `draft_${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
+// A hung extraction call used to leave this page spinning forever with no
+// way out and no signal of what stalled -- see whatsapp_share_feature memory,
+// 2026-07-23 white-screen-hang investigation. Race against a timeout so a
+// stall becomes a visible, retryable error instead.
+function withTimeout(promise, ms, label) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
 export default function AddFromSharePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -21,36 +33,40 @@ export default function AddFromSharePage() {
   const [drafts, setDrafts]     = useState([])
   const [saving, setSaving]     = useState(false)
   const [savedCount, setSavedCount] = useState(0)
+  // undefined = not read yet, null = read but nothing was there. Kept in state
+  // (rather than only reading sessionStorage once inline) so "Try again" after
+  // a timeout can re-run the same extraction instead of hitting the now-empty
+  // sessionStorage key a second time.
+  const [sharePayload, setSharePayload] = useState(undefined)
 
   useEffect(() => {
-    runExtraction()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function runExtraction() {
-    setLoading(true)
-    setError(null)
-
     // Dev-only seam (see plan step 1): lets this page be tested from a normal
     // browser dev server via /add-from-share?debugText=... before any native
     // plugin exists. Real shares arrive via sessionStorage (see PENDING_SHARE_KEY).
     const debugText = searchParams.get('debugText')
-
-    let payload = null
     if (debugText) {
-      payload = { type: 'text', text: debugText }
-    } else {
-      const raw = sessionStorage.getItem(PENDING_SHARE_KEY)
-      if (raw) {
-        try { payload = JSON.parse(raw) } catch { payload = null }
-        sessionStorage.removeItem(PENDING_SHARE_KEY)
-      }
+      setSharePayload({ type: 'text', text: debugText })
+      return
     }
+    const raw = sessionStorage.getItem(PENDING_SHARE_KEY)
+    sessionStorage.removeItem(PENDING_SHARE_KEY)
+    if (!raw) { setSharePayload(null); return }
+    try { setSharePayload(JSON.parse(raw)) } catch { setSharePayload(null) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!payload) {
+  useEffect(() => {
+    if (sharePayload === undefined) return
+    if (sharePayload === null) {
       setError('No shared content found.')
       setLoading(false)
       return
     }
+    runExtraction(sharePayload)
+  }, [sharePayload]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function runExtraction(payload) {
+    setLoading(true)
+    setError(null)
 
     const body =
       payload.type === 'text'  ? { type: 'text', text: payload.text } :
@@ -64,7 +80,19 @@ export default function AddFromSharePage() {
       return
     }
 
-    const { data, error: fnError } = await supabase.functions.invoke('extract-event-from-share', { body })
+    let result
+    try {
+      result = await withTimeout(
+        supabase.functions.invoke('extract-event-from-share', { body }),
+        20000,
+        'Finding dates'
+      )
+    } catch (timeoutErr) {
+      setError(`${timeoutErr.message} — check your connection and try again.`)
+      setLoading(false)
+      return
+    }
+    const { data, error: fnError } = result
 
     if (fnError || !data?.ok) {
       // On a non-2xx response, supabase-js routes the error into fnError
@@ -168,6 +196,11 @@ export default function AddFromSharePage() {
       {!loading && error && drafts.length === 0 && (
         <div className="space-y-3">
           <p className="text-sm text-red-600">{error}</p>
+          {sharePayload && (
+            <Button className="w-full py-3" onClick={() => runExtraction(sharePayload)}>
+              Try again
+            </Button>
+          )}
           <Button variant="secondary" className="w-full py-3" onClick={() => navigate('/calendar')}>
             Back to calendar
           </Button>

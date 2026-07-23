@@ -134,17 +134,11 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
       const { share } = await CanopyShare.getPendingShare()
       if (share) stash(share)
       handle = await CanopyShare.addListener('shareReceived', stash)
-
-      // DIAGNOSTIC MODE (2026-07-23, remove once the "share never launches
-      // Canopy" bug is confirmed fixed) -- surfaces ShareViewController.swift's
-      // debug trail directly on-device via alert(), since there's no cable/
-      // MacinCloud USB passthrough set up for live Xcode console output. See
-      // ios/App/CanopyShareExtension/ShareViewController.swift's header comment.
-      const { Capacitor } = await import('@capacitor/core')
-      if (Capacitor.getPlatform() === 'ios' && CanopyShare.getShareDebug) {
-        const { debug } = await CanopyShare.getShareDebug()
-        if (debug) window.alert(`CanopyShare debug:\n${debug}`)
-      }
+      // The debug-trail alert used to live here, but this effect only runs once
+      // AppLayout has cleared auth/family loading -- during the white-screen
+      // hang it never fired at all, which was a diagnostic dead end. Moved to
+      // AppLinksHandler (App.jsx), which mounts unconditionally and immediately,
+      // so the next test tells us whether the hang is before or after this point.
     })()
     return () => { handle?.remove() }
   }, [navigate])
