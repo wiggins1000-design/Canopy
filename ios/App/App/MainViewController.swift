@@ -9,10 +9,18 @@
 // capacitorDidLoad() is Capacitor's documented override point for registering a
 // plugin directly in code, bypassing the JSON list entirely -- durable across
 // every future `cap sync ios` run, unlike hand-editing the generated JSON.
+//
+// registerPluginType(_:) (tried first, confirmed NOT sufficient via live-device
+// test on build 35) is a no-op whenever auto-registration is active -- its very
+// first line in CapacitorBridge.swift is `if autoRegisterPlugins { return }`.
+// This app's plugins ARE auto-registered (from capacitor.config.json's
+// packageClassList), so that path silently did nothing. registerPluginInstance(_:)
+// has no such guard and unconditionally registers whatever instance it's given,
+// which is what actually works alongside the existing auto-registered plugins.
 import Capacitor
 
 class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
-        bridge?.registerPluginType(CanopyShare.self)
+        bridge?.registerPluginInstance(CanopyShare())
     }
 }
