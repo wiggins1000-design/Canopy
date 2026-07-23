@@ -63,8 +63,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // removes that friction entirely -- restore the real call and commit
         // CanopySharePlugin.swift together, in one deliberate change, once the
         // org migration unblocks the feature for real.
-        if false && url.scheme == "canopy" {
-            // CanopyShare.handleShareURLOpen()
+        
+        
+        
+        if url.scheme == "canopy" {
+            CanopyShare.handleShareURLOpen()
         }
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
