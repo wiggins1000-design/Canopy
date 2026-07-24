@@ -150,15 +150,22 @@ export default function AddFromSharePage() {
     const incomplete = parsed.filter((d) => !(d.title.trim() && d.date))
 
     setLoading(false)
-    setDrafts(incomplete)
     if (parsed.length === 0 && anyFailure) setError(lastMessage)
-    if (complete.length > 0) await saveEvents(complete)
+    // Save the complete ones before deciding what stays on the review screen --
+    // anything that fails to save (a real DB error, not just "incomplete") goes
+    // back into drafts for retry instead of being silently lost.
+    const failed = complete.length > 0 ? await saveEvents(complete) : []
+    setDrafts([...incomplete, ...failed])
   }
 
+  // Returns whichever of `toAdd` failed to save (empty array if all succeeded),
+  // so the caller can decide whether to keep them around for the user to retry
+  // rather than just disappearing without being added.
   async function saveEvents(toAdd) {
     setSaving(true)
     setError(null)
     const added = []
+    const failed = []
 
     for (const d of toAdd) {
       const { error: dbErr } = await supabase.rpc('create_family_event', {
@@ -176,6 +183,7 @@ export default function AddFromSharePage() {
       })
       if (dbErr) {
         console.error('create_family_event error:', dbErr)
+        failed.push(d)
         continue
       }
       added.push(formatDraftLabel(d))
@@ -183,9 +191,10 @@ export default function AddFromSharePage() {
 
     setSaving(false)
     setSavedLabels((prev) => [...prev, ...added])
-    if (added.length === 0) {
+    if (added.length === 0 && toAdd.length > 0) {
       setError('Could not add those events — please try again.')
     }
+    return failed
   }
 
   function updateDraft(id, field, value) {
@@ -203,7 +212,13 @@ export default function AddFromSharePage() {
   async function addSelected() {
     const toAdd = drafts.filter((d) => d.included && d.title.trim() && d.date)
     if (toAdd.length === 0) { setError('Nothing selected to add.'); return }
-    await saveEvents(toAdd)
+    const failed = await saveEvents(toAdd)
+    // Drop whichever of toAdd actually saved -- keep anything that failed (for
+    // retry) and anything not in toAdd at all (excluded, or still missing a
+    // field) exactly as it was.
+    const failedIds = new Set(failed.map((d) => d.id))
+    const attemptedIds = new Set(toAdd.map((d) => d.id))
+    setDrafts((prev) => prev.filter((d) => !attemptedIds.has(d.id) || failedIds.has(d.id)))
   }
 
   return (
