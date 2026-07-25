@@ -52,7 +52,7 @@
             </intent-filter>
 
             <!-- SEND_MULTIPLE: several photos/PDFs forwarded together in one share
-                 action (the standard Android convention for multi-file sharing --
+                 action (the standard Android convention for multi-file sharing;
                  EXTRA_TEXT has no multi-value equivalent, so this isn't needed for
                  text). Without these filters Canopy doesn't even appear in the share
                  sheet for a multi-file share, let alone process it. -->
