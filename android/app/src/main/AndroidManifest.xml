@@ -51,6 +51,22 @@
                 <data android:mimeType="application/pdf" />
             </intent-filter>
 
+            <!-- SEND_MULTIPLE: several photos/PDFs forwarded together in one share
+                 action (the standard Android convention for multi-file sharing --
+                 EXTRA_TEXT has no multi-value equivalent, so this isn't needed for
+                 text). Without these filters Canopy doesn't even appear in the share
+                 sheet for a multi-file share, let alone process it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+
         </activity>
 
         <provider

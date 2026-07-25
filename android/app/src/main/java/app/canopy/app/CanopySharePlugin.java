@@ -33,21 +33,21 @@ public class CanopySharePlugin extends Plugin {
     @Override
     protected void handleOnNewIntent(Intent intent) {
         super.handleOnNewIntent(intent);
-        JSObject share = parseShareIntent(intent);
-        if (share != null) {
-            pendingShares.add(share);
+        List<JSObject> shares = parseShareIntent(intent);
+        if (!shares.isEmpty()) {
+            pendingShares.addAll(shares);
             // Warm-launch case: fires immediately if a JS listener is already
             // attached. Harmless no-op if nothing is listening yet -- the
             // cold-launch pull above covers that case instead. Sends the
             // whole current queue (matching getPendingShares()'s shape), not
-            // just this one item, in case more than one arrived before the
-            // app got a chance to process any of them.
+            // just what just arrived, in case more had already queued up
+            // before the app got a chance to process any of them.
             JSObject event = new JSObject();
-            JSArray shares = new JSArray();
+            JSArray sharesArray = new JSArray();
             for (JSObject s : pendingShares) {
-                shares.put(s);
+                sharesArray.put(s);
             }
-            event.put("shares", shares);
+            event.put("shares", sharesArray);
             notifyListeners("shareReceived", event);
         }
     }
@@ -69,42 +69,63 @@ public class CanopySharePlugin extends Plugin {
         call.resolve();
     }
 
-    private JSObject parseShareIntent(Intent intent) {
-        if (intent == null) return null;
+    private List<JSObject> parseShareIntent(Intent intent) {
+        List<JSObject> results = new ArrayList<>();
+        if (intent == null) return results;
         String action = intent.getAction();
         String type = intent.getType();
-        if (!Intent.ACTION_SEND.equals(action) || type == null) return null;
+        if (type == null) return results;
 
         try {
-            if ("text/plain".equals(type)) {
-                String text = intent.getStringExtra(Intent.EXTRA_TEXT);
-                if (text == null || text.trim().isEmpty()) return null;
-                JSObject result = new JSObject();
-                result.put("type", "text");
-                result.put("text", text);
-                return result;
-            }
-
-            Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (uri == null) return null;
-            byte[] bytes = readUriBytes(uri);
-            if (bytes == null || bytes.length == 0) return null;
-            String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
-
-            if (type.startsWith("image/")) {
-                JSObject result = new JSObject();
-                result.put("type", "image");
-                result.put("base64", base64);
-                result.put("mediaType", resolveImageMediaType(type, bytes));
-                return result;
-            } else if ("application/pdf".equals(type)) {
-                JSObject result = new JSObject();
-                result.put("type", "pdf");
-                result.put("base64", base64);
-                return result;
+            if (Intent.ACTION_SEND.equals(action)) {
+                Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+                JSObject share = parseSingleShare(type, intent.getStringExtra(Intent.EXTRA_TEXT), uri);
+                if (share != null) results.add(share);
+            } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+                // Several photos/PDFs forwarded together in one share action --
+                // EXTRA_STREAM is a list here instead of a single Uri. Each item
+                // becomes its own queue entry, same as the iOS extension's
+                // per-NSExtensionItem handling.
+                ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+                if (uris != null) {
+                    for (Uri uri : uris) {
+                        JSObject share = parseSingleShare(type, null, uri);
+                        if (share != null) results.add(share);
+                    }
+                }
             }
         } catch (Exception e) {
-            return null;
+            // Return whatever was successfully parsed before the failure rather
+            // than discarding a partially-processed multi-item share.
+        }
+        return results;
+    }
+
+    private JSObject parseSingleShare(String type, String text, Uri uri) throws Exception {
+        if ("text/plain".equals(type)) {
+            if (text == null || text.trim().isEmpty()) return null;
+            JSObject result = new JSObject();
+            result.put("type", "text");
+            result.put("text", text);
+            return result;
+        }
+
+        if (uri == null) return null;
+        byte[] bytes = readUriBytes(uri);
+        if (bytes == null || bytes.length == 0) return null;
+        String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+
+        if (type.startsWith("image/")) {
+            JSObject result = new JSObject();
+            result.put("type", "image");
+            result.put("base64", base64);
+            result.put("mediaType", resolveImageMediaType(type, bytes));
+            return result;
+        } else if ("application/pdf".equals(type)) {
+            JSObject result = new JSObject();
+            result.put("type", "pdf");
+            result.put("base64", base64);
+            return result;
         }
         return null;
     }
