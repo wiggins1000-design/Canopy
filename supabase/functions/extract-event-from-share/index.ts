@@ -96,7 +96,7 @@ Rules:
 - Use the current year if no year is given
 - If a date range is mentioned, create one event with start + end_date
 - Dates must be YYYY-MM-DD
-- If a specific event has no date clearly associated with it, set "date" to null — do NOT guess, infer, or reuse another event's date just because it appeared nearby in the source
+- IMPORTANT — most sources mix events that have a date with ones that don't (e.g. a flyer lists "Sports Day — 12 June" and, separately, "Non-uniform day" with no date printed anywhere on it). Every event does NOT need a date. If a specific event has no date clearly and individually stated for it, set "date" to null. This is the correct, expected output for that event — do NOT guess, estimate, or copy/reuse a date that belongs to a different event just because it appeared nearby or on the same page/message
 - If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
 - Compare each extracted event against the existing calendar events list (if provided). If it's clearly the same event (e.g. the same content shared again), set is_duplicate to true — this happens most often when the same message/photo is shared more than once. Only set it true for a genuine match, not just a similar-sounding event on a different date
 - Return ONLY valid JSON`
@@ -112,9 +112,15 @@ async function callClaudeForExtraction(content: string | any[], familyId: string
     },
     signal: AbortSignal.timeout(45000),
     body: JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      messages:   [{ role: 'user', content }],
+      model:       'claude-haiku-4-5-20251001',
+      max_tokens:  4096,
+      // Default temperature (1.0) was letting the model guess/reuse a nearby
+      // date for events with none stated rather than reliably following the
+      // "set date to null" instruction below -- this is a structured
+      // extraction task, not creative writing, so favor consistent rule-
+      // following over variation.
+      temperature: 0,
+      messages:    [{ role: 'user', content }],
     }),
   })
   if (!res.ok) {
