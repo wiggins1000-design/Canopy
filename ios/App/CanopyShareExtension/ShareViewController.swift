@@ -27,25 +27,45 @@ public class ShareViewController: UIViewController {
     }
 
     private func handleShare() {
-        guard let item = extensionContext?.inputItems.first as? NSExtensionItem else {
+        // WhatsApp's "forward multiple selected messages" delivers each
+        // message as its own NSExtensionItem in inputItems -- not as multiple
+        // attachments on one item, and not concatenated into one item either.
+        // Reading only .first here silently dropped every message but the
+        // first (and made re-sharing the same batch look like a duplicate,
+        // since it just re-extracted that same first message every time).
+        guard let items = extensionContext?.inputItems as? [NSExtensionItem], !items.isEmpty else {
             openHostAppAndComplete()
             return
         }
 
-        guard let attachment = item.attachments?.first else {
-            // Some apps (WhatsApp forwarded text, in particular) deliver plain
-            // text via attributedContentText instead of populating attachments
-            // at all -- without this fallback the extension used to exit
-            // silently here, which looks like "nothing happens" from the
-            // sending app's side.
-            if let text = item.attributedContentText?.string,
-               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                enqueue(payload: ["type": "text", "text": text])
+        let group = DispatchGroup()
+
+        for item in items {
+            guard let attachments = item.attachments, !attachments.isEmpty else {
+                // Some apps (WhatsApp forwarded text, in particular) deliver
+                // plain text via attributedContentText instead of populating
+                // attachments at all -- without this fallback the extension
+                // used to exit silently here, which looks like "nothing
+                // happens" from the sending app's side.
+                if let text = item.attributedContentText?.string,
+                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    enqueue(payload: ["type": "text", "text": text])
+                }
+                continue
             }
-            openHostAppAndComplete()
-            return
+
+            for attachment in attachments {
+                group.enter()
+                processAttachment(attachment) { group.leave() }
+            }
         }
 
+        group.notify(queue: .main) { [weak self] in
+            self?.openHostAppAndComplete()
+        }
+    }
+
+    private func processAttachment(_ attachment: NSItemProvider, completion: @escaping () -> Void) {
         if attachment.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
             // loadDataRepresentation sidesteps NSItemProviderReading class-
             // bridging entirely (raw bytes, decoded as UTF-8 manually) -- but
@@ -58,7 +78,7 @@ public class ShareViewController: UIViewController {
                 if let data = data, let text = String(data: data, encoding: .utf8),
                    !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     self?.enqueue(payload: ["type": "text", "text": text])
-                    self?.openHostAppAndComplete()
+                    completion()
                     return
                 }
                 attachment.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] reading, _ in
@@ -66,19 +86,21 @@ public class ShareViewController: UIViewController {
                     if let text = text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         self?.enqueue(payload: ["type": "text", "text": text])
                     }
-                    self?.openHostAppAndComplete()
+                    completion()
                 }
             }
         } else if attachment.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
             attachment.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] data, _ in
                 self?.handleFileAttachment(data, kind: "image")
+                completion()
             }
         } else if attachment.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) {
             attachment.loadItem(forTypeIdentifier: UTType.pdf.identifier, options: nil) { [weak self] data, _ in
                 self?.handleFileAttachment(data, kind: "pdf")
+                completion()
             }
         } else {
-            openHostAppAndComplete()
+            completion()
         }
     }
 
@@ -107,22 +129,29 @@ public class ShareViewController: UIViewController {
                 enqueue(payload: ["type": "pdf", "base64": fileBytes.base64EncodedString()])
             }
         }
-        openHostAppAndComplete()
     }
 
     // Appends to the queue rather than overwriting it -- sharing several
     // things before the app is next opened used to silently lose everything
-    // but the last one, since this used to store a single value.
+    // but the last one, since this used to store a single value. Now that a
+    // single share action can enqueue several items concurrently (multiple
+    // NSExtensionItems, each on its own possibly-background completion
+    // thread -- see handleShare), the read-modify-write below needs to be
+    // serialized or concurrent enqueues can race and clobber each other.
+    private static let enqueueQueue = DispatchQueue(label: "app.canopy.share.enqueue")
+
     private func enqueue(payload: [String: Any]) {
-        guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) else { return }
-        var pending: [[String: Any]] = []
-        if let existingData = defaults.data(forKey: ShareViewController.pendingShareKey),
-           let existingArray = (try? JSONSerialization.jsonObject(with: existingData)) as? [[String: Any]] {
-            pending = existingArray
+        ShareViewController.enqueueQueue.sync {
+            guard let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) else { return }
+            var pending: [[String: Any]] = []
+            if let existingData = defaults.data(forKey: ShareViewController.pendingShareKey),
+               let existingArray = (try? JSONSerialization.jsonObject(with: existingData)) as? [[String: Any]] {
+                pending = existingArray
+            }
+            pending.append(payload)
+            guard let json = try? JSONSerialization.data(withJSONObject: pending) else { return }
+            defaults.set(json, forKey: ShareViewController.pendingShareKey)
         }
-        pending.append(payload)
-        guard let json = try? JSONSerialization.data(withJSONObject: pending) else { return }
-        defaults.set(json, forKey: ShareViewController.pendingShareKey)
     }
 
     private func openHostAppAndComplete() {
