@@ -56,6 +56,7 @@ type RawEvent = {
   applies_to:      string | null
   weekday:         string | null
   tagged_children: string[]
+  is_duplicate?:   boolean
 }
 
 // Modeled on process-email/index.ts's Stage-A extractionPrompt() — see file
@@ -64,14 +65,14 @@ type RawEvent = {
 // known_children handling (see that function), since this is the same
 // personal-content case (a family's own children being named), not
 // FamilyFeed's whole-school-newsletter case.
-function extractionPrompt(dateFormatHint: string, isPdf: boolean, knownChildren: string[]): string {
+function extractionPrompt(dateFormatHint: string, isPdf: boolean, knownChildren: string[], existingEventsContext: string): string {
   const today = new Date().toISOString().split('T')[0]
   const taggedChildrenLine = knownChildren.length
     ? `\nThe family's children are: ${knownChildren.join(', ')}. For each event, if it's clearly about one or more of them (e.g. "trip with Isabelle and Henry", "Henry's football"), include their exact name(s) from this list in tagged_children. Otherwise use an empty array — do not guess.`
     : ''
-  return `You are extracting every dated event mentioned in a ${isPdf ? 'PDF document (it may be a native text document or a scanned/photographed page — read any dates visible anywhere, including tables, calendars and images, not just selectable text)' : 'shared message or image'}. Do not filter anything out for relevance — extract ALL events with a specific date, even ones that seem minor. Relevance/duplicate filtering is handled by the user reviewing the results afterward.
+  return `You are extracting every dated event mentioned in a ${isPdf ? 'PDF document (it may be a native text document or a scanned/photographed page — read any dates visible anywhere, including tables, calendars and images, not just selectable text)' : 'shared message or image'}. Do not filter anything out for relevance — extract ALL events with a specific date, even ones that seem minor. Relevance filtering (beyond exact duplicates, see below) is handled by the user reviewing the results afterward.
 
-Today's date: ${today}. ${dateFormatHint}${taggedChildrenLine}
+Today's date: ${today}. ${dateFormatHint}${taggedChildrenLine}${existingEventsContext}
 
 Respond with ONLY valid JSON — no markdown, no explanation:
 {
@@ -84,7 +85,8 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "notes": "any extra detail or null",
       "applies_to": "the specific year group, key stage, or class named for this event, or null if not mentioned",
       "weekday": "the day-of-week name exactly as written next to this date in the source (e.g. 'Thursday'), or null if no weekday is stated",
-      "tagged_children": ["names from the known children list this event is about, or empty array"]
+      "tagged_children": ["names from the known children list this event is about, or empty array"],
+      "is_duplicate": "true if this is the same event as one already on the existing calendar events list below (same or very similar title, same date), false otherwise"
     }
   ]
 }
@@ -96,6 +98,7 @@ Rules:
 - Dates must be YYYY-MM-DD
 - If a specific event has no date clearly associated with it, set "date" to null — do NOT guess, infer, or reuse another event's date just because it appeared nearby in the source
 - If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
+- Compare each extracted event against the existing calendar events list (if provided). If it's clearly the same event (e.g. the same content shared again), set is_duplicate to true — this happens most often when the same message/photo is shared more than once. Only set it true for a genuine match, not just a similar-sounding event on a different date
 - Return ONLY valid JSON`
 }
 
@@ -138,21 +141,21 @@ async function callClaudeForExtraction(content: string | any[], familyId: string
   }
 }
 
-function extractFromText(text: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
-  return callClaudeForExtraction(`${extractionPrompt(dateFormatHint, false, knownChildren)}\n\nContent:\n${text}`, familyId)
+function extractFromText(text: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
+  return callClaudeForExtraction(`${extractionPrompt(dateFormatHint, false, knownChildren, existingEventsContext)}\n\nContent:\n${text}`, familyId)
 }
 
-function extractFromPdf(pdfBase64: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
+function extractFromPdf(pdfBase64: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
   return callClaudeForExtraction([
     { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-    { type: 'text', text: extractionPrompt(dateFormatHint, true, knownChildren) },
+    { type: 'text', text: extractionPrompt(dateFormatHint, true, knownChildren, existingEventsContext) },
   ], familyId)
 }
 
-function extractFromImage(imageBase64: string, mediaType: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
+function extractFromImage(imageBase64: string, mediaType: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
   return callClaudeForExtraction([
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-    { type: 'text', text: extractionPrompt(dateFormatHint, false, knownChildren) },
+    { type: 'text', text: extractionPrompt(dateFormatHint, false, knownChildren, existingEventsContext) },
   ], familyId)
 }
 
@@ -202,23 +205,47 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: 'AI not configured' }), { status: 500, headers: CORS })
   }
 
+  // Same duplicate-detection approach as process-email/index.ts: hand the
+  // family's own nearby events to the same Claude call doing the extraction,
+  // rather than a rigid title/date equality check -- catches the common case
+  // of the same WhatsApp message/photo being (re-)shared more than once,
+  // which used to create a fresh duplicate event every time.
+  const lookbackDate = new Date()
+  lookbackDate.setDate(lookbackDate.getDate() - 14)
+  const { data: existingEvents } = await supabase
+    .from('family_events')
+    .select('title, event_date, end_date, event_time, notes')
+    .eq('family_id', familyId)
+    .gte('event_date', lookbackDate.toISOString().split('T')[0])
+    .order('event_date', { ascending: true })
+    .limit(100)
+
+  const existingEventsContext = existingEvents && existingEvents.length > 0
+    ? '\n\nExisting calendar events (check for duplicates):\n' +
+      existingEvents.map((e: any) => {
+        const dateRange = e.end_date && e.end_date !== e.event_date ? `${e.event_date} to ${e.end_date}` : e.event_date
+        const time = e.event_time ? ` at ${e.event_time}` : ''
+        return `- ${e.title} — ${dateRange}${time}`
+      }).join('\n')
+    : ''
+
   let events: RawEvent[]
   try {
     if (type === 'text') {
       if (!body.text || typeof body.text !== 'string') {
         return new Response(JSON.stringify({ ok: false, error: 'Missing text' }), { status: 400, headers: CORS })
       }
-      events = await extractFromText(body.text, dateFormatHint, familyId, knownChildren)
+      events = await extractFromText(body.text, dateFormatHint, familyId, knownChildren, existingEventsContext)
     } else if (type === 'pdf') {
       if (!body.pdf_base64 || typeof body.pdf_base64 !== 'string') {
         return new Response(JSON.stringify({ ok: false, error: 'Missing pdf_base64' }), { status: 400, headers: CORS })
       }
-      events = await extractFromPdf(body.pdf_base64, dateFormatHint, familyId, knownChildren)
+      events = await extractFromPdf(body.pdf_base64, dateFormatHint, familyId, knownChildren, existingEventsContext)
     } else {
       if (!body.image_base64 || !body.media_type) {
         return new Response(JSON.stringify({ ok: false, error: 'Missing image_base64 or media_type' }), { status: 400, headers: CORS })
       }
-      events = await extractFromImage(body.image_base64, body.media_type, dateFormatHint, familyId, knownChildren)
+      events = await extractFromImage(body.image_base64, body.media_type, dateFormatHint, familyId, knownChildren, existingEventsContext)
     }
   } catch (e) {
     console.error('extract-event-from-share error:', e)
@@ -226,7 +253,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: message }), { status: 502, headers: CORS })
   }
 
-  return new Response(JSON.stringify({ ok: true, events }), {
+  // Duplicates are silently dropped here (matching process-email's "pure
+  // duplicate" behavior) rather than surfaced to the client -- re-sharing
+  // the same content should look like nothing new was found, not like an
+  // error or a card the user has to dismiss.
+  const deduped = events.filter((e) => !e.is_duplicate)
+
+  return new Response(JSON.stringify({ ok: true, events: deduped }), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 })
