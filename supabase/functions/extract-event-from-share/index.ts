@@ -99,8 +99,9 @@ Rules:
 - IMPORTANT — most sources mix events that have a date with ones that don't (e.g. a flyer lists "Sports Day — 12 June" and, separately, "Non-uniform day" with no date printed anywhere on it). Every event does NOT need a date. If a specific event has no date clearly and individually stated for it, set "date" to null. This is the correct, expected output for that event — do NOT guess, estimate, or copy/reuse a date that belongs to a different event just because it appeared nearby or on the same page/message
 - IMPORTANT — if the source is a screenshot of a chat/conversation containing several separate messages (each with its own timestamp, e.g. "12:23", "Yesterday"), treat each message as fully independent. A date stated in one message must NEVER be applied to a different message about a different topic, even if they're visually close together, sent close in time, or appear in the same screenshot. Only use a date for a given event if that same message (or a message that is unambiguously a follow-up/clarification of it, e.g. "actually it's the 28th" replying to the same topic) states it
 - If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
+- IMPORTANT — determine each event's "date" using ONLY the shared content itself (the actual message/image/PDF being extracted). The existing calendar events list below is for duplicate-comparison ONLY, after you've already decided the date from the source — NEVER copy, borrow, or get "reminded of" a date from the existing events list just because a title matches. If the source doesn't state a date for this event, "date" must be null regardless of what date a similarly-titled existing event happens to have
 - Compare each extracted event against the existing calendar events list (if provided). If it's clearly the same event (e.g. the same content shared again), set is_duplicate to true — this happens most often when the same message/photo is shared more than once. Only set it true for a genuine match on BOTH title and date, not just a similar-sounding event on a different date
-- If this event's own "date" is null, do NOT set is_duplicate to true even if the title matches something on the existing list — with no date to compare, a title match alone isn't enough to be sure it's the same occurrence rather than a new one (e.g. a recurring activity mentioned again). Let it through for the user to judge, don't silently drop it
+- If this event's own "date" is null (per the rule above, determined from the source alone), it is impossible for is_duplicate to be true — there is nothing to compare. A title match alone is never enough on its own to be sure it's the same occurrence rather than a new one (e.g. a recurring activity mentioned again). Let it through for the user to judge, don't silently drop it
 - Return ONLY valid JSON`
 }
 
@@ -261,13 +262,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: message }), { status: 502, headers: CORS })
   }
 
-  // Duplicates are silently dropped here (matching process-email's "pure
-  // duplicate" behavior) rather than surfaced to the client -- re-sharing
-  // the same content should look like nothing new was found, not like an
-  // error or a card the user has to dismiss.
-  const deduped = events.filter((e) => !e.is_duplicate)
-
-  return new Response(JSON.stringify({ ok: true, events: deduped }), {
+  // Duplicates are kept in the response (with is_duplicate: true) rather than
+  // dropped -- the client surfaces them as "already on your calendar" instead
+  // of auto-adding or showing an editable card, so re-sharing the same
+  // content isn't silent about what happened to it.
+  return new Response(JSON.stringify({ ok: true, events }), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 })
