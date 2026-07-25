@@ -108,34 +108,30 @@ function AppLayoutInner({ showSuccessToast, onToastDone, showPlanImportedToast, 
     return () => { handle?.remove() }
   }, [navigate])
 
-  // WhatsApp (or any app) share-sheet support: shares can arrive either
-  // before the app was running (cold launch -- pulled via getPendingShares(),
-  // since a live listener attached after the fact would miss it) or while
-  // already running (warm launch -- live shareReceived listener). Always an
-  // array -- sharing several things before the app is next opened queues them
-  // natively rather than the last one overwriting the rest. See
-  // src/native/canopyShare.js and android/.../CanopySharePlugin.java /
-  // ios/.../CanopySharePlugin.swift for the native side.
+  // WhatsApp (or any app) share-sheet support, warm-launch case only: the app
+  // is already open and a share arrives via the live shareReceived listener.
+  // The cold-launch case (app opened BY the share) is handled earlier, by
+  // ShareAwareIndexRedirect in App.jsx -- it used to also be pulled here via
+  // getPendingShares(), but that ran only after this component (nested below
+  // ProtectedRoute + the index route's default Navigate to /calendar) had
+  // already mounted, so Calendar visibly rendered and then got swapped out
+  // once this async check resolved. Always an array -- sharing several
+  // things before the app is next opened queues them natively rather than
+  // the last one overwriting the rest. See src/native/canopyShare.js and
+  // android/.../CanopySharePlugin.java / ios/.../CanopySharePlugin.swift for
+  // the native side.
   useEffect(() => {
     if (!isNativePlatform()) return
     let handle
     ;(async () => {
       const { default: CanopyShare, PENDING_SHARE_KEY } = await import('../../native/canopyShare')
-      // Always clears the native side's queue as its first step, regardless
-      // of whether delivery came via the pull below or the live listener --
-      // otherwise a share delivered live (listener fires, this runs) leaves
-      // the native queue still populated, and a later remount's
-      // getPendingShares() pull would redeliver + reprocess the same shares
-      // a second time.
-      const stash = async (shares) => {
+      handle = await CanopyShare.addListener('shareReceived', async (data) => {
+        const shares = data.shares
         if (!shares || shares.length === 0) return
         await CanopyShare.clearPendingShares()
         sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(shares))
         navigate('/add-from-share')
-      }
-      const { shares } = await CanopyShare.getPendingShares()
-      if (shares?.length) stash(shares)
-      handle = await CanopyShare.addListener('shareReceived', (data) => stash(data.shares))
+      })
     })()
     return () => { handle?.remove() }
   }, [navigate])

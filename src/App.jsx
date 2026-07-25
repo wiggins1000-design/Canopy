@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { FamilyProvider } from './context/FamilyContext'
@@ -120,6 +120,38 @@ function AppLinksHandler() {
   return null
 }
 
+// Cold-launch share-sheet routing: decides between /calendar and
+// /add-from-share BEFORE rendering either, so opening Canopy from the OS
+// share sheet doesn't flash the Calendar page and then swap to the share
+// review screen once the (async, native-only) pending-share check resolves.
+// The warm-launch case (app already open when a share arrives) is handled
+// separately by AppLayout.jsx's shareReceived listener, which isn't tied to
+// which route happens to be showing.
+function ShareAwareIndexRedirect() {
+  const [target, setTarget] = useState(null) // null = still checking
+
+  useEffect(() => {
+    if (!isNativePlatform()) { setTarget('/calendar'); return }
+    let cancelled = false
+    ;(async () => {
+      const { default: CanopyShare, PENDING_SHARE_KEY } = await import('./native/canopyShare')
+      const { shares } = await CanopyShare.getPendingShares()
+      if (cancelled) return
+      if (shares?.length) {
+        await CanopyShare.clearPendingShares()
+        sessionStorage.setItem(PENDING_SHARE_KEY, JSON.stringify(shares))
+        setTarget('/add-from-share')
+      } else {
+        setTarget('/calendar')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  if (!target) return <PageLoader />
+  return <Navigate to={target} replace />
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -153,7 +185,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/calendar" replace />} />
+              <Route index element={<ShareAwareIndexRedirect />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/board" element={<NoticeBoardPage />} />
               <Route path="/board/media" element={<MediaPage />} />
