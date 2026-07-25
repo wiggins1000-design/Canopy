@@ -49,7 +49,7 @@ const CORS = {
 
 type RawEvent = {
   title:           string
-  date:            string
+  date:            string | null
   end_date:        string | null
   time:            string | null
   notes:           string | null
@@ -78,7 +78,7 @@ Respond with ONLY valid JSON — no markdown, no explanation:
   "events": [
     {
       "title": "short clear title — do not invent or assume a specific child's name",
-      "date": "YYYY-MM-DD",
+      "date": "YYYY-MM-DD, or null if this specific event has no date clearly stated for it",
       "end_date": "YYYY-MM-DD or null",
       "time": "HH:MM or null",
       "notes": "any extra detail or null",
@@ -90,10 +90,11 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 }
 
 Rules:
-- Extract EVERY event with a specific date, no matter how minor
+- Extract EVERY event mentioned, no matter how minor — including ones with no date stated
 - Use the current year if no year is given
 - If a date range is mentioned, create one event with start + end_date
 - Dates must be YYYY-MM-DD
+- If a specific event has no date clearly associated with it, set "date" to null — do NOT guess, infer, or reuse another event's date just because it appeared nearby in the source
 - If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
 - Return ONLY valid JSON`
 }
