@@ -25,6 +25,13 @@ function formatDraftLabel(d) {
   return d.date ? `${d.title.trim()} (${d.date})` : d.title.trim()
 }
 
+// Mirrors extract-event-from-share's normalizeTitle -- kept in sync
+// deliberately so "is this a duplicate" means the same thing wherever it's
+// checked.
+function normalizeTitle(title) {
+  return title.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 export default function AddFromSharePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -36,6 +43,7 @@ export default function AddFromSharePage() {
   const [drafts, setDrafts]     = useState([])
   const [saving, setSaving]     = useState(false)
   const [savedLabels, setSavedLabels] = useState([])
+  const [duplicateLabels, setDuplicateLabels] = useState([])
   // undefined = not read yet, null = read but nothing was there. Kept in state
   // (rather than only reading sessionStorage once inline) so "Try again" after
   // a timeout can re-run the same extraction instead of hitting the now-empty
@@ -122,7 +130,16 @@ export default function AddFromSharePage() {
       allEvents.push(...(data.events ?? []))
     }
 
-    const parsed = allEvents.map((ev) => {
+    // Events the extraction matched against something already on the
+    // calendar (see extract-event-from-share's is_duplicate) -- surfaced as
+    // an informational line rather than auto-added or shown as an editable
+    // card, so re-sharing the same content isn't silent about what happened.
+    const duplicates = allEvents.filter((ev) => ev.is_duplicate)
+    if (duplicates.length > 0) {
+      setDuplicateLabels((prev) => [...prev, ...duplicates.map((ev) => formatDraftLabel({ title: ev.title ?? '', date: ev.date }))])
+    }
+
+    const parsed = allEvents.filter((ev) => !ev.is_duplicate).map((ev) => {
       // Only trust child names the extraction returned that actually match
       // a real child on file — same defensive filter NewEventSheet.jsx
       // applies to its own extraction results.
@@ -166,8 +183,31 @@ export default function AddFromSharePage() {
     setError(null)
     const added = []
     const failed = []
+    const dupes = []
+
+    // The extraction-time duplicate check (extract-event-from-share) can only
+    // catch an event that already had a date when it was extracted -- an
+    // event with no date (so it landed here, on the manual-review path)
+    // never got compared against the calendar at all. If the date the user
+    // just typed in happens to match something already there, this is that
+    // second chance to catch it, rather than silently creating a real
+    // duplicate row.
+    const datesToCheck = [...new Set(toAdd.map((d) => d.date).filter(Boolean))]
+    let existingKeys = new Set()
+    if (datesToCheck.length > 0) {
+      const { data: existing } = await supabase
+        .from('family_events')
+        .select('title, event_date')
+        .eq('family_id', family.id)
+        .in('event_date', datesToCheck)
+      existingKeys = new Set((existing ?? []).map((e) => `${normalizeTitle(e.title)}|${e.event_date}`))
+    }
 
     for (const d of toAdd) {
+      if (existingKeys.has(`${normalizeTitle(d.title)}|${d.date}`)) {
+        dupes.push(formatDraftLabel(d))
+        continue
+      }
       const { error: dbErr } = await supabase.rpc('create_family_event', {
         p_family_id:       family.id,
         p_title:           d.title.trim(),
@@ -191,7 +231,8 @@ export default function AddFromSharePage() {
 
     setSaving(false)
     setSavedLabels((prev) => [...prev, ...added])
-    if (added.length === 0 && toAdd.length > 0) {
+    if (dupes.length > 0) setDuplicateLabels((prev) => [...prev, ...dupes])
+    if (added.length === 0 && dupes.length === 0 && toAdd.length > 0) {
       setError('Could not add those events — please try again.')
     }
     return failed
@@ -265,7 +306,16 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && !saving && savedLabels.length > 0 && drafts.length === 0 && (
+      {!loading && duplicateLabels.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 space-y-1">
+          <p className="text-sm text-gray-600 font-medium">Already on your calendar:</p>
+          <ul className="text-sm text-gray-600 list-disc list-inside">
+            {duplicateLabels.map((label, i) => <li key={i}>{label}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {!loading && !saving && (savedLabels.length > 0 || duplicateLabels.length > 0) && drafts.length === 0 && (
         <Button className="w-full py-3" onClick={() => navigate('/calendar')}>
           Close
         </Button>
@@ -369,7 +419,7 @@ export default function AddFromSharePage() {
         </div>
       )}
 
-      {!loading && !saving && drafts.length === 0 && !error && savedLabels.length === 0 && (
+      {!loading && !saving && drafts.length === 0 && !error && savedLabels.length === 0 && duplicateLabels.length === 0 && (
         <div className="space-y-3 text-center py-8">
           <p className="text-sm text-gray-500">No dates found in what was shared.</p>
           <Button variant="secondary" className="mx-auto" onClick={() => navigate('/calendar')}>
