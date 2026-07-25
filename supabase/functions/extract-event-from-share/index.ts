@@ -65,14 +65,17 @@ type RawEvent = {
 // known_children handling (see that function), since this is the same
 // personal-content case (a family's own children being named), not
 // FamilyFeed's whole-school-newsletter case.
-function extractionPrompt(dateFormatHint: string, isPdf: boolean, knownChildren: string[], existingEventsContext: string): string {
+// Deliberately has NO knowledge of the family's existing calendar events --
+// see the Deno.serve handler for why. This call's only job is reading dates
+// out of the shared content itself.
+function extractionPrompt(dateFormatHint: string, isPdf: boolean, knownChildren: string[]): string {
   const today = new Date().toISOString().split('T')[0]
   const taggedChildrenLine = knownChildren.length
     ? `\nThe family's children are: ${knownChildren.join(', ')}. For each event, if it's clearly about one or more of them (e.g. "trip with Isabelle and Henry", "Henry's football"), include their exact name(s) from this list in tagged_children. Otherwise use an empty array — do not guess.`
     : ''
-  return `You are extracting every dated event mentioned in a ${isPdf ? 'PDF document (it may be a native text document or a scanned/photographed page — read any dates visible anywhere, including tables, calendars and images, not just selectable text)' : 'shared message or image'}. Do not filter anything out for relevance — extract ALL events with a specific date, even ones that seem minor. Relevance filtering (beyond exact duplicates, see below) is handled by the user reviewing the results afterward.
+  return `You are extracting every dated event mentioned in a ${isPdf ? 'PDF document (it may be a native text document or a scanned/photographed page — read any dates visible anywhere, including tables, calendars and images, not just selectable text)' : 'shared message or image'}. Do not filter anything out for relevance — extract ALL events with a specific date, even ones that seem minor. Relevance filtering is handled by the user reviewing the results afterward.
 
-Today's date: ${today}. ${dateFormatHint}${taggedChildrenLine}${existingEventsContext}
+Today's date: ${today}. ${dateFormatHint}${taggedChildrenLine}
 
 Respond with ONLY valid JSON — no markdown, no explanation:
 {
@@ -85,8 +88,7 @@ Respond with ONLY valid JSON — no markdown, no explanation:
       "notes": "any extra detail or null",
       "applies_to": "the specific year group, key stage, or class named for this event, or null if not mentioned",
       "weekday": "the day-of-week name exactly as written next to this date in the source (e.g. 'Thursday'), or null if no weekday is stated",
-      "tagged_children": ["names from the known children list this event is about, or empty array"],
-      "is_duplicate": "true if this is the same event as one already on the existing calendar events list below (same or very similar title, same date), false otherwise"
+      "tagged_children": ["names from the known children list this event is about, or empty array"]
     }
   ]
 }
@@ -96,13 +98,29 @@ Rules:
 - Use the current year if no year is given
 - If a date range is mentioned, create one event with start + end_date
 - Dates must be YYYY-MM-DD
-- IMPORTANT — most sources mix events that have a date with ones that don't (e.g. a flyer lists "Sports Day — 12 June" and, separately, "Non-uniform day" with no date printed anywhere on it). Every event does NOT need a date. If a specific event has no date clearly and individually stated for it, set "date" to null. This is the correct, expected output for that event — do NOT guess, estimate, or copy/reuse a date that belongs to a different event just because it appeared nearby or on the same page/message
+- IMPORTANT — most sources mix events that have a date with ones that don't (e.g. a flyer lists "Sports Day — 12 June" and, separately, "Non-uniform day" with no date printed anywhere on it). Every event does NOT need a date. If a specific event has no date clearly and individually stated for it, set "date" to null. This is the correct, expected output for that event — do NOT guess, estimate, or invent a plausible-sounding date
 - IMPORTANT — if the source is a screenshot of a chat/conversation containing several separate messages (each with its own timestamp, e.g. "12:23", "Yesterday"), treat each message as fully independent. A date stated in one message must NEVER be applied to a different message about a different topic, even if they're visually close together, sent close in time, or appear in the same screenshot. Only use a date for a given event if that same message (or a message that is unambiguously a follow-up/clarification of it, e.g. "actually it's the 28th" replying to the same topic) states it
 - If the source states a day-of-week next to the date, copy it into "weekday" exactly — do not calculate or infer it yourself
-- IMPORTANT — determine each event's "date" using ONLY the shared content itself (the actual message/image/PDF being extracted). The existing calendar events list below is for duplicate-comparison ONLY, after you've already decided the date from the source — NEVER copy, borrow, or get "reminded of" a date from the existing events list just because a title matches. If the source doesn't state a date for this event, "date" must be null regardless of what date a similarly-titled existing event happens to have
-- Compare each extracted event against the existing calendar events list (if provided). If it's clearly the same event (e.g. the same content shared again), set is_duplicate to true — this happens most often when the same message/photo is shared more than once. Only set it true for a genuine match on BOTH title and date, not just a similar-sounding event on a different date
-- If this event's own "date" is null (per the rule above, determined from the source alone), it is impossible for is_duplicate to be true — there is nothing to compare. A title match alone is never enough on its own to be sure it's the same occurrence rather than a new one (e.g. a recurring activity mentioned again). Let it through for the user to judge, don't silently drop it
 - Return ONLY valid JSON`
+}
+
+// Normalizes a title for comparison -- trim/lowercase/collapse whitespace.
+// Deliberately NOT fuzzy matching: this only needs to catch the literal
+// "same message shared again" case, and exact-after-normalization is far
+// less risky than any similarity heuristic that could false-positive on two
+// genuinely different events that happen to share wording.
+function normalizeTitle(title: string): string {
+  return title.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+// Runs entirely in code, not another Claude call -- see the Deno.serve
+// handler's comment for why this replaced an LLM-judged is_duplicate field.
+function markDuplicates(events: RawEvent[], existingEvents: { title: string; event_date: string }[]): RawEvent[] {
+  const existingKeys = new Set(existingEvents.map((e) => `${normalizeTitle(e.title)}|${e.event_date}`))
+  return events.map((ev) => ({
+    ...ev,
+    is_duplicate: ev.date != null && existingKeys.has(`${normalizeTitle(ev.title)}|${ev.date}`),
+  }))
 }
 
 async function callClaudeForExtraction(content: string | any[], familyId: string | null): Promise<RawEvent[]> {
@@ -150,21 +168,21 @@ async function callClaudeForExtraction(content: string | any[], familyId: string
   }
 }
 
-function extractFromText(text: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
-  return callClaudeForExtraction(`${extractionPrompt(dateFormatHint, false, knownChildren, existingEventsContext)}\n\nContent:\n${text}`, familyId)
+function extractFromText(text: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
+  return callClaudeForExtraction(`${extractionPrompt(dateFormatHint, false, knownChildren)}\n\nContent:\n${text}`, familyId)
 }
 
-function extractFromPdf(pdfBase64: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
+function extractFromPdf(pdfBase64: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
   return callClaudeForExtraction([
     { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
-    { type: 'text', text: extractionPrompt(dateFormatHint, true, knownChildren, existingEventsContext) },
+    { type: 'text', text: extractionPrompt(dateFormatHint, true, knownChildren) },
   ], familyId)
 }
 
-function extractFromImage(imageBase64: string, mediaType: string, dateFormatHint: string, familyId: string | null, knownChildren: string[], existingEventsContext: string): Promise<RawEvent[]> {
+function extractFromImage(imageBase64: string, mediaType: string, dateFormatHint: string, familyId: string | null, knownChildren: string[]): Promise<RawEvent[]> {
   return callClaudeForExtraction([
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-    { type: 'text', text: extractionPrompt(dateFormatHint, false, knownChildren, existingEventsContext) },
+    { type: 'text', text: extractionPrompt(dateFormatHint, false, knownChildren) },
   ], familyId)
 }
 
@@ -214,47 +232,23 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: 'AI not configured' }), { status: 500, headers: CORS })
   }
 
-  // Same duplicate-detection approach as process-email/index.ts: hand the
-  // family's own nearby events to the same Claude call doing the extraction,
-  // rather than a rigid title/date equality check -- catches the common case
-  // of the same WhatsApp message/photo being (re-)shared more than once,
-  // which used to create a fresh duplicate event every time.
-  const lookbackDate = new Date()
-  lookbackDate.setDate(lookbackDate.getDate() - 14)
-  const { data: existingEvents } = await supabase
-    .from('family_events')
-    .select('title, event_date, end_date, event_time, notes')
-    .eq('family_id', familyId)
-    .gte('event_date', lookbackDate.toISOString().split('T')[0])
-    .order('event_date', { ascending: true })
-    .limit(100)
-
-  const existingEventsContext = existingEvents && existingEvents.length > 0
-    ? '\n\nExisting calendar events (check for duplicates):\n' +
-      existingEvents.map((e: any) => {
-        const dateRange = e.end_date && e.end_date !== e.event_date ? `${e.event_date} to ${e.end_date}` : e.event_date
-        const time = e.event_time ? ` at ${e.event_time}` : ''
-        return `- ${e.title} — ${dateRange}${time}`
-      }).join('\n')
-    : ''
-
   let events: RawEvent[]
   try {
     if (type === 'text') {
       if (!body.text || typeof body.text !== 'string') {
         return new Response(JSON.stringify({ ok: false, error: 'Missing text' }), { status: 400, headers: CORS })
       }
-      events = await extractFromText(body.text, dateFormatHint, familyId, knownChildren, existingEventsContext)
+      events = await extractFromText(body.text, dateFormatHint, familyId, knownChildren)
     } else if (type === 'pdf') {
       if (!body.pdf_base64 || typeof body.pdf_base64 !== 'string') {
         return new Response(JSON.stringify({ ok: false, error: 'Missing pdf_base64' }), { status: 400, headers: CORS })
       }
-      events = await extractFromPdf(body.pdf_base64, dateFormatHint, familyId, knownChildren, existingEventsContext)
+      events = await extractFromPdf(body.pdf_base64, dateFormatHint, familyId, knownChildren)
     } else {
       if (!body.image_base64 || !body.media_type) {
         return new Response(JSON.stringify({ ok: false, error: 'Missing image_base64 or media_type' }), { status: 400, headers: CORS })
       }
-      events = await extractFromImage(body.image_base64, body.media_type, dateFormatHint, familyId, knownChildren, existingEventsContext)
+      events = await extractFromImage(body.image_base64, body.media_type, dateFormatHint, familyId, knownChildren)
     }
   } catch (e) {
     console.error('extract-event-from-share error:', e)
@@ -262,11 +256,31 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: false, error: message }), { status: 502, headers: CORS })
   }
 
+  // Duplicate-detection runs AFTER extraction, as plain code, deliberately
+  // decoupled from the Claude call that determines dates. An earlier version
+  // handed the existing-events list to that same extraction call and asked
+  // Claude to flag is_duplicate itself -- repeated real-device testing showed
+  // it would sometimes copy a date straight off a matching existing title
+  // instead of correctly leaving "date" null, which then made an undated
+  // event look like a genuine duplicate. Keeping the existing-events list
+  // out of the extraction prompt entirely makes that failure mode
+  // structurally impossible, not just discouraged by instruction.
+  const lookbackDate = new Date()
+  lookbackDate.setDate(lookbackDate.getDate() - 14)
+  const { data: existingEvents } = await supabase
+    .from('family_events')
+    .select('title, event_date')
+    .eq('family_id', familyId)
+    .gte('event_date', lookbackDate.toISOString().split('T')[0])
+    .limit(100)
+
+  const withDuplicates = markDuplicates(events, existingEvents ?? [])
+
   // Duplicates are kept in the response (with is_duplicate: true) rather than
   // dropped -- the client surfaces them as "already on your calendar" instead
   // of auto-adding or showing an editable card, so re-sharing the same
   // content isn't silent about what happened to it.
-  return new Response(JSON.stringify({ ok: true, events }), {
+  return new Response(JSON.stringify({ ok: true, events: withDuplicates }), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 })
