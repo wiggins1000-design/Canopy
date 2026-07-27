@@ -296,7 +296,6 @@ export default function NewEventSheet({ open, onClose, initialDate }) {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={handleFileChange}
           />
