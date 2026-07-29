@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useNavigate } from 'react-router-dom'
-import { validateEmail, validateUrl } from '../lib/validationUtils'
+import { validateEmail, validateUrl, mergeExtractedSchoolInfo } from '../lib/validationUtils'
 import { firstName } from '../lib/childUtils'
 import { useSessionActivity } from '../context/SessionActivityContext'
 import { useLocale } from '../hooks/useLocale'
@@ -656,6 +656,10 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
     if (!d.school_url) return
     setExtracting(true)
     setExtractResult(null)
+    // Capture BEFORE save() — save() advances originalSchoolUrl.current to the new
+    // URL, so this is the only point we can tell "genuinely switched schools" apart
+    // from "re-syncing the same school to fill in gaps."
+    const schoolChanged = originalSchoolUrl.current && normaliseUrl(originalSchoolUrl.current) !== normaliseUrl(d.school_url)
     // Save URL first so edge function can read it
     await save()
     let invokeResult
@@ -691,16 +695,7 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
       return
     }
     const info = res?.school_info ?? {}
-    // Merge extracted fields into local state (only fill blanks)
-    setD((prev) => ({
-      ...prev,
-      school_name:    prev.school_name    || info.school_name    || prev.school_name,
-      school_address: prev.school_address || info.school_address || prev.school_address,
-      school_phone:   prev.school_phone   || info.school_phone   || prev.school_phone,
-      school_email:   prev.school_email   || info.school_email   || prev.school_email,
-      head_teacher:   prev.head_teacher   || info.head_teacher   || prev.head_teacher,
-      hours:          prev.hours          || info.school_hours   || prev.hours,
-    }))
+    setD((prev) => mergeExtractedSchoolInfo(prev, info, schoolChanged))
     onExtracted?.({
       school_name:    info.school_name,
       school_address: info.school_address,
@@ -711,7 +706,9 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
     const fieldLabels = { school_name: 'school name', school_address: 'address', school_phone: 'phone', school_email: 'email', head_teacher: 'headteacher', school_hours: 'school hours' }
     const missing = Object.entries(fieldLabels)
       .filter(([k]) => {
-        const prev = data?.[k === 'school_hours' ? 'hours' : k]
+        // On a school change, the old value was just cleared above — don't let the
+        // stale prop make an actually-missing field look "already known."
+        const prev = schoolChanged ? null : data?.[k === 'school_hours' ? 'hours' : k]
         const got  = info[k]
         return !prev && !got
       })

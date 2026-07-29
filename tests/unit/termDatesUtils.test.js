@@ -143,6 +143,17 @@ describe('buildTermDaysMap', () => {
     expect(map.get('2024-10-21')).toHaveLength(2)
     expect(map.get('2024-10-22')).toHaveLength(2)
   })
+
+  it('regression: name-variants of the same school (punctuation/suffix drift) collapse to one entry', () => {
+    // Real bug: two siblings' Info Bank records for the identical school captured
+    // as "St. Nicholas" vs "St Nicholas" (e.g. one rescraped with an official-name
+    // suffix) showed up as two separately-coloured schools on the calendar.
+    const map = buildTermDaysMap([
+      { event_date: '2024-10-21', end_date: null, title: 'INSET Day', source_subject: 'St. Nicholas' },
+      { event_date: '2024-10-21', end_date: null, title: 'INSET Day', source_subject: 'St Nicholas C of E Primary School' },
+    ])
+    expect(map.get('2024-10-21')).toHaveLength(1)
+  })
 })
 
 describe('validateManualEntry', () => {

@@ -20,22 +20,42 @@ export function typePriority(type) {
   return type === 'inset' ? 2 : type === 'holiday' ? 1 : 0
 }
 
+// Canonical grouping key for a school name — collapses trivial formatting
+// differences (a stray period, extra whitespace, capitalisation, an official-name
+// suffix a rescrape added) that would otherwise register as a second school. Real
+// bug this fixes: two siblings' Info Bank school records for the identical school
+// captured as "St. Nicholas" vs "St Nicholas" showed up as two separately-coloured
+// schools on the calendar instead of one.
+export function canonicalSchoolKey(name) {
+  const short = shortSchoolName(name) || name || 'School'
+  return short.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
+}
+
 // Converts a flat array of DB family_event rows (source='term_dates') into a
 // Map<dateStr, Array<{type, schoolIndex, schoolName}>> that the calendar uses.
 export function buildTermDaysMap(events) {
   const rows = events ?? []
 
-  // Stable school indices: alphabetical sort so school 0 is always the same school
-  const rawNames = [...new Set(rows.map(e => e.source_subject ?? 'School'))]
-  rawNames.sort()
-  const schoolIndex = Object.fromEntries(rawNames.map((name, i) => [name, i]))
+  // Stable school indices: group by canonical key (not the raw name) so name-variant
+  // duplicates of the same school share one index/colour. Sort by key so school 0 is
+  // always the same school run to run.
+  const byKey = new Map() // canonicalKey -> display name (first raw name seen, shortened)
+  for (const e of rows) {
+    const raw = e.source_subject ?? 'School'
+    const key = canonicalSchoolKey(raw)
+    if (!byKey.has(key)) byKey.set(key, shortSchoolName(raw) || raw)
+  }
+  const sortedKeys = [...byKey.keys()].sort()
+  const schoolIndex = Object.fromEntries(sortedKeys.map((key, i) => [key, i]))
 
   const map = new Map()
   for (const event of rows) {
     const type = classifyTermEvent(event.title, event.end_date)
     if (!type) continue
-    const schoolName = event.source_subject ?? 'School'
-    const idx = schoolIndex[schoolName] ?? 0
+    const raw = event.source_subject ?? 'School'
+    const key = canonicalSchoolKey(raw)
+    const idx = schoolIndex[key] ?? 0
+    const schoolName = byKey.get(key)
     const start = new Date(event.event_date + 'T00:00:00')
     const end   = event.end_date
       ? new Date(event.end_date + 'T00:00:00')

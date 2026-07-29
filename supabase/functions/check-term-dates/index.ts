@@ -239,6 +239,9 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
     let termDates: any[] = cachedDates
     let resolvedSchoolName: string | null = (cached as any)?.school_name ?? null
     let resolvedLowConfidence: boolean = (cached as any)?.low_confidence ?? false
+    // Stable identity for this school regardless of what name it resolves to on any
+    // given scrape — see the school_calendar_id note on applyTermDatesToFamily below.
+    let calendarId: string | null = (cached as any)?.id ?? null
 
     if (!cached || isStale || forceRefresh) {
       const existingHash = forceRefresh ? null : ((cached as any)?.content_hash ?? null)
@@ -267,7 +270,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
         // parent adds the school in Info Bank, upserting it into this same row keyed by homepage_url.
         // The term-dates page/PDF Claude reads here often doesn't repeat the name at all, and writing
         // scraped.schoolName directly was overwriting that already-good name with null on every sync.
-        await supabase.from('school_calendars').upsert({
+        const { data: upserted } = await supabase.from('school_calendars').upsert({
           homepage_url:     homepageUrl,
           term_dates_url:   scraped.termDatesUrl,
           school_name:      resolvedSchoolName,
@@ -279,7 +282,8 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
           scrape_error:     null,
           scrape_error_at:  null,
           scrape_diagnosis: null,
-        }, { onConflict: 'homepage_url' })
+        }, { onConflict: 'homepage_url' }).select('id').single()
+        if (upserted) calendarId = (upserted as any).id
       }
     }
 
@@ -287,7 +291,7 @@ async function processSchool(homepageUrl: string, familyIds: string[], forceRefr
 
     let totalAdded = 0
     for (const familyId of familyIds) {
-      const added = await applyTermDatesToFamily(familyId, termDates, resolvedSchoolName)
+      const added = await applyTermDatesToFamily(familyId, termDates, resolvedSchoolName, calendarId)
       if (added > 0) {
         await postTermDatesNotice(familyId, added, resolvedSchoolName)
       }
@@ -1324,17 +1328,34 @@ function isSchoolClosedEvent(title: string, locale: string): boolean {
 
 // ── Apply to family ───────────────────────────────────────────────────────────
 
-async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null): Promise<number> {
+async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null, calendarId: string | null): Promise<number> {
   const sourceSubject = schoolName ?? 'School term dates'
 
-  // Clean replace: wipe all existing term dates for this school (and the generic fallback
-  // name used when school name wasn't detected) before inserting the fresh extraction.
-  // This prevents duplicates when the source_subject name changes between scrape runs.
+  // Clean replace: wipe all existing term dates for this school before inserting the
+  // fresh extraction. Real bug this fixes: the OLD version of this cleanup matched only
+  // on the CURRENT resolved sourceSubject text, so if a re-scrape resolved a different
+  // exact name for the identical school/URL (LLM extraction isn't byte-for-byte
+  // deterministic across runs, and a site can present its name differently in different
+  // places) the previous batch under the old name was never deleted — it just sat there
+  // as a permanent, undeletable "phantom" duplicate school on the calendar. Deleting by
+  // calendar_id instead is immune to that, since it's this school's stable identity
+  // regardless of what name it resolves to on any given scrape.
+  if (calendarId) {
+    await supabase.from('family_events')
+      .delete()
+      .eq('family_id', familyId)
+      .eq('source', 'term_dates')
+      .eq('school_calendar_id', calendarId)
+  }
+  // Legacy fallback: events created before this function stamped school_calendar_id (or
+  // the generic fallback name used when school name wasn't detected) have no calendar_id
+  // to match on, so still clean those up by name.
   for (const subject of [...new Set([sourceSubject, 'School term dates'])]) {
     await supabase.from('family_events')
       .delete()
       .eq('family_id', familyId)
       .eq('source', 'term_dates')
+      .is('school_calendar_id', null)
       .eq('source_subject', subject)
   }
 
@@ -1352,12 +1373,13 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
     if (String(event.date) < cutoffStr) continue
 
     const { error } = await supabase.rpc('create_family_event', {
-      p_family_id:      familyId,
-      p_title:          event.title,
-      p_event_date:     event.date,
-      p_end_date:       event.end_date ?? null,
-      p_source:         'term_dates',
-      p_source_subject: sourceSubject,
+      p_family_id:          familyId,
+      p_title:              event.title,
+      p_event_date:         event.date,
+      p_end_date:           event.end_date ?? null,
+      p_source:             'term_dates',
+      p_source_subject:     sourceSubject,
+      p_school_calendar_id: calendarId,
     })
 
     if (error) {

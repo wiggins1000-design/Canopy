@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { useFamily } from '../../context/FamilyContext'
 import { useLocale } from '../../hooks/useLocale'
+import { canonicalSchoolKey } from '../../lib/termDatesUtils'
 import Button from '../ui/Button'
 import BottomSheet from '../ui/BottomSheet'
 
@@ -43,7 +44,7 @@ export default function TermDatesSection({ onNewDates }) {
   const [editSaving, setEditSaving]   = useState(false)
 
   // Inspect sheet — delete school
-  const [deleteSchoolTarget, setDeleteSchoolTarget] = useState(null) // { school, count }
+  const [deleteSchoolTarget, setDeleteSchoolTarget] = useState(null) // { school, count, rawNames }
   const [deleteSchoolDeleting, setDeleteSchoolDeleting] = useState(false)
 
   // Inspect sheet — inline add
@@ -101,17 +102,21 @@ export default function TermDatesSection({ onNewDates }) {
 
   useEffect(() => { onNewDates?.(hasNewDates) }, [hasNewDates])
 
-  // School options derived from KB data + previously used names in existing events
+  // School options derived from KB data + previously used names in existing events.
+  // Deduped by canonical key so a name-variant of the same school (e.g. "St. Nicholas"
+  // vs "St Nicholas" from two siblings' Info Bank records) doesn't offer two near-
+  // identical picker entries — see canonicalSchoolKey in termDatesUtils.js.
   const schoolOptions = useMemo(() => {
-    const opts = new Set()
+    const byKey = new Map()
     for (const cal of kbData ?? []) {
       const name = cal.school_name ?? cal.homepage_url
-      if (name) opts.add(name)
+      if (name && !byKey.has(canonicalSchoolKey(name))) byKey.set(canonicalSchoolKey(name), name)
     }
     for (const ev of events) {
-      if (ev.source_subject) opts.add(ev.source_subject)
+      const name = ev.source_subject
+      if (name && !byKey.has(canonicalSchoolKey(name))) byKey.set(canonicalSchoolKey(name), name)
     }
-    return [...opts]
+    return [...byKey.values()]
   }, [kbData, events])
 
   // Set default school picker value once options are available
@@ -462,12 +467,12 @@ export default function TermDatesSection({ onNewDates }) {
   async function deleteSchool() {
     if (!deleteSchoolTarget) return
     setDeleteSchoolDeleting(true)
-    const { school } = deleteSchoolTarget
+    const { rawNames } = deleteSchoolTarget
     await supabase.from('family_events').delete()
       .eq('family_id', family.id)
       .eq('source', 'term_dates')
-      .eq('source_subject', school)
-    setEvents(p => p.filter(e => e.source_subject !== school))
+      .in('source_subject', rawNames)
+    setEvents(p => p.filter(e => !rawNames.includes(e.source_subject)))
     setDeleteSchoolDeleting(false)
     setDeleteSchoolTarget(null)
   }
@@ -525,17 +530,25 @@ export default function TermDatesSection({ onNewDates }) {
   }, [events])
 
   const schoolCount = useMemo(() => {
-    return new Set(events.map(e => e.source_subject).filter(Boolean)).size
+    return new Set(events.map(e => e.source_subject).filter(Boolean).map(canonicalSchoolKey)).size
   }, [events])
 
+  // Grouped by canonical key, not the raw source_subject, so a name-variant of the
+  // same school (e.g. two siblings' records for "St. Nicholas" vs "St Nicholas")
+  // shows as one group instead of two — see canonicalSchoolKey in termDatesUtils.js.
+  // rawNames tracks every literal source_subject folded into this group, since
+  // "Delete all" needs to remove rows under any of them, not just one exact string.
   const groupedEvents = useMemo(() => {
-    const groups = {}
+    const groups = new Map() // canonicalKey -> { label, events, rawNames: Set }
     for (const ev of events) {
-      const label = ev.source_subject || ''
-      if (!groups[label]) groups[label] = []
-      groups[label].push(ev)
+      const raw = ev.source_subject || ''
+      const key = canonicalSchoolKey(raw)
+      if (!groups.has(key)) groups.set(key, { label: raw, events: [], rawNames: new Set() })
+      const g = groups.get(key)
+      g.events.push(ev)
+      g.rawNames.add(raw)
     }
-    return Object.entries(groups)
+    return [...groups.values()].map(g => [g.label, g.events, [...g.rawNames]])
   }, [events])
 
   const msgCls = t => t === 'error' ? 'text-red-600' : t === 'success' ? 'text-green-600' : 'text-gray-500'
@@ -580,14 +593,14 @@ export default function TermDatesSection({ onNewDates }) {
       {/* Inspect bottom sheet */}
       <BottomSheet open={showInspect} onClose={() => { setShowInspect(false); setEditingId(null); setShowInspectAdd(false); setDeleteSchoolTarget(null) }} title="Term Dates">
         <div className="px-4 py-3 space-y-4">
-          {groupedEvents.map(([school, evs]) => (
+          {groupedEvents.map(([school, evs, rawNames]) => (
             <div key={school}>
               {groupedEvents.length > 1 && (
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{school}</p>
                   {isParent && school && deleteSchoolTarget?.school !== school && (
                     <button
-                      onClick={() => setDeleteSchoolTarget({ school, count: evs.length })}
+                      onClick={() => setDeleteSchoolTarget({ school, count: evs.length, rawNames })}
                       className="text-xs text-red-400 hover:text-red-600"
                     >
                       Delete all
