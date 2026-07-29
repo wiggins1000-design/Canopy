@@ -111,13 +111,14 @@ export async function setupMocks(page, overrides = {}) {
 
     // ── Core family data ──────────────────────────────────────────────────────
     if (url.includes('/rest/v1/family_members')) {
-      return route.fulfill(json(wantsSingle ? MOCK_MEMBER : [MOCK_MEMBER]))
+      return route.fulfill(json(wantsSingle ? (overrides.member ?? MOCK_MEMBER) : (overrides.members ?? [MOCK_MEMBER])))
     }
     if (url.includes('/rest/v1/families')) {
       return route.fulfill(json(wantsSingle ? MOCK_FAMILY : [MOCK_FAMILY]))
     }
     if (url.includes('/rest/v1/baseline_schedules')) {
-      return route.fulfill(json(wantsSingle ? null : []))
+      const row = overrides.schedule ?? null
+      return route.fulfill(json(wantsSingle ? row : (row ? [row] : [])))
     }
 
     // ── Term dates (family_events source=term_dates) ──────────────────────────
