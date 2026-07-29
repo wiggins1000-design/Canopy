@@ -162,7 +162,7 @@ export default function LoginPage() {
 
         {/* Store badges — only meaningful on the web version. Pointless — and
             confusing — inside a native build someone already has installed,
-            so hidden there. iOS went live 2026-07-27 (Google Play still pending). */}
+            so hidden there. Both platforms live 2026-07-29. */}
         {!isNativePlatform() && (
           <div className="flex items-center justify-center gap-3 mt-6">
             <a href="https://apps.apple.com/app/canopy-family/id6782702920" target="_blank" rel="noopener noreferrer">
@@ -172,34 +172,17 @@ export default function LoginPage() {
                 className="h-10"
               />
             </a>
-            <StoreBadge icon={<PlayIcon />} label="Google Play" />
+            <a href="https://play.google.com/store/apps/details?id=app.canopy.app&hl=en_GB" target="_blank" rel="noopener noreferrer">
+              <img
+                src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                alt="Get it on Google Play"
+                className="h-10"
+              />
+            </a>
           </div>
         )}
       </div>
     </div>
-  )
-}
-
-function StoreBadge({ icon, label }) {
-  return (
-    <div className="flex items-center gap-2 bg-white/70 border border-gray-200 rounded-xl px-3.5 py-2 text-gray-400">
-      {icon}
-      <div className="leading-tight">
-        <p className="text-[9px] uppercase tracking-wide">Coming soon</p>
-        <p className="text-xs font-semibold text-gray-500">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-function PlayIcon() {
-  return (
-    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M3.6 2.24c-.34.34-.54.86-.54 1.53v16.46c0 .67.2 1.19.54 1.53l.1.08L13.03 12v-.24L3.7 2.16l-.1.08z"/>
-      <path d="M16.1 15.1l-3.07-3.07V12v-.24l3.07-3.07 6.94 3.94c.94.53.94 1.4 0 1.93l-6.94 3.94z"/>
-      <path d="M13.03 12L3.7 21.76c.34.36.9.4 1.53.06l10.87-6.18-3.07-3.64z"/>
-      <path d="M13.03 12l3.07-3.64L5.23 2.18c-.63-.35-1.19-.3-1.53.06L13.03 12z"/>
-    </svg>
   )
 }
 
