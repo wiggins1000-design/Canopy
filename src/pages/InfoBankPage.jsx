@@ -521,14 +521,24 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
   }
   const showSameSchoolPrompt = isParent && !d.school_name && !d._school_prompt_dismissed && siblingSchoolGroups.length > 0
 
-  function applySameSchool(group) {
+  async function applySameSchool(group) {
+    // Capture BEFORE onSave — same reason as extractSchoolInfo's schoolChanged capture:
+    // this is the only point we can tell "genuinely switched schools" apart from a no-op.
+    const prevUrl  = originalSchoolUrl.current
+    const prevName = originalSchoolName.current
     const SHARED = ['school_name', 'school_address', 'school_phone', 'school_email', 'head_teacher', 'hours', 'school_url']
     const patch = Object.fromEntries(SHARED.map((k) => [k, group.source[k] ?? '']))
     const next = { ...d, ...patch, _school_prompt_dismissed: true }
     setD(next)
-    onSave(next)
+    const { error } = await onSave(next)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+    // Real bug this fixes: this "same school as sibling" shortcut used to call onSave
+    // directly and skip straight past the stale-old-school-dates check entirely (unlike
+    // the manual URL-edit path via save()) — so switching a child BACK to a school a
+    // sibling is already at (the natural way to do it) never offered to clean up the
+    // previous school's now-orphaned term dates.
+    if (!error) await checkForStaleOldSchool(prevUrl, prevName, next.school_url, next.school_name)
   }
 
   function dismissSameSchoolPrompt() {
@@ -631,6 +641,18 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
     setSchoolChangePrompt(null)
   }
 
+  // Shared by save() and applySameSchool() — both are ways a school can genuinely
+  // change, and both must offer to clean up the PREVIOUS school's now-stale dates.
+  async function checkForStaleOldSchool(prevUrl, prevName, newUrl, newName) {
+    const oldNorm = normaliseUrl(prevUrl)
+    const newNorm = normaliseUrl(newUrl)
+    if (oldNorm && newNorm && oldNorm !== newNorm) {
+      await checkSchoolChange(oldNorm, prevName)
+    } else if (prevName && newName && prevName !== newName) {
+      await checkNameChange(prevName)
+    }
+  }
+
   async function save() {
     const prevUrl  = originalSchoolUrl.current
     const prevName = originalSchoolName.current
@@ -643,11 +665,10 @@ function SchoolSection({ data, isParent, familyId, childName, siblingSchools = [
       if (oldNorm && newNorm && oldNorm !== newNorm) {
         originalSchoolUrl.current  = d.school_url
         originalSchoolName.current = d.school_name ?? ''
-        await checkSchoolChange(oldNorm, prevName)
       } else if (prevName && d.school_name && prevName !== d.school_name) {
         originalSchoolName.current = d.school_name
-        await checkNameChange(prevName)
       }
+      await checkForStaleOldSchool(prevUrl, prevName, d.school_url, d.school_name)
     }
     return { error }
   }
