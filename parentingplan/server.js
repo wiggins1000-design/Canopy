@@ -21,6 +21,8 @@ const MIME = {
   '.woff': 'font/woff',
   '.json': 'application/json',
   '.webp': 'image/webp',
+  '.xml':  'application/xml',
+  '.txt':  'text/plain; charset=utf-8',
 }
 
 createServer((req, res) => {
