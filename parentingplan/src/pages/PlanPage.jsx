@@ -10,6 +10,7 @@ import PlanVersionHistory from '../components/PlanVersionHistory'
 import PlanPaywall from '../components/PlanPaywall'
 import { encodePlanHandoff } from '../lib/planHandoff'
 import { REACHED_PAYWALL_KEY, REACHED_PAYWALL_EVENT } from '../hooks/usePlanSave'
+import { useSeo } from '../hooks/useSeo'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -214,6 +215,11 @@ const STEP_KEY = 'pp_step'
 const VISITED_KEY = 'pp_visited'
 
 export default function PlanPage({ planId, planSaving }) {
+  useSeo({
+    title: 'Build Your Parenting Plan | parentingplan.help',
+    description: 'Work through 8 guided sections to build a parenting plan you both agree on — schedule, holidays, health, education, money, and more. Free to start.',
+    path: '/plan',
+  })
   // Resume wherever the user left off rather than always restarting at Step 1
   // - matters most for the Stripe checkout round-trip (a full page redirect
   // away and back), which would otherwise lose all step progress on return.

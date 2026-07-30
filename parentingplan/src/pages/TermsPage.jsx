@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useSeo } from '../hooks/useSeo'
 
 function Section({ n, title, children }) {
   return (
@@ -10,6 +11,11 @@ function Section({ n, title, children }) {
 }
 
 export default function TermsPage() {
+  useSeo({
+    title: 'Terms of Use | parentingplan.help',
+    description: 'Terms of use for parentingplan.help.',
+    path: '/terms',
+  })
   return (
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" }}>
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useSeo } from '../hooks/useSeo'
 
 function Section({ n, title, children }) {
   return (
@@ -10,6 +11,11 @@ function Section({ n, title, children }) {
 }
 
 export default function PrivacyPage() {
+  useSeo({
+    title: 'Privacy Policy | parentingplan.help',
+    description: 'How parentingplan.help collects, uses, and protects your data.',
+    path: '/privacy',
+  })
   return (
     <div className="min-h-screen bg-white text-gray-900" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" }}>
 

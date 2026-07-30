@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { useSeo } from '../hooks/useSeo'
 
 export default function JoinPage() {
+  useSeo({ title: 'Join your parenting plan | parentingplan.help', path: '/join', noindex: true })
   const { user, loading } = useAuth()
   const navigate = useNavigate()
   const [planId]          = useState(() => new URLSearchParams(window.location.search).get('plan_id'))

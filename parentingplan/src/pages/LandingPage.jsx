@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useSeo } from '../hooks/useSeo'
 
 const SECTIONS = [
   { icon: '📅', title: 'The schedule',                   desc: 'Alternating weeks, 2-2-5-5, 2-2-3, or fully custom — with a visual 14-day preview.' },
@@ -24,6 +25,11 @@ const DRAFTS = [
 ]
 
 export default function LandingPage() {
+  useSeo({
+    title: 'Free Parenting Plan Builder | parentingplan.help',
+    description: 'Create a clear, fair parenting plan in minutes — free, no login required. Covers schedule, holidays, health, education, money and more.',
+    path: '/',
+  })
   const navigate = useNavigate()
   const [hasDraft, setHasDraft] = useState(false)
 

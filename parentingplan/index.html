@@ -23,6 +23,32 @@
     <!-- Warm up Supabase connection before JS loads -->
     <link rel="preconnect" href="https://zhxuegizpmukynifstuu.supabase.co" />
     <link rel="dns-prefetch" href="https://zhxuegizpmukynifstuu.supabase.co" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://parentingplan.help/#organization",
+          "name": "Chrysalis Works Ltd",
+          "url": "https://parentingplan.help",
+          "email": "hello@canopy-app.app",
+          "sameAs": ["https://canopy-app.app"]
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://parentingplan.help/#app",
+          "name": "Parenting Plan Builder",
+          "description": "Create a clear, fair parenting plan in minutes — free, no login required. Covers schedule, holidays, health, education, money and more.",
+          "url": "https://parentingplan.help",
+          "applicationCategory": "LifestyleApplication",
+          "operatingSystem": "Any (web browser)",
+          "isAccessibleForFree": true,
+          "publisher": { "@id": "https://parentingplan.help/#organization" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
