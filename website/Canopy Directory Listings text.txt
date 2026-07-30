@@ -1,0 +1,80 @@
+CORE FACTS (reference for filling out any directory not listed below)
+----------------------------------
+Name: Canopy
+Tagline: Share what matters.
+One-liner: A private family app for shared schedules, school updates, and everything about your kids — in one secure place.
+Category: Family / Parenting / Scheduling / Co-parenting software
+Platforms: iOS, Android, Web (PWA)
+Pricing: Freemium — 10-day free trial, then £6.99/month or £69.99/year, one price for the whole family (not per-parent)
+Website: https://canopy-app.app
+App Store: https://apps.apple.com/app/canopy-family/id6782702920
+Google Play: https://play.google.com/store/apps/details?id=app.canopy.app
+Support/FAQ: https://canopy-app.app/faq.html
+Company: Chrysalis Works Ltd (UK)
+Alternative to / competitors: OurFamilyWizard, TalkingParents, AppClose, 2houses, Custody X Change
+
+
+PRODUCT HUNT
+----------------------------------
+Tagline (60 char limit):
+The private family app for shared custody & school life
+
+Description (260 char limit):
+Canopy keeps co-parents and families on the same page — shared custody calendar, school term dates auto-imported, notice board, secure document vault, and expense tracking. One subscription covers the whole family, not per-parent.
+
+Topics/tags: Parenting, Family, Productivity, Scheduling
+
+First comment (from the maker, posted at launch):
+Hi Product Hunt — I built Canopy after seeing how much of co-parenting life gets lost across group chats, paper calendars, and a dozen different apps. Canopy pulls it into one private place: a shared custody calendar that handles school term dates automatically (AI reads forwarded school emails and adds events for you), a notice board, a secure document vault for things like passports and court orders, and expense tracking. It works for any family, not just separated ones — but a few features (First Right of Refusal, custody schedule patterns, expense splitting) were built specifically with co-parents in mind. Free 10-day trial, then one price covers the whole family. Would love your feedback!
+
+
+ALTERNATIVETO
+----------------------------------
+Short description (one-liner):
+A private family app for shared custody schedules, school updates, and secure document storage.
+
+Description (longer):
+Canopy is a private parenting app that keeps everyone who cares for your children on the same page. It works for any family, with several features built specifically for co-parents: a shared custody calendar with configurable rotation patterns (alternating weeks, 2-2-5-5, 2-2-3, or custom), First Right of Refusal offers, and expense splitting. Every family also gets a notice board, automatic school term-dates import (AI reads forwarded school emails), a secure encrypted document vault, children's info bank, and read-only access for grandparents or carers. One subscription covers the whole family — no per-parent fees.
+
+Tags: co-parenting, custody, family-calendar, parenting, scheduling, private, family-organizer
+
+Alternative to (list these existing AlternativeTo entries if present, otherwise suggest new): OurFamilyWizard, TalkingParents, 2houses, AppClose, Custody X Change, Cozi
+
+License model: Freemium / Subscription
+
+
+SAASHUB
+----------------------------------
+Tagline: The private family app for shared custody & school life
+
+Description:
+Canopy helps co-parents and families manage shared custody schedules, school updates, and important child records in one secure app. Automatic term-dates import, a family notice board, encrypted document vault, expense tracking, and First Right of Refusal offers — all under one subscription that covers the whole family.
+
+Category: Family Management / Scheduling Software / Co-Parenting Apps
+
+Competitors/alternatives to list against: OurFamilyWizard, TalkingParents, 2houses, AppClose
+
+
+CAPTERRA / G2
+----------------------------------
+Note: both require creating/claiming a vendor listing through their own portal (Capterra Vendor sign-up, G2 "Claim your profile") — this is a manual account-based process on your end, not something submittable via a text form. Once claimed, use this copy:
+
+Category: Family/Household Management Software (Capterra) — closest G2 category is typically "Scheduling" or "Family Safety" depending on what's available at signup time; check current options.
+
+Short description:
+Canopy is a private parenting app for shared custody scheduling, school updates, and secure family record-keeping — built for co-parents and any family managing children's schedules together.
+
+Features list (for the features checklist most listings require):
+- Shared calendar / custody schedule
+- Automated school term-dates import
+- Push notifications
+- Document storage (encrypted)
+- Expense tracking / splitting
+- In-app messaging
+- Multi-user / read-only roles
+- Mobile app (iOS + Android)
+- Data export
+
+Pricing tier to list: £6.99/mo or £69.99/yr, family-wide (not per-seat)
+
+Reminder: review-driven sites like these only become useful for AI-citation once genuine user reviews accumulate — nothing to fake here, just worth prompting real happy users to leave one once the listing is live.

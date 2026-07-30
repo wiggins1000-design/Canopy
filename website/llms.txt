@@ -1,0 +1,36 @@
+# Canopy
+
+> Canopy is a private parenting app for managing shared schedules, notices, and everything important about your children in one secure place. Built for families of all kinds, with several features especially useful for co-parents managing custody across two homes.
+
+Canopy is built and operated by Chrysalis Works Ltd, a UK company. It is available as an iOS app, an Android app, and an installable web app, with support for users in the UK, Ireland, Australia, the US, and New Zealand. Pricing is £6.99/month or £69.99/year, one subscription covering both parents and any read-only members added (grandparents, carers) — no per-person charges. There is a 10-day free trial with no credit card required.
+
+## Key features
+- Shared custody calendar, including automatic term-dates import from school websites for multiple children/schools
+- Notice board for family-wide updates
+- Children's Info Bank — school details, medical info, personal info (with per-field last-updated tracking)
+- Secure document vault (passports, court orders, medical letters, school reports) — AES-256 encryption at rest, signed expiring download links
+- Parenting schedule with handover tracking, right-of-first-refusal offers, and schedule change requests
+- Shared childcare/expense tracking and billing
+- Topic-based private messaging between parents (not visible to read-only members)
+- AI-powered import of school newsletters and event flyers (forwarded email or photo) directly into the calendar
+- Per-child PE/sport kit day tracking
+- Daily evening push reminder listing tomorrow's events, sent to whichever parent has the children that night
+- iCal calendar feed for subscribing from Google Calendar, Outlook, or Apple Calendar
+- Read-only access for grandparents/carers, with granular per-feature sharing controls
+
+## Data & privacy
+All data is hosted on infrastructure in London, UK, in a single region, regardless of which country the user is in. Row-level security is enforced at the database level so families can only ever access their own data. Canopy is funded entirely by subscriptions — no advertising, no data sales. Operated by Chrysalis Works Ltd, registered with the UK ICO as a data controller under UK GDPR.
+
+## Pages
+- [Homepage](https://canopy-app.app/): overview, features, pricing
+- [FAQ](https://canopy-app.app/faq.html): detailed Q&A on security, data storage, features, calendar import, subscription
+- [Privacy Policy](https://canopy-app.app/privacy.html): full UK GDPR privacy policy
+- [Terms of Use](https://canopy-app.app/terms.html): terms of service
+- [Company](https://canopy-app.app/company.html): legal entity details
+
+## Apps
+- [iOS App Store listing](https://apps.apple.com/app/canopy-family/id6782702920)
+- [Google Play listing](https://play.google.com/store/apps/details?id=app.canopy.app)
+
+## Related
+- [Free Parenting Plan Builder](https://parentingplan.help): a free, no-login-required collaborative tool for separating parents to draft a parenting plan together, built by the same team — a common first step before adopting Canopy itself.

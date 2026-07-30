@@ -36,6 +36,18 @@ const LOCALE_TIMEZONE_FALLBACK: Record<string, string> = {
   'en-US': 'America/New_York',
 }
 
+// Ported, not shared, from src/lib/termDatesUtils.js's classifyTermEvent —
+// Deno edge functions can't import the browser bundle. If that file's
+// classification rules ever change, this copy needs updating too.
+const INSET_RE = /\b(inset|baker\s+day|occasional\s+day|pd\s+day|professional\s+development|teacher\s+work\s?day|non.?student\s+day|records?\s+day|pupil.?free|student.?free|curriculum\s+day|school\s+development\s+day|staff\s+development|in.?service)\b/
+
+function isClosureEvent(title: string, endDate: string | null): boolean {
+  const lower = (title ?? '').toLowerCase()
+  if (INSET_RE.test(lower)) return true
+  if (endDate) return true
+  return lower.includes('bank holiday') || lower.includes('closed')
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -96,7 +108,10 @@ async function processFamily(family: { id: string; config: any }, nowUtc: Date) 
     supabase.from('fror_offers').select('*').eq('family_id', family.id),
     supabase.from('family_events').select('title, event_time').eq('family_id', family.id).eq('event_date', tomorrowStr).order('event_time', { ascending: true, nullsFirst: false }),
     supabase.from('info_bank').select('child_name, data').eq('family_id', family.id).eq('section', 'school'),
-    supabase.from('family_events').select('id').eq('family_id', family.id).eq('event_date', tomorrowStr).eq('source', 'term_dates'),
+    // Holidays/half-terms are multi-day (event_date..end_date) — need every
+    // term_dates row that could still be spanning tomorrow, not just an exact
+    // event_date match (that only ever caught a holiday's first day).
+    supabase.from('family_events').select('title, event_date, end_date').eq('family_id', family.id).eq('source', 'term_dates').lte('event_date', tomorrowStr),
   ])
 
   // Who has the kids tonight (today's date) — they're the ones who need to know
@@ -106,7 +121,9 @@ async function processFamily(family: { id: string; config: any }, nowUtc: Date) 
 
   // PE days are a recurring weekday pattern — suppress if tomorrow is already a
   // school-closure day (holiday or INSET/PD/curriculum day etc.).
-  const isHolidayTomorrow = (termDatesTomorrow ?? []).length > 0
+  const isHolidayTomorrow = (termDatesTomorrow ?? []).some((r: any) =>
+    isClosureEvent(r.title, r.end_date) && tomorrowStr <= (r.end_date ?? r.event_date)
+  )
   const tomorrowWeekday = new Date(`${tomorrowStr}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
   const peKids = isHolidayTomorrow ? [] : (schoolRows ?? [])
     .filter((r: any) => r.data?.pe_days?.includes(tomorrowWeekday))

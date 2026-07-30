@@ -1,0 +1,21 @@
+# Parenting Plan Builder — parentingplan.help
+
+> A free, collaborative tool that helps two separating parents build a parenting plan together — no account required to start.
+
+Built by Chrysalis Works Ltd, the same UK company behind Canopy (a private family/co-parenting app). parentingplan.help guides each parent through 8 sections — schedule, handovers & school holidays, special occasions & travel, digital life & communication, childcare & family, education & health, decisions & money — plus a generated summary. Each parent writes their own proposals; the other reviews and revises until both agree, with AI guidance flagging gaps or conflicts along the way. Supports UK, Scotland, Ireland, US, Australia, Canada, and other jurisdictions, with locale-specific fields (e.g. US legal custody type, domestic travel provisions). The finished plan can be downloaded as a PDF. A small number of AI plan reviews are free; further reviews are a one-time £1.99 unlock.
+
+## How it works
+1. Parent A works through the 8 sections (no account needed)
+2. Parent A saves and shares — logs in via a passwordless magic link, invite emailed to Parent B
+3. Parent B reviews Parent A's proposals pre-filled in every step, updates anything they disagree with, submits their draft
+4. Parents go back and forth through revisions until both agree
+5. Download the agreed plan as a PDF
+
+## Pages
+- [Homepage](https://parentingplan.help/): overview and how it works
+- [Start the plan builder](https://parentingplan.help/plan): the 8-step guided tool
+- [Privacy Policy](https://parentingplan.help/privacy)
+- [Terms of Use](https://parentingplan.help/terms)
+
+## Related
+- [Canopy](https://canopy-app.app): a private family/co-parenting app for shared calendars, notices, and secure document storage, built by the same team — a natural next step after agreeing a parenting plan here.
