@@ -8,7 +8,53 @@
   <meta property="og:title" content="Canopy &ndash; Share what matters.">
   <meta property="og:description" content="A private parenting app for staying organised together. Shared calendar, notice board, children's info, and secure documents &ndash; useful for every family, and especially for co-parents.">
   <meta property="og:url" content="https://canopy-app.app">
+  <link rel="canonical" href="https://canopy-app.app/">
   <meta name="theme-color" content="#1b4332">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://canopy-app.app/#organization",
+        "name": "Chrysalis Works Ltd",
+        "url": "https://canopy-app.app/company.html",
+        "logo": "https://canopy-app.app/images/CanopyGreenLogo.gif",
+        "email": "hello@canopy-app.app",
+        "sameAs": [
+          "https://apps.apple.com/app/canopy-family/id6782702920",
+          "https://play.google.com/store/apps/details?id=app.canopy.app"
+        ]
+      },
+      {
+        "@type": "MobileApplication",
+        "@id": "https://canopy-app.app/#app",
+        "name": "Canopy",
+        "description": "Canopy is a private parenting app for managing shared schedules, notices, and everything important about your children in one secure place. Built for every family, with features co-parents especially value.",
+        "url": "https://canopy-app.app",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS, Android, Web",
+        "publisher": { "@id": "https://canopy-app.app/#organization" },
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Monthly subscription",
+            "price": "6.99",
+            "priceCurrency": "GBP",
+            "url": "https://canopy-app.app"
+          },
+          {
+            "@type": "Offer",
+            "name": "Annual subscription",
+            "price": "69.99",
+            "priceCurrency": "GBP",
+            "url": "https://canopy-app.app"
+          }
+        ]
+      }
+    ]
+  }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {

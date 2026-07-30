@@ -8,7 +8,106 @@
   <meta property="og:title" content="FAQ &ndash; Canopy">
   <meta property="og:description" content="Everything you need to know about Canopy &mdash; security, privacy, features, and pricing.">
   <meta property="og:url" content="https://canopy-app.app/faq.html">
+  <link rel="canonical" href="https://canopy-app.app/faq.html">
   <meta name="theme-color" content="#1b4332">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is my family's data safe?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Canopy is built with security as a first principle. All data travels over HTTPS and is encrypted in transit. Everything stored in our database is encrypted at rest using AES-256. Passwords are hashed using bcrypt and never stored in plain text. Row-level security means only authenticated members of your family can ever read your family's data — our staff cannot query your records. Our infrastructure runs in the UK (London), and we process data lawfully wherever you and your family are based." }
+      },
+      {
+        "@type": "Question",
+        "name": "Where is my data physically stored?",
+        "acceptedAnswer": { "@type": "Answer", "text": "In the UK. Your family's data — the database and every file in the Document Vault — is hosted on infrastructure in London, England, in a single region. This applies no matter which country you or your co-parent live in, including Ireland, Australia, the US, and New Zealand. Where this means personal data is transferred outside your home country, we put appropriate legal safeguards in place — Standard Contractual Clauses and/or the UK International Data Transfer Addendum, depending on where you're based." }
+      },
+      {
+        "@type": "Question",
+        "name": "Could my account or my child's details be hacked?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No system can guarantee zero risk, but Canopy uses the same infrastructure and security model trusted by thousands of enterprise applications worldwide. Row-level security (RLS) is enforced at the database level, so even if someone obtained your API keys, they could not read another family's data. Two-factor authentication is available in Settings. You can sign out of all devices from Settings if you ever suspect unauthorised access. Child account credentials are stored with an additional encryption layer on top of standard password hashing." }
+      },
+      {
+        "@type": "Question",
+        "name": "Do you sell our data or show us adverts?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Never. Canopy is funded entirely by subscriptions. There are no adverts in the app, no third-party advertising trackers, and we do not sell, rent, or share your data with anyone for commercial purposes. We use a small number of carefully selected sub-processors — Supabase (infrastructure), Resend (email), and Anthropic (AI features) — all bound by Data Processing Agreements." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Canopy UK GDPR compliant?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Canopy is operated by Chrysalis Works Ltd, registered with the ICO (Information Commissioner's Office) as a data controller. We process personal data lawfully under the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018. You have the right to access, correct, port, and erase your data directly in the app without contacting us." }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens to our data if we cancel?",
+        "acceptedAnswer": { "@type": "Answer", "text": "You can delete your account at any time from Settings → Account → Delete my account. Deletion is immediate and permanent — there are no grace periods. Before deleting, you can download a complete export of everything Canopy holds about your family, including calendar events, notices, information bank entries, documents, and messages." }
+      },
+      {
+        "@type": "Question",
+        "name": "How safe are my child's personal documents?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Very safe. Every file you upload is encrypted at rest with AES-256 in Supabase Storage. Row-level security is enforced at the database layer, so only authenticated members of your family group can access files. Document downloads use signed, expiring links rather than permanent guessable URLs. Canopy staff do not have routine access to your stored files and do not process document contents with AI. All storage is hosted in the UK (London)." }
+      },
+      {
+        "@type": "Question",
+        "name": "Who in our family can see the documents?",
+        "acceptedAnswer": { "@type": "Answer", "text": "By default, both parents can view and upload documents. Read-only members, like grandparents or carers, have Info Bank access (which includes documents) switched off by default — both parents must agree to grant it. Read-only members can never upload, edit, or delete documents." }
+      },
+      {
+        "@type": "Question",
+        "name": "What types of documents can I store?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Any file type is supported, including passports and ID documents, school reports and letters, medical letters and prescriptions, court orders and parenting agreements, insurance documents, and travel documents and consent forms." }
+      },
+      {
+        "@type": "Question",
+        "name": "How does the messaging feature work?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Canopy's messaging is organised around topics rather than a single chat thread, so conversations about school, medical appointments, and holidays stay separate. Messages are private between parents only — read-only members cannot see them. Push notifications alert the other parent when a new message arrives. Messaging is optional and can be enabled or disabled in Settings." }
+      },
+      {
+        "@type": "Question",
+        "name": "Will it integrate with my work calendar?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — Canopy provides a private iCal feed you can subscribe to from Outlook, Google Calendar, Apple Calendar, or any app that supports iCal/ICS subscriptions. The feed is read-only, so Canopy remains the authoritative source for your family calendar." }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the AI email feature and is it safe?",
+        "acceptedAnswer": { "@type": "Answer", "text": "When you forward a school newsletter or photograph a flyer, Canopy uses Anthropic's Claude AI to extract the events and add them to your family calendar automatically. Only the email or image you explicitly forward is sent to Anthropic, which does not retain API data for training. The feature requires your consent and can be turned off in Settings at any time." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can grandparents or carers use Canopy?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. You can invite family members as read-only members with their own login. By default they can see the calendar and notice board; access to the Info Bank, parenting schedule, and messaging requires both parents to agree in Settings." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does it work on iPhone and Android?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Canopy is available as an iOS app on the App Store, an Android app on Google Play, and a web app that can be installed directly from the browser on Chrome, Safari, or Edge. Both parents don't need to use the same device type." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a free trial?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — 10 days free, no credit card required, with access to every feature during the trial." }
+      },
+      {
+        "@type": "Question",
+        "name": "Do both parents need to pay separately?",
+        "acceptedAnswer": { "@type": "Answer", "text": "No. One subscription covers both parents and any read-only members you add. There are no per-person charges — £6.99 per month or £69.99 per year for the whole family." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I cancel at any time?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Cancel any time from the App Store (iOS) or Google Play (Android), wherever you subscribed. There are no cancellation fees, and you keep access until the end of your current billing period." }
+      },
+      {
+        "@type": "Question",
+        "name": "Do both parents need to have Canopy installed?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Both parents need an account to get the most out of Canopy — shared calendars, notices, and messaging only work if both are connected. One parent sets up the family and invites the other with a simple invite code, at no extra cost." }
+      }
+    ]
+  }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
