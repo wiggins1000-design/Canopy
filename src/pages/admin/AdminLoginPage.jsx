@@ -32,15 +32,15 @@ export default function AdminLoginPage() {
     setError(null)
     const { error } = await signInWithEmail(email, password)
     if (error) { setError(error.message); setLoading(false) }
-    // On success, session changes â†’ useEffect above verifies admin status
+    // On success, session changes → useEffect above verifies admin status
   }
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-slate-700 text-white text-2xl mb-4">
-            ðŸŒ¿
+          <div className="inline-block bg-white rounded-2xl shadow-sm px-6 py-4 mb-4">
+            <img src="/CanopyWhiteLogo.gif" alt="Canopy" className="h-12" />
           </div>
           <h1 className="text-2xl font-bold text-white">Canopy Admin</h1>
           <p className="text-slate-500 text-sm mt-1">Authorised access only</p>
