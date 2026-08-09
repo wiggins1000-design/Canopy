@@ -92,7 +92,8 @@ export default function ExpensesPage() {
   const childcareEnabled = isParent
     ? !!myFeatures.childcare
     : members.some((m) => (m.role === 'parent_a' || m.role === 'parent_b') && !!m.consents?.features?.childcare)
-  const showChildcare = childcareEnabled && (isChildcare || (isParent && childcareMembers.length > 0))
+  // Parents get access as soon as the feature is on -- see BottomNav.jsx for why.
+  const showChildcare = childcareEnabled && (isChildcare || isParent)
 
   useEffect(() => {
     if (!showChildcare || !family?.id) return

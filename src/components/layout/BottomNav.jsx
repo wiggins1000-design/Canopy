@@ -110,7 +110,11 @@ export default function BottomNav() {
   const childcareEnabled  = isParent
     ? !!myFeatures.childcare
     : eitherParentFeature('childcare', false)
-  const showChildcare = childcareEnabled && (isChildcare || (isParent && childcareMembers.length > 0))
+  // Parents get access as soon as the feature is on -- requiring a childcare
+  // member to already exist first made the whole feature invisible with no
+  // indication that "add a carer on the People page" was the missing step.
+  // Third-party (carer) access is unchanged: still gated on isChildcare.
+  const showChildcare = childcareEnabled && (isChildcare || isParent)
 
   // Show childcare as a nav item only when expenses is off (otherwise it lives under Expenses)
   if (showChildcare && !expensesEnabled) {
