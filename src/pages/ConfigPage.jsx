@@ -1329,7 +1329,7 @@ function SettingsFooter({ appInfo }) {
 
 // â"€â"€ Layout helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-function AccordionGroup({ label, children, defaultOpen = false, badge = false, id }) {
+function AccordionGroup({ label, children, defaultOpen = false, badge = false, badgeColor = 'bg-green-500', id }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div id={id} className="mt-3 first:mt-0">
@@ -1339,7 +1339,7 @@ function AccordionGroup({ label, children, defaultOpen = false, badge = false, i
       >
         <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">
           {label}
-          {badge && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />}
+          {badge && <span className={`w-2 h-2 rounded-full ${badgeColor} shrink-0`} />}
         </span>
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
@@ -1444,7 +1444,7 @@ function SubscriptionSection() {
   const urgent = isTrialing && daysLeft <= 7
 
   return (
-    <AccordionGroup label="Subscription">
+    <AccordionGroup label="Subscription" badge={urgent} badgeColor="bg-amber-400">
       <div className="px-4 py-3 space-y-3">
 
         {/* Active subscription */}
