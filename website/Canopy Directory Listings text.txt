@@ -5,7 +5,7 @@ Tagline: Share what matters.
 One-liner: A private family app for shared schedules, school updates, and everything about your kids — in one secure place.
 Category: Family / Parenting / Scheduling / Co-parenting software
 Platforms: iOS, Android, Web (PWA)
-Pricing: Freemium — 10-day free trial, then £6.99/month or £69.99/year, one price for the whole family (not per-parent)
+Pricing: Freemium — 14-day free trial, then £6.99/month or £69.99/year, one price for the whole family (not per-parent)
 Website: https://canopy-app.app
 App Store: https://apps.apple.com/app/canopy-family/id6782702920
 Google Play: https://play.google.com/store/apps/details?id=app.canopy.app
@@ -25,7 +25,7 @@ Canopy keeps co-parents and families on the same page — shared custody calenda
 Topics/tags: Parenting, Family, Productivity, Scheduling
 
 First comment (from the maker, posted at launch):
-Hi Product Hunt — I built Canopy after seeing how much of co-parenting life gets lost across group chats, paper calendars, and a dozen different apps. Canopy pulls it into one private place: a shared custody calendar that handles school term dates automatically (AI reads forwarded school emails and adds events for you), a notice board, a secure document vault for things like passports and court orders, and expense tracking. It works for any family, not just separated ones — but a few features (First Right of Refusal, custody schedule patterns, expense splitting) were built specifically with co-parents in mind. Free 10-day trial, then one price covers the whole family. Would love your feedback!
+Hi Product Hunt — I built Canopy after seeing how much of co-parenting life gets lost across group chats, paper calendars, and a dozen different apps. Canopy pulls it into one private place: a shared custody calendar that handles school term dates automatically (AI reads forwarded school emails and adds events for you), a notice board, a secure document vault for things like passports and court orders, and expense tracking. It works for any family, not just separated ones — but a few features (First Right of Refusal, custody schedule patterns, expense splitting) were built specifically with co-parents in mind. Free 14-day trial, then one price covers the whole family. Would love your feedback!
 
 
 ALTERNATIVETO

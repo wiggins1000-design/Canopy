@@ -2,7 +2,7 @@
 
 > Canopy is a private parenting app for managing shared schedules, notices, and everything important about your children in one secure place. Built for families of all kinds, with several features especially useful for co-parents managing custody across two homes.
 
-Canopy is built and operated by Chrysalis Works Ltd, a UK company. It is available as an iOS app, an Android app, and an installable web app, with support for users in the UK, Ireland, Australia, the US, and New Zealand. Pricing is £6.99/month or £69.99/year, one subscription covering both parents and any read-only members added (grandparents, carers) — no per-person charges. There is a 10-day free trial with no credit card required.
+Canopy is built and operated by Chrysalis Works Ltd, a UK company. It is available as an iOS app, an Android app, and an installable web app, with support for users in the UK, Ireland, Australia, the US, and New Zealand. Pricing is £6.99/month or £69.99/year, one subscription covering both parents and any read-only members added (grandparents, carers) — no per-person charges. There is a 14-day free trial with no credit card required.
 
 ## Key features
 - Shared custody calendar, including automatic term-dates import from school websites for multiple children/schools
