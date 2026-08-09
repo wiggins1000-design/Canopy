@@ -24,6 +24,7 @@ export function FamilyProvider({ children }) {
   const [member, setMember] = useState(null)   // current user's family_member row
   const [members, setMembers] = useState([])   // all family members
   const [schedule, setSchedule] = useState(null)
+  const [pendingInvites, setPendingInvites] = useState([])
   const [loading, setLoading] = useState(true)
 
   const loadFamily = useCallback(async () => {
@@ -48,15 +49,21 @@ export function FamilyProvider({ children }) {
       { data: familyRow },
       { data: allMembers },
       { data: scheduleRow },
+      { data: invitesRows },
     ] = await Promise.all([
       supabase.from('families').select('*').eq('id', memberRow.family_id).single(),
       supabase.from('family_members').select('*').eq('family_id', memberRow.family_id),
       supabase.from('baseline_schedules').select('*').eq('family_id', memberRow.family_id).single(),
+      supabase.from('family_invites').select('role, expires_at')
+        .eq('family_id', memberRow.family_id)
+        .eq('used', false)
+        .gt('expires_at', new Date().toISOString()),
     ])
 
     setFamily(familyRow)
     setMembers((allMembers ?? []).map(m => ({ ...m, display_name: firstNameOnly(m.display_name) })))
     setSchedule(scheduleRow ?? null)
+    setPendingInvites(invitesRows ?? [])
     setLoading(false)
   }, [user])
 
@@ -116,6 +123,9 @@ export function FamilyProvider({ children }) {
       .insert({ family_id: family.id, role })
       .select()
       .single()
+    if (!error && data) {
+      setPendingInvites((prev) => [...prev, { role: data.role, expires_at: data.expires_at }])
+    }
     return { data, error }
   }, [family?.id])
 
@@ -184,13 +194,13 @@ export function FamilyProvider({ children }) {
   }, [loadFamily])
 
   const contextValue = useMemo(() => ({
-    family, member, members, schedule, loading,
+    family, member, members, schedule, loading, pendingInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,
     updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
   }), [
-    family, member, members, schedule, loading,
+    family, member, members, schedule, loading, pendingInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,

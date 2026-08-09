@@ -3,11 +3,12 @@ import { useFamily } from '../../context/FamilyContext'
 
 export default function SetupChecklist() {
   const navigate = useNavigate()
-  const { schedule, parentB, member, family, isParent, userRole } = useFamily()
+  const { schedule, parentB, pendingInvites, member, family, isParent, userRole } = useFamily()
 
   if (!isParent) return null
 
   const isSingleHousehold = family?.config?.care_type === 'living_together'
+  const hasPendingParentBInvite = pendingInvites.some((i) => i.role === 'parent_b')
 
   const items = [
     userRole === 'parent_a' && !isSingleHousehold && {
@@ -19,7 +20,10 @@ export default function SetupChecklist() {
     userRole === 'parent_a' && {
       id: 'invite',
       label: 'Invite Parent B',
-      done: !!parentB,
+      // Sending the invite is the action this checklist item asks for — waiting
+      // for Parent B to actually accept isn't something Parent A can do
+      // anything more about, so don't leave this nagging once it's sent.
+      done: !!parentB || hasPendingParentBInvite,
       href: '/invite',
     },
     {
