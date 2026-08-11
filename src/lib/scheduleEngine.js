@@ -88,6 +88,31 @@ export function getBaselineOwner(schedule, date) {
 }
 
 /**
+ * Like getBaselineOwner, but picks the right pattern period for the date
+ * instead of always using the current live schedule. A schedule change only
+ * takes effect from its own start_date forward -- dates before that must
+ * keep resolving against whatever pattern was actually in effect then,
+ * which lives in `history` (baseline_schedule_history rows) once a change
+ * has superseded it.
+ *
+ * @param {string} dateStr
+ * @param {object} params
+ * @param {object} params.schedule – the current live baseline_schedules row
+ * @param {object[]} [params.history] – baseline_schedule_history rows, each
+ *   with its own start_date/end_date/pattern_type/pattern_data/starting_parent
+ */
+export function getOwnerForDate(dateStr, { schedule, history = [] }) {
+  if (schedule?.start_date && dateStr >= schedule.start_date) {
+    return getBaselineOwner(schedule, dateStr)
+  }
+  const period = history.find((h) => h.start_date <= dateStr && dateStr <= h.end_date)
+  if (period) return getBaselineOwner(period, dateStr)
+  // No matching historical period and before the live schedule's start --
+  // nothing applies to this date yet.
+  return null
+}
+
+/**
  * Full day state — layers changes and FROR offers on top of the baseline.
  *
  * @returns {{
@@ -97,7 +122,7 @@ export function getBaselineOwner(schedule, date) {
  *   offer:        object|null,
  * }}
  */
-export function getDayState(dateStr, { schedule, changes = [], offers = [] }) {
+export function getDayState(dateStr, { schedule, changes = [], offers = [], history = [] }) {
   // 1. Accepted schedule change overrides everything
   const acceptedChange = changes.find(
     (c) => c.status === 'accepted' && c.start_date <= dateStr && dateStr <= c.end_date,
@@ -111,7 +136,7 @@ export function getDayState(dateStr, { schedule, changes = [], offers = [] }) {
     (c) => c.status === 'pending' && c.start_date <= dateStr && dateStr <= c.end_date,
   )
 
-  const baselineOwner = getBaselineOwner(schedule, dateStr)
+  const baselineOwner = getOwnerForDate(dateStr, { schedule, history })
 
   // 3. Active FROR offer (pending or accepted)
   const activeOffer = offers.find(

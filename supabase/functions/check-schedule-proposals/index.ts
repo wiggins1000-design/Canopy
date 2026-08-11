@@ -101,6 +101,24 @@ async function processProposal(row: any) {
 }
 
 async function autoApply(row: any) {
+  // Archive the about-to-be-superseded period first, same as the accept/
+  // bypass RPC paths (085/088 migrations) -- otherwise dates before the new
+  // start_date lose their real historical pattern the moment this overwrites
+  // the live row.
+  if (row.start_date && row.pending_start_date && row.start_date < row.pending_start_date) {
+    const endDate = new Date(row.pending_start_date + 'T00:00:00')
+    endDate.setDate(endDate.getDate() - 1)
+    await supabase.from('baseline_schedule_history').insert({
+      family_id:       row.family_id,
+      pattern_type:    row.pattern_type,
+      pattern_data:    row.pattern_data,
+      start_date:      row.start_date,
+      end_date:        endDate.toISOString().slice(0, 10),
+      starting_parent: row.starting_parent,
+      changed_reason:  'auto_applied',
+    })
+  }
+
   await supabase.from('baseline_schedules').update({
     pattern_type:    row.pending_pattern_type,
     pattern_data:    row.pending_pattern_data,

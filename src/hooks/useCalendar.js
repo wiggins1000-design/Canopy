@@ -11,7 +11,7 @@ import { useFamily } from '../context/FamilyContext'
 import { getDayState, getCalendarMonthDays, formatDate } from '../lib/scheduleEngine'
 
 export function useCalendar() {
-  const { family, schedule } = useFamily()
+  const { family, schedule, scheduleHistory } = useFamily()
 
   const [viewDate, setViewDate] = useState(() => new Date())
   const [changes, setChanges] = useState([])
@@ -70,10 +70,10 @@ export function useCalendar() {
 
     return getCalendarMonthDays(year, month).map(({ date, current }) => {
       const dateStr = formatDate(date)
-      const state = getDayState(dateStr, { schedule, changes, offers })
+      const state = getDayState(dateStr, { schedule, changes, offers, history: scheduleHistory })
 
       const prevDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1)
-      const prevState = getDayState(formatDate(prevDate), { schedule, changes, offers })
+      const prevState = getDayState(formatDate(prevDate), { schedule, changes, offers, history: scheduleHistory })
       const isTransition = current && state.owner !== null && prevState.owner !== null && state.owner !== prevState.owner
 
       const changeoverTime = isTransition ? (overrides[dateStr]?.time ?? defaultTime) : null
@@ -81,7 +81,7 @@ export function useCalendar() {
 
       return { date, dateStr, current, ...state, isTransition, changeoverTime, changeoverLocation }
     })
-  }, [year, month, schedule, changes, offers, family?.config])
+  }, [year, month, schedule, scheduleHistory, changes, offers, family?.config])
 
   function prevMonth() {
     setViewDate(new Date(year, month - 1, 1))

@@ -17,7 +17,7 @@ function buildWeekDays() {
 }
 
 export default function WeekAheadPanel() {
-  const { family, schedule, userRole, parentA, parentB } = useFamily()
+  const { family, schedule, scheduleHistory, userRole, parentA, parentB } = useFamily()
   const [showOtherDays, setShowOtherDays] = useState(false)
   const [changes, setChanges] = useState([])
   const [offers, setOffers] = useState([])
@@ -65,7 +65,7 @@ export default function WeekAheadPanel() {
 
   const dayData = days.map(date => {
     const dateStr = formatDate(date)
-    const state = getDayState(dateStr, { schedule, changes, offers })
+    const state = getDayState(dateStr, { schedule, changes, offers, history: scheduleHistory })
     const isMyDay = state.owner === userRole
     const dayEvents = events.filter(e => e.event_date === dateStr)
     return { date, dateStr, isToday: dateStr === todayStr, owner: state.owner, isMyDay, dayEvents }

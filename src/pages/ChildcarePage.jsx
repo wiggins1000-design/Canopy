@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
 import { useLocale } from '../hooks/useLocale'
-import { getBaselineOwner, formatDate } from '../lib/scheduleEngine'
+import { getOwnerForDate, formatDate } from '../lib/scheduleEngine'
 import Button from '../components/ui/Button'
 
 function formatHours(h) {
@@ -43,7 +43,7 @@ function getPeriodRange(period, customFrom, customTo) {
 
 export default function ChildcarePage() {
   const navigate = useNavigate()
-  const { family, member, members, isParent, parentA, parentB, schedule } = useFamily()
+  const { family, member, members, isParent, parentA, parentB, schedule, scheduleHistory } = useFamily()
   const regionConfig = useLocale()
 
   const childcareMembers = family?.config?.childcare_members ?? []
@@ -151,7 +151,7 @@ export default function ChildcarePage() {
       setNotes(existing.notes ?? '')
     } else {
       setHours('')
-      setPayingParent(schedule ? getBaselineOwner(schedule, date) : null)
+      setPayingParent(schedule ? getOwnerForDate(date, { schedule, history: scheduleHistory }) : null)
       setNotes('')
     }
     setSaved(false)
@@ -342,7 +342,7 @@ export default function ChildcarePage() {
     )
   }
 
-  const suggested = schedule ? getBaselineOwner(schedule, logDate) : null
+  const suggested = schedule ? getOwnerForDate(logDate, { schedule, history: scheduleHistory }) : null
 
   return (
     <div className="px-4 py-5 space-y-4">

@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     { data: vaultDocs },
     { data: schedule },
     { data: scheduleChanges },
+    { data: scheduleHistory },
   ] = await Promise.all([
     supabase.from('families').select('id, name, config, created_at').eq('id', familyId).single(),
     supabase.from('family_members').select('display_name, role, user_id, created_at').eq('family_id', familyId),
@@ -93,6 +94,7 @@ Deno.serve(async (req) => {
     supabase.from('vault_documents').select('title, category, file_name, file_size, mime_type, created_at').eq('family_id', familyId),
     supabase.from('baseline_schedules').select('pattern_type, start_date, starting_parent, updated_at').eq('family_id', familyId).maybeSingle(),
     supabase.from('schedule_changes').select('start_date, end_date, assigned_to, note, status, created_at').eq('family_id', familyId).order('created_at', { ascending: false }),
+    supabase.from('baseline_schedule_history').select('pattern_type, start_date, end_date, starting_parent, changed_reason, superseded_at').eq('family_id', familyId).order('end_date', { ascending: false }),
   ])
 
   const now = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
@@ -142,6 +144,15 @@ Deno.serve(async (req) => {
       esc(c.status),
       esc(c.note),
       esc(fmtDate(c.created_at)),
+    ])
+  )) + section('Schedule pattern history', table(
+    ['Period', 'Pattern', 'Starting parent', 'How it changed', 'Superseded'],
+    (scheduleHistory ?? []).map((h: any) => [
+      esc(h.start_date + ' → ' + h.end_date),
+      esc(h.pattern_type),
+      esc(h.starting_parent === 'parent_a' ? memberMap['parent_a'] : memberMap['parent_b']),
+      esc(h.changed_reason),
+      esc(fmtDate(h.superseded_at)),
     ])
   ))
 
