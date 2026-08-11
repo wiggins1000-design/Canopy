@@ -239,7 +239,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
             onClick={() => setConfirmDelete(true)}
             className="w-full text-sm text-red-500 py-2 hover:underline"
           >
-            Delete event
+            {event.recurrence ? 'Delete recurring event' : 'Delete event'}
           </button>
         ) : (
           <div className="flex gap-2">
