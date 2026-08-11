@@ -941,8 +941,8 @@ export default function ConfigPage() {
               {error && <p className="text-sm text-red-600">{error}</p>}
               <Button className="w-full py-3" loading={saving} onClick={handleSave}>
                 {saved
-                  ? (schedule ? '✓ Proposal sent' : '✓ Saved')
-                  : schedule ? `Propose change to ${otherParentName}` : 'Save schedule'}
+                  ? (schedule && parentB ? '✓ Proposal sent' : '✓ Saved')
+                  : schedule && parentB ? `Propose change to ${otherParentName}` : 'Save schedule'}
               </Button>
             </>
           )}
