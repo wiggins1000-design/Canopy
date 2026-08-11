@@ -18,7 +18,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
   const [taggedChildren, setTaggedChildren] = useState([])
   const [saving, setSaving]           = useState(false)
   const [deleting, setDeleting]       = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null) // null | 'instance' | 'series'
   const [error, setError]             = useState(null)
 
   const children = family?.config?.children ?? []
@@ -34,7 +34,7 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
       setRecurrenceEnd(event.recurrence_end ?? '')
       setNotes(event.notes ?? '')
       setTaggedChildren(event.tagged_children ?? [])
-      setConfirmDelete(false)
+      setConfirmDelete(null)
       setError(null)
     }
   }, [event])
@@ -98,8 +98,46 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
     onClose()
   }
 
+  // Removes just the one occurrence being viewed, leaving the rest of the
+  // recurring series untouched -- family_events has no per-occurrence rows,
+  // so this appends the occurrence's date to excluded_dates rather than
+  // deleting anything (see 087_event_excluded_dates.sql / expandRecurring in
+  // useFamilyEvents.js, which skips dates found there).
+  async function deleteInstance() {
+    setDeleting(true)
+    const nextExcluded = [...(event.excluded_dates ?? []), event.event_date]
+    await supabase.from('family_events').update({ excluded_dates: nextExcluded }).eq('id', event.id)
+
+    const authorName = member?.display_name ?? 'A parent'
+    const { error: noticeErr } = await supabase.rpc('create_notice_post', {
+      p_family_id: family.id,
+      p_content:   `🗑 ${authorName} removed one occurrence of "${event.title}" (${event.event_date})`,
+      p_image_url: null,
+      p_file_url:  null,
+      p_file_name: null,
+      p_tag:       'notification',
+    })
+    if (noticeErr) console.error('Delete instance notice post error:', noticeErr)
+
+    const recipientRole   = userRole === 'parent_a' ? 'parent_b' : 'parent_a'
+    const recipientMember = recipientRole === 'parent_a' ? parentA : parentB
+    if (recipientMember) {
+      await sendPushNotification({
+        familyId:     family.id,
+        recipientRole,
+        title:        'Calendar event removed',
+        body:         `${authorName} removed one date of "${event.title}"`,
+        url:          '/calendar',
+      })
+    }
+
+    setDeleting(false)
+    onRefetch?.()
+    onClose()
+  }
+
   function handleClose() {
-    setConfirmDelete(false)
+    setConfirmDelete(null)
     setError(null)
     onClose()
   }
@@ -235,22 +273,39 @@ export default function EditEventSheet({ event, open, onClose, onRefetch }) {
         </Button>
 
         {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="w-full text-sm text-red-500 py-2 hover:underline"
-          >
-            {event.recurrence ? 'Delete recurring event' : 'Delete event'}
-          </button>
+          event.recurrence ? (
+            <div className="space-y-1.5">
+              <button
+                onClick={() => setConfirmDelete('instance')}
+                className="w-full text-sm text-red-500 py-2 hover:underline"
+              >
+                Delete this event instance
+              </button>
+              <button
+                onClick={() => setConfirmDelete('series')}
+                className="w-full text-sm text-red-500 py-2 hover:underline"
+              >
+                Delete recurring event
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete('series')}
+              className="w-full text-sm text-red-500 py-2 hover:underline"
+            >
+              Delete event
+            </button>
+          )
         ) : (
           <div className="flex gap-2">
             <Button
               className="flex-1 py-2.5 bg-red-600 hover:bg-red-700"
               loading={deleting}
-              onClick={deleteEvent}
+              onClick={confirmDelete === 'instance' ? deleteInstance : deleteEvent}
             >
-              Confirm delete
+              {confirmDelete === 'instance' ? 'Confirm — delete just this date' : 'Confirm delete'}
             </Button>
-            <Button variant="secondary" className="flex-1 py-2.5" onClick={() => setConfirmDelete(false)}>
+            <Button variant="secondary" className="flex-1 py-2.5" onClick={() => setConfirmDelete(null)}>
               Cancel
             </Button>
           </div>

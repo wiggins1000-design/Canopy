@@ -23,11 +23,14 @@ function expandRecurring(ev, from, to) {
     }
   }
 
+  const excluded = new Set(ev.excluded_dates ?? [])
+
   let iters = 0
   while (cur <= limit && iters < 100) {
     iters++
-    if (cur >= from) {
-      instances.push({ ...ev, event_date: formatDate(cur) })
+    const dateStr = formatDate(cur)
+    if (cur >= from && !excluded.has(dateStr)) {
+      instances.push({ ...ev, event_date: dateStr })
     }
     const prev = +cur
     if (ev.recurrence === 'weekly')           cur.setDate(cur.getDate() + 7)
