@@ -197,17 +197,31 @@ export function FamilyProvider({ children }) {
     return { error }
   }, [loadFamily])
 
+  const proposeViewerPermissions = useCallback(async (permissions) => {
+    const { error } = await supabase.rpc('propose_viewer_permissions', { p_permissions: permissions })
+    if (!error) await loadFamily()
+    return { error }
+  }, [loadFamily])
+
+  const respondToViewerPermissions = useCallback(async (accept) => {
+    const { error } = await supabase.rpc('respond_to_viewer_permissions', { p_accept: accept })
+    if (!error) await loadFamily()
+    return { error }
+  }, [loadFamily])
+
   const contextValue = useMemo(() => ({
     family, member, members, schedule, scheduleHistory, loading, pendingInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,
+    proposeViewerPermissions, respondToViewerPermissions,
     updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
   }), [
     family, member, members, schedule, scheduleHistory, loading, pendingInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,
+    proposeViewerPermissions, respondToViewerPermissions,
     updateFamilyConfig, updateMemberFeatures, loadFamily,
   ])
 

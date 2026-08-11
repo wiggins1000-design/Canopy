@@ -18,7 +18,7 @@ import { firstName } from '../lib/childUtils'
 const PATTERNS = ['alternating_weeks', '2_2_5_5', '2_2_3', '3_4_4_3', 'custom']
 
 export default function ConfigPage() {
-  const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, updateFamilyConfig, updateMemberFeatures, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
+  const { schedule, saveSchedule, proposePendingSchedule, respondToScheduleProposal, proposeViewerPermissions, respondToViewerPermissions, updateFamilyConfig, updateMemberFeatures, family, member, members, userRole, parentA, parentB, isParent, reload } = useFamily()
   const { user, signOut } = useAuth()
   const regionConfig = useLocale()
   const familyFeedAddress = 'familyfeed@canopy-app.app'
@@ -552,18 +552,18 @@ export default function ConfigPage() {
     const current = key in base ? base[key] : defaultOn
     const newPerms = { ...VIEWER_DEFAULTS, ...base, [key]: !current }
     setProposalSaving(true)
-    await updateFamilyConfig({ pending_viewer_permissions: newPerms, viewer_permissions_proposed_by: user?.id })
+    await proposeViewerPermissions(newPerms)
     setProposalSaving(false)
   }
 
   async function confirmViewerPerms() {
     setProposalSaving(true)
-    await updateFamilyConfig({ viewer_permissions: pendingPerms, pending_viewer_permissions: null, viewer_permissions_proposed_by: null })
+    await respondToViewerPermissions(true)
     setProposalSaving(false)
   }
 
   async function cancelViewerProposal() {
-    await updateFamilyConfig({ pending_viewer_permissions: null, viewer_permissions_proposed_by: null })
+    await respondToViewerPermissions(false)
   }
 
   if (!isParent) {
@@ -1143,7 +1143,11 @@ export default function ConfigPage() {
       {isParent && (
         <AccordionGroup label="Read-only member access">
           <div className="px-4 pt-3 pb-1">
-            <p className="text-xs text-gray-400">Choose what grandparents, carers, and other read-only members can see. Both parents must agree — changes are proposed to the other parent for confirmation.</p>
+            <p className="text-xs text-gray-400">
+              {parentB
+                ? 'Choose what grandparents, carers, and other read-only members can see. Both parents must agree — changes are proposed to the other parent for confirmation.'
+                : 'Choose what grandparents, carers, and other read-only members can see.'}
+            </p>
           </div>
 
           {/* Pending proposal banner */}
