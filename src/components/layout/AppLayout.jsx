@@ -66,7 +66,7 @@ function PushNotificationToast({ title, body, onDone }) {
     return () => clearTimeout(t)
   }, [onDone])
   return (
-    <div className="fixed top-4 left-4 right-4 z-50 bg-canopy-deep text-white rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
+    <div className="fixed top-32 left-4 right-4 z-50 bg-canopy-deep text-white rounded-2xl shadow-lg px-4 py-3 flex items-start gap-3">
       <div className="min-w-0 flex-1">
         {title && <p className="text-sm font-semibold truncate">{title}</p>}
         {body && <p className="text-sm text-canopy-mist mt-0.5">{body}</p>}
