@@ -3,12 +3,16 @@ import { useFamily } from '../../context/FamilyContext'
 
 export default function SetupChecklist() {
   const navigate = useNavigate()
-  const { schedule, parentB, pendingInvites, member, family, isParent, userRole } = useFamily()
+  const { schedule, parentB, familyInvites, member, family, isParent, userRole } = useFamily()
 
   if (!isParent) return null
 
   const isSingleHousehold = family?.config?.care_type === 'living_together'
-  const hasPendingParentBInvite = pendingInvites.some((i) => i.role === 'parent_b')
+  // Once Parent A has sent a Parent B invite at all, this stays done -- even
+  // after the invite's 7-day link expires without Parent B engaging. Don't
+  // make Parent A keep re-inviting just to clear a checklist nag; resending
+  // is still available from the Invite screen if they want to.
+  const hasInvitedParentB = familyInvites.some((i) => i.role === 'parent_b')
 
   const items = [
     userRole === 'parent_a' && !isSingleHousehold && {
@@ -22,8 +26,9 @@ export default function SetupChecklist() {
       label: 'Invite Parent B',
       // Sending the invite is the action this checklist item asks for — waiting
       // for Parent B to actually accept isn't something Parent A can do
-      // anything more about, so don't leave this nagging once it's sent.
-      done: !!parentB || hasPendingParentBInvite,
+      // anything more about, so don't leave this nagging once it's sent,
+      // even after that invite's own link later expires unused.
+      done: !!parentB || hasInvitedParentB,
       href: '/invite',
     },
     {

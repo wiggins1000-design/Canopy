@@ -25,7 +25,7 @@ export function FamilyProvider({ children }) {
   const [members, setMembers] = useState([])   // all family members
   const [schedule, setSchedule] = useState(null)
   const [scheduleHistory, setScheduleHistory] = useState([])
-  const [pendingInvites, setPendingInvites] = useState([])
+  const [familyInvites, setFamilyInvites] = useState([])
   const [loading, setLoading] = useState(true)
 
   const loadFamily = useCallback(async () => {
@@ -57,17 +57,19 @@ export function FamilyProvider({ children }) {
       supabase.from('family_members').select('*').eq('family_id', memberRow.family_id),
       supabase.from('baseline_schedules').select('*').eq('family_id', memberRow.family_id).single(),
       supabase.from('baseline_schedule_history').select('*').eq('family_id', memberRow.family_id),
-      supabase.from('family_invites').select('role, expires_at')
-        .eq('family_id', memberRow.family_id)
-        .eq('used', false)
-        .gt('expires_at', new Date().toISOString()),
+      // Every invite ever sent, not just currently-valid ones -- a parent
+      // shouldn't have to keep re-inviting just to clear the "Invite Parent B"
+      // checklist item once a first attempt's 7-day link has expired without
+      // Parent B engaging (see SetupChecklist.jsx).
+      supabase.from('family_invites').select('role, used, expires_at')
+        .eq('family_id', memberRow.family_id),
     ])
 
     setFamily(familyRow)
     setMembers((allMembers ?? []).map(m => ({ ...m, display_name: firstNameOnly(m.display_name) })))
     setSchedule(scheduleRow ?? null)
     setScheduleHistory(scheduleHistoryRows ?? [])
-    setPendingInvites(invitesRows ?? [])
+    setFamilyInvites(invitesRows ?? [])
     setLoading(false)
   }, [user])
 
@@ -210,14 +212,14 @@ export function FamilyProvider({ children }) {
   }, [loadFamily])
 
   const contextValue = useMemo(() => ({
-    family, member, members, schedule, scheduleHistory, loading, pendingInvites,
+    family, member, members, schedule, scheduleHistory, loading, familyInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,
     proposeViewerPermissions, respondToViewerPermissions,
     updateFamilyConfig, updateMemberFeatures, reload: loadFamily,
   }), [
-    family, member, members, schedule, scheduleHistory, loading, pendingInvites,
+    family, member, members, schedule, scheduleHistory, loading, familyInvites,
     userRole, isParent, parentA, parentB,
     createFamily, joinFamily, generateInvite, saveSchedule,
     proposePendingSchedule, respondToScheduleProposal,
