@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
-import { isNativePlatform } from '../lib/supabase'
+import { isNativePlatform, friendlyAuthError } from '../lib/supabase'
 
 export default function LoginPage() {
   const { session, needsTwoFa, signInWithEmail, signUpWithEmail, resetPasswordForEmail } = useAuth()
@@ -53,15 +53,15 @@ export default function LoginPage() {
       // behind). Resetting loading here would briefly re-show this same
       // interactive form while waiting for the redirect above to kick in.
       const { error } = await signInWithEmail(email, password)
-      if (error) { setError(error.message); setLoading(false) }
+      if (error) { setError(friendlyAuthError(error.message)); setLoading(false) }
       return
     } else if (mode === 'signup') {
       const { error } = await signUpWithEmail(email, password, name)
-      if (error) setError(error.message)
+      if (error) setError(friendlyAuthError(error.message))
       else setSuccess('Check your email to confirm your account, then sign in.')
     } else if (mode === 'forgot') {
       const { error } = await resetPasswordForEmail(email)
-      if (error) setError(error.message)
+      if (error) setError(friendlyAuthError(error.message))
       else setSuccess('Check your email for a password reset link.')
     }
     setLoading(false)

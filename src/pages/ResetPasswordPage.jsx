@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, friendlyAuthError } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
 
@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
     setLoading(true)
     setError(null)
     const { error } = await supabase.auth.updateUser({ password })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(friendlyAuthError(error.message)); setLoading(false); return }
     await supabase.auth.signOut()
     navigate('/login', { state: { message: 'Password updated — please sign in.' } })
   }

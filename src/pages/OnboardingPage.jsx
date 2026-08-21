@@ -3,7 +3,7 @@ import { useFamily } from '../context/FamilyContext'
 import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import { SUPPORTED_LOCALES } from '../config/regions'
-import { supabase } from '../lib/supabase'
+import { supabase, friendlyAuthError } from '../lib/supabase'
 import { buildPresetPattern, formatDate } from '../lib/scheduleEngine'
 import { PLAN_IMPORT_STORAGE_KEY, PLAN_IMPORTED_FLAG, decodePlanImport } from '../lib/planImport'
 
@@ -64,7 +64,7 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
     const { error } = await createFamily(selectedLocale, selectedCareType)
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(friendlyAuthError(error.message)); setLoading(false); return }
 
     const raw = localStorage.getItem(PLAN_IMPORT_STORAGE_KEY)
     if (raw) {
@@ -91,7 +91,7 @@ export default function OnboardingPage() {
     setLoading(true)
     setError(null)
     const { error } = await joinFamily(inviteCode.trim())
-    if (error) setError(error.message)
+    if (error) setError(friendlyAuthError(error.message))
     setLoading(false)
   }
 

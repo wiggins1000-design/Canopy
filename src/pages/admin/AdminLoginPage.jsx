@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { supabase, friendlyAuthError } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 import PasswordField from '../../components/ui/PasswordField'
 
@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
     setLoading(true)
     setError(null)
     const { error } = await signInWithEmail(email, password)
-    if (error) { setError(error.message); setLoading(false) }
+    if (error) { setError(friendlyAuthError(error.message)); setLoading(false) }
     // On success, session changes → useEffect above verifies admin status
   }
 

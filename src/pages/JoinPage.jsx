@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useFamily } from '../context/FamilyContext'
 import Button from '../components/ui/Button'
 import PasswordField from '../components/ui/PasswordField'
+import { friendlyAuthError } from '../lib/supabase'
 
 export default function JoinPage() {
   const { code } = useParams()
@@ -108,7 +109,7 @@ export default function JoinPage() {
     setJoining(true)
     setError(null)
     const { error } = await joinFamily(code.toUpperCase())
-    if (error) { setError(error.message); setJoining(false) }
+    if (error) { setError(friendlyAuthError(error.message)); setJoining(false) }
     // On success FamilyContext reloads → family is set → first effect navigates away
   }
 
@@ -166,7 +167,7 @@ export default function JoinPage() {
       // becomes truthy, and the "already in family" effect above navigates
       // client-side. No explicit navigate/reload needed here at all.
     } catch (err) {
-      setError(err.message)
+      setError(friendlyAuthError(err.message))
       setSubmitting(false)
     }
   }

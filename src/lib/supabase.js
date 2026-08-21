@@ -6,10 +6,39 @@
 import { createClient } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 
+// WKWebView on iOS intermittently throws a bare "Load failed" from fetch()
+// on transient connection issues (seen both in Chris's own testing and in
+// an Apple App Review rejection) -- a connection-level failure, not a real
+// HTTP error response from the server. Retrying a couple of times with a
+// short backoff clears it silently in the vast majority of cases instead of
+// surfacing a cryptic network error to the user on the very first blip.
+async function fetchWithRetry(url, options, retries = 2, backoffMs = 400) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(url, options)
+    } catch (err) {
+      if (attempt >= retries) throw err
+      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)))
+    }
+  }
+}
+
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { global: { fetch: fetchWithRetry } },
 )
+
+// Recognisable connection-level failures (as opposed to a real error response
+// from the server) across WebKit ("Load failed") and Chromium ("Failed to
+// fetch") -- map these to a message a user can actually act on.
+export function friendlyAuthError(message) {
+  if (!message) return message
+  if (/load failed|failed to fetch|network ?error/i.test(message)) {
+    return "Couldn't connect. Check your internet connection and try again."
+  }
+  return message
+}
 
 // Canonical public origin for links that leave the device (invite emails, password
 // reset emails, SMS deep links) — window.location.origin resolves to Capacitor's
