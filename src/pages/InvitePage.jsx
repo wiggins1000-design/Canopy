@@ -57,31 +57,34 @@ export default function InvitePage() {
     setGenerating(role)
     setEmailSent(false)
     setEmailError(null)
-    const { data, error } = await generateInvite(role)
-    if (!error && data) {
-      setInviteCode(data.code)
-      setInviteRole(role)
-      setCopied(false)
+    try {
+      const { data, error } = await generateInvite(role)
+      if (!error && data) {
+        setInviteCode(data.code)
+        setInviteRole(role)
+        setCopied(false)
 
-      if (inviteEmail.trim()) {
-        const link = `${APP_ORIGIN}/join/${data.code}`
-        const { error: emailErr } = await supabase.functions.invoke('send-invite-email', {
-          body: {
-            recipientEmail: inviteEmail.trim(),
-            inviteCode:     data.code,
-            inviteLink:     link,
-            role,
-            senderName,
-          },
-        })
-        if (emailErr) {
-          setEmailError('Invite generated but email failed to send. Share the link below instead.')
-        } else {
-          setEmailSent(true)
+        if (inviteEmail.trim()) {
+          const link = `${APP_ORIGIN}/join/${data.code}`
+          const { error: emailErr } = await supabase.functions.invoke('send-invite-email', {
+            body: {
+              recipientEmail: inviteEmail.trim(),
+              inviteCode:     data.code,
+              inviteLink:     link,
+              role,
+              senderName,
+            },
+          })
+          if (emailErr) {
+            setEmailError('Invite generated but email failed to send. Share the link below instead.')
+          } else {
+            setEmailSent(true)
+          }
         }
       }
+    } finally {
+      setGenerating(null)
     }
-    setGenerating(null)
   }
 
   function copyLink() {

@@ -130,7 +130,7 @@ export function FamilyProvider({ children }) {
       .select()
       .single()
     if (!error && data) {
-      setPendingInvites((prev) => [...prev, { role: data.role, expires_at: data.expires_at }])
+      setFamilyInvites((prev) => [...prev, { role: data.role, used: false, expires_at: data.expires_at }])
     }
     return { data, error }
   }, [family?.id])
