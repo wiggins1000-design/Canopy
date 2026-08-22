@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { supabase } from '../lib/supabase'
 import { useFamily } from '../context/FamilyContext'
+import { useAuth } from '../context/AuthContext'
 import Badge from '../components/ui/Badge'
 
 const FILTERS = ['All', 'Pending', 'Accepted', 'Declined']
 
 export default function RequestsPage() {
   const { family, members } = useFamily()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [changes, setChanges]   = useState([])
   const [offers, setOffers]     = useState([])
   const [loading, setLoading]   = useState(true)
   const [filter, setFilter]     = useState('All')
 
-  useEffect(() => {
+  const refetch = useCallback(() => {
     if (!family?.id) return
     Promise.all([
       supabase.from('schedule_changes').select('*').eq('family_id', family.id).order('created_at', { ascending: false }),
@@ -26,6 +28,8 @@ export default function RequestsPage() {
       setLoading(false)
     })
   }, [family?.id])
+
+  useEffect(() => { refetch() }, [refetch])
 
   const REQUESTER_ROLE_LABELS = { parent_a: 'Parent A', parent_b: 'Parent B' }
 
@@ -89,7 +93,7 @@ export default function RequestsPage() {
         <div className="space-y-3">
           {filtered.map((item) =>
             item._kind === 'change'
-              ? <ChangeCard key={item.id} change={item} memberName={memberName} members={members} />
+              ? <ChangeCard key={item.id} change={item} memberName={memberName} members={members} userId={user?.id} onCancelled={refetch} />
               : <OfferCard  key={item.id} offer={item}  memberName={memberName} />
           )}
         </div>
@@ -98,7 +102,8 @@ export default function RequestsPage() {
   )
 }
 
-function ChangeCard({ change, memberName, members }) {
+function ChangeCard({ change, memberName, members, userId, onCancelled }) {
+  const [cancelling, setCancelling] = useState(false)
   const assignedMember = members?.find((m) => m.role === change.assigned_to)
   const requesterMember = members?.find((m) => m.user_id === change.requested_by)
   const assignedName = requesterMember && assignedMember && requesterMember.user_id === assignedMember.user_id
@@ -107,6 +112,14 @@ function ChangeCard({ change, memberName, members }) {
   const dateRange = change.start_date === change.end_date
     ? format(parseISO(change.start_date), 'd MMM yyyy')
     : `${format(parseISO(change.start_date), 'd MMM')} – ${format(parseISO(change.end_date), 'd MMM yyyy')}`
+  const canCancel = change.status === 'pending' && change.requested_by === userId
+
+  async function cancel() {
+    setCancelling(true)
+    const { error } = await supabase.rpc('cancel_schedule_change_request', { p_id: change.id })
+    if (!error) onCancelled?.()
+    setCancelling(false)
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
@@ -124,6 +137,15 @@ function ChangeCard({ change, memberName, members }) {
       {change.note && <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">"{change.note}"</p>}
       {change.responded_at && (
         <p className="text-xs text-gray-400">Responded {format(parseISO(change.responded_at), 'd MMM yyyy')}</p>
+      )}
+      {canCancel && (
+        <button
+          onClick={cancel}
+          disabled={cancelling}
+          className="text-xs text-red-600 underline disabled:opacity-50"
+        >
+          {cancelling ? 'Cancelling…' : 'Cancel request'}
+        </button>
       )}
     </div>
   )

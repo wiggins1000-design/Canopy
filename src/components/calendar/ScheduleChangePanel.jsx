@@ -34,17 +34,14 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
     setSaving(true)
     setError(null)
 
-    const { error: dbErr } = await supabase.from('schedule_changes').insert({
-      family_id:    family.id,
-      requested_by: user.id,
-      start_date:   startDateStr,
-      end_date:     endDateStr,
-      start_time:   startTime || null,
-      end_time:     endTime || null,
-      assigned_to:  assignedTo,
-      note:         note.trim(),
-      status:       'pending',
-      is_holiday:   isHoliday,
+    const { error: dbErr } = await supabase.rpc('request_schedule_change', {
+      p_start_date:  startDateStr,
+      p_end_date:    endDateStr,
+      p_assigned_to: assignedTo,
+      p_note:        note.trim(),
+      p_is_holiday:  isHoliday,
+      p_start_time:  startTime || null,
+      p_end_time:    endTime || null,
     })
 
     if (dbErr) {
@@ -80,6 +77,9 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
   }
 
   const otherParentName = recipientMember?.display_name ?? (recipientRole === 'parent_a' ? 'Parent A' : 'Parent B')
+  // No one on the other side to actually send this to yet -- request_schedule_change()
+  // applies it immediately in that case, so the copy shouldn't claim it's being sent.
+  const noRecipient = !recipientMember
 
   return (
     <BottomSheet open={open} onClose={handleClose} title="Request schedule change">
@@ -189,7 +189,9 @@ export default function ScheduleChangePanel({ open, onClose, startDay, endDateSt
           disabled={!startDateStr || !endDateStr || !note.trim()}
           onClick={submit}
         >
-          {isHoliday ? `Send holiday request to ${otherParentName}` : `Send request to ${otherParentName}`}
+          {noRecipient
+            ? (isHoliday ? 'Add holiday' : 'Add to schedule')
+            : (isHoliday ? `Send holiday request to ${otherParentName}` : `Send request to ${otherParentName}`)}
         </Button>
       </div>
     </BottomSheet>
