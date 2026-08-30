@@ -93,7 +93,9 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
           with pending/offered/event dots, and a parent-coloured dot there
           reads ambiguously alongside them). Instead, a small diagonal
           corner triangle -- bottom-left for before-school, bottom-right for
-          after-school -- coloured to whichever parent needs that half.
+          after-school. One consistent colour regardless of which parent --
+          Parent B's grey read badly here, and which parent it's actually
+          about is already shown by name in the day detail panel below.
           Absent entirely on any side that isn't needed. */}
       {/* Solid square clipped to a triangle -- far more predictable than the
           border trick (which twice rendered as an upward notch instead of
@@ -102,13 +104,13 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
           down to the far bottom corner of the little square. */}
       {beforeSchoolRole && (
         <span
-          className={`absolute bottom-0 left-0 ${beforeSchoolRole === 'parent_a' ? 'bg-pa-700' : 'bg-pb-700'}`}
+          className="absolute bottom-0 left-0 bg-canopy-mid"
           style={{ width: '8px', height: '8px', clipPath: 'polygon(0% 0%, 0% 100%, 100% 100%)' }}
         />
       )}
       {afterSchoolRole && (
         <span
-          className={`absolute bottom-0 right-0 ${afterSchoolRole === 'parent_a' ? 'bg-pa-700' : 'bg-pb-700'}`}
+          className="absolute bottom-0 right-0 bg-canopy-mid"
           style={{ width: '8px', height: '8px', clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%)' }}
         />
       )}

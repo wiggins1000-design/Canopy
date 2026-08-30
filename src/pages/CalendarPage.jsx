@@ -94,10 +94,6 @@ export default function CalendarPage() {
     for (const [dateStr, role] of beforeSchoolEligibleMap) {
       if (!excludedBeforeSchoolDates.has(dateStr)) map.set(dateStr, role)
     }
-    // TEMP visual test only, per Chris's request 2026-08-31 -- forces the
-    // before-school triangle on 2026-09-09 to Parent B's colour. Revert
-    // once confirmed.
-    map.set('2026-09-09', 'parent_b')
     return map
   }, [beforeSchoolEligibleMap, excludedBeforeSchoolDates])
   const afterSchoolNeededMap = useMemo(() => {
