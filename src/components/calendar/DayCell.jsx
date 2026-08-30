@@ -86,24 +86,41 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {isOffered && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
         {/* Accepted changes/offers deliberately have no dot -- once accepted, the day's
             own colour already reflects it (via `owner`), no separate indicator needed. */}
-        {/* School coverage: one dot, split top/bottom -- bottom half = before-school
-            (whoever had them overnight), top half = after-school (whoever has them
-            that evening). Either half can be a different parent's colour, or absent
-            (transparent) if that half isn't needed. */}
-        {(beforeSchoolRole || afterSchoolRole) && (
-          <span className="relative inline-block ring-1 ring-white rounded-full" style={{ width: '6px', height: '6px' }}>
-            <span
-              className={`absolute top-0 inset-x-0 rounded-t-full ${afterSchoolRole === 'parent_a' ? 'bg-pa-700' : afterSchoolRole === 'parent_b' ? 'bg-pb-700' : ''}`}
-              style={{ height: '3px' }}
-            />
-            <span
-              className={`absolute bottom-0 inset-x-0 rounded-b-full ${beforeSchoolRole === 'parent_a' ? 'bg-pa-700' : beforeSchoolRole === 'parent_b' ? 'bg-pb-700' : ''}`}
-              style={{ height: '3px' }}
-            />
-          </span>
-        )}
         {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
       </div>
+
+      {/* School coverage: kept out of the dot row entirely (already crowded
+          with pending/offered/event dots, and a parent-coloured dot there
+          reads ambiguously alongside them). Instead, a small diagonal
+          corner triangle -- bottom-left for before-school, bottom-right for
+          after-school -- coloured to whichever parent needs that half.
+          Absent entirely on any side that isn't needed. */}
+      {/* CSS corner-triangle trick: bottom edge carries the colour (via the
+          Tailwind pa/pb class below, left untouched by inline style so the
+          class still wins), the adjacent side (left, or right for the
+          mirrored one) is forced transparent via longhand so it doesn't
+          show the browser's default border colour -- the top side has 0
+          width either way so its colour is moot. */}
+      {beforeSchoolRole && (
+        <span
+          className={`absolute bottom-0 left-0 w-0 h-0 ${beforeSchoolRole === 'parent_a' ? 'border-b-pa-700' : 'border-b-pb-700'}`}
+          style={{
+            borderStyle: 'solid',
+            borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: '6px', borderLeftWidth: '6px',
+            borderTopColor: 'transparent', borderRightColor: 'transparent', borderLeftColor: 'transparent',
+          }}
+        />
+      )}
+      {afterSchoolRole && (
+        <span
+          className={`absolute bottom-0 right-0 w-0 h-0 ${afterSchoolRole === 'parent_a' ? 'border-b-pa-700' : 'border-b-pb-700'}`}
+          style={{
+            borderStyle: 'solid',
+            borderTopWidth: 0, borderLeftWidth: 0, borderBottomWidth: '6px', borderRightWidth: '6px',
+            borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent',
+          }}
+        />
+      )}
     </button>
   )
 }
