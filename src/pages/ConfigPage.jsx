@@ -1135,6 +1135,12 @@ export default function ConfigPage() {
             enabled={mySchoolCoverage}
             onToggle={() => saveMyFeature('school_coverage', !mySchoolCoverage)}
           />
+          {mySchoolCoverage && (
+            <SchoolCoverageHorizonRow
+              monthsAhead={family?.config?.school_coverage_months_ahead ?? 2}
+              onSave={(n) => updateFamilyConfig({ school_coverage_months_ahead: n })}
+            />
+          )}
           {myExpenses && (
             <ExpenseSplitRow
               userRole={userRole}
@@ -1569,6 +1575,46 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
       <Button className="w-full py-2.5 text-sm" onClick={handleSave}>
         {saved ? '✓ Saved' : 'Save split'}
       </Button>
+    </div>
+  )
+}
+
+// How far ahead school coverage flags are computed at all, regardless of
+// how far either parent navigates the calendar -- a shared family setting
+// (not per-parent, unlike the feature toggle itself), since it's about
+// keeping the calendar relevant/uncluttered for everyone who sees it.
+function SchoolCoverageHorizonRow({ monthsAhead, onSave }) {
+  const [saving, setSaving] = useState(null)
+  const OPTIONS = [1, 2, 3]
+
+  async function handleSelect(n) {
+    if (n === monthsAhead) return
+    setSaving(n)
+    await onSave(n)
+    setSaving(null)
+  }
+
+  return (
+    <div className="px-4 py-3 space-y-2 border-t border-gray-100">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How far ahead</p>
+      <p className="text-xs text-gray-400">Coverage flags only show up to this far ahead on the calendar, for anyone viewing it.</p>
+      <div className="flex gap-2 pt-1">
+        {OPTIONS.map((n) => (
+          <button
+            key={n}
+            onClick={() => handleSelect(n)}
+            disabled={saving !== null}
+            className={[
+              'flex-1 py-2 rounded-xl text-sm font-semibold border-2 transition-all disabled:opacity-50',
+              n === monthsAhead
+                ? 'border-canopy-green bg-canopy-green/5 text-canopy-dark'
+                : 'border-gray-200 text-gray-700 hover:border-gray-300',
+            ].join(' ')}
+          >
+            {saving === n ? 'Saving…' : `${n} month${n > 1 ? 's' : ''}`}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

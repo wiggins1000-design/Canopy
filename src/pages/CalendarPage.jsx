@@ -58,12 +58,26 @@ export default function CalendarPage() {
     return totalSchoolCount === 0 || closedSchools.size < totalSchoolCount
   }, [termDays, totalSchoolCount])
 
+  // How far ahead these flags are allowed to show at all, regardless of how
+  // far the user navigates the calendar -- a family-wide horizon (Settings
+  // → Features), not per-parent, since it's about keeping the calendar
+  // relevant/uncluttered rather than an individual preference. Defaults to
+  // 2 months when unset.
+  const schoolCoverageMonthsAhead = family?.config?.school_coverage_months_ahead ?? 2
+  const schoolCoverageCutoff = useMemo(() => {
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() + schoolCoverageMonthsAhead)
+    return cutoff
+  }, [schoolCoverageMonthsAhead])
+
   // ownerLookup: 'prev' for before-school (who had them overnight), 'same'
   // for after-school (who has them that evening).
   function buildEligibleMap(ownerLookup) {
     const map = new Map() // dateStr -> 'parent_a' | 'parent_b'
     if (!schoolCoverageEnabled.parent_a && !schoolCoverageEnabled.parent_b) return map
     for (const day of calendarDays) {
+      if (day.date > schoolCoverageCutoff) continue
+
       const weekday = day.date.getDay()
       if (weekday === 0 || weekday === 6) continue
 
@@ -83,11 +97,11 @@ export default function CalendarPage() {
   }
   const beforeSchoolEligibleMap = useMemo(
     () => buildEligibleMap('prev'),
-    [calendarDays, dayByDateStr, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b]
+    [calendarDays, dayByDateStr, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b, schoolCoverageCutoff]
   )
   const afterSchoolEligibleMap = useMemo(
     () => buildEligibleMap('same'),
-    [calendarDays, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b]
+    [calendarDays, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b, schoolCoverageCutoff]
   )
   const beforeSchoolNeededMap = useMemo(() => {
     const map = new Map()
