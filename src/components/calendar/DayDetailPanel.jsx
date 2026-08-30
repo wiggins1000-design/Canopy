@@ -136,8 +136,10 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
       </div>
 
       {/* Morning coverage veto — only for the day the auto-rule actually
-          flagged (kids with Parent A overnight, before a school morning) */}
-      {morningEligible && isParent && (
+          flagged (kids with Parent A overnight, before a school morning).
+          Only Parent A (the one it's actually about) can veto it; Parent B
+          and any carer with calendar access can still see the badge above. */}
+      {morningEligible && userRole === 'parent_a' && (
         <button
           onClick={toggleMorningException}
           disabled={savingMorning}
