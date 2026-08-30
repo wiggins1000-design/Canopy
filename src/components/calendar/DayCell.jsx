@@ -21,7 +21,7 @@ const SCHOOL_STRIP = [
 ]
 const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, morningNeededRole }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, beforeSchoolRole, afterSchoolRole }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -83,8 +83,21 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {isOffered && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
         {type === 'change_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
         {type === 'offer_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-        {morningNeededRole && (
-          <span className={`w-1.5 h-1.5 rounded-full ring-1 ring-white ${morningNeededRole === 'parent_a' ? 'bg-pa-700' : 'bg-pb-700'}`} />
+        {/* School coverage: one dot, split top/bottom -- bottom half = before-school
+            (whoever had them overnight), top half = after-school (whoever has them
+            that evening). Either half can be a different parent's colour, or absent
+            (transparent) if that half isn't needed. */}
+        {(beforeSchoolRole || afterSchoolRole) && (
+          <span className="relative inline-block ring-1 ring-white rounded-full" style={{ width: '6px', height: '6px' }}>
+            <span
+              className={`absolute top-0 inset-x-0 rounded-t-full ${afterSchoolRole === 'parent_a' ? 'bg-pa-700' : afterSchoolRole === 'parent_b' ? 'bg-pb-700' : ''}`}
+              style={{ height: '3px' }}
+            />
+            <span
+              className={`absolute bottom-0 inset-x-0 rounded-b-full ${beforeSchoolRole === 'parent_a' ? 'bg-pa-700' : beforeSchoolRole === 'parent_b' ? 'bg-pb-700' : ''}`}
+              style={{ height: '3px' }}
+            />
+          </span>
         )}
         {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
       </div>

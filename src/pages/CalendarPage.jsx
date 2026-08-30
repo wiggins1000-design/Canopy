@@ -30,52 +30,79 @@ export default function CalendarPage() {
     return seen.size
   }, [termDays])
 
-  // Morning coverage needed: a school-morning handoff following a night the
-  // kids spent with a given parent -- not the same as "days assigned to that
-  // parent" in the schedule, since a day can start with one parent overnight
-  // and still transition to the other later that same day. "School day"
-  // counts if ANY tracked child's school is in session (not all of them need
-  // to be, since a school run is still needed either way); falls back to
-  // every weekday when no school terms are tracked at all, rather than
-  // showing nothing. Opt-in per parent (Settings → Features), same pattern
-  // as Notice Board/Messaging/Expenses/Childcare -- not every family wants
-  // this, and it's specific to whichever parent's nights actually need
-  // carer coverage the next morning.
-  const morningFeatureEnabled = {
-    parent_a: !!parentA?.consents?.features?.morning_coverage,
-    parent_b: !!parentB?.consents?.features?.morning_coverage,
+  // School coverage needed: before-school (a school morning following a
+  // night the kids spent with a given parent) and after-school (a school
+  // day the kids end up with a given parent that evening) -- neither is the
+  // same as "days assigned to that parent" in the schedule, since a day can
+  // start with one parent overnight and still transition to the other later
+  // that same day, needing a different parent's carer for each half. "School
+  // day" counts if ANY tracked child's school is in session (not all of them
+  // need to be); falls back to every weekday when no school terms are
+  // tracked at all. Opt-in per parent (Settings → Features → "School
+  // coverage flags"), same pattern as Notice Board/Messaging/Expenses/
+  // Childcare.
+  const schoolCoverageEnabled = {
+    parent_a: !!parentA?.consents?.features?.school_coverage,
+    parent_b: !!parentB?.consents?.features?.school_coverage,
   }
-  const excludedMorningDates = useMemo(
-    () => new Set(family?.config?.morning_coverage_excluded_dates ?? []),
-    [family?.config?.morning_coverage_excluded_dates]
+  const excludedBeforeSchoolDates = useMemo(
+    () => new Set(family?.config?.before_school_excluded_dates ?? []),
+    [family?.config?.before_school_excluded_dates]
   )
-  const morningEligibleMap = useMemo(() => {
+  const excludedAfterSchoolDates = useMemo(
+    () => new Set(family?.config?.after_school_excluded_dates ?? []),
+    [family?.config?.after_school_excluded_dates]
+  )
+  const isSchoolDay = useCallback((dateStr) => {
+    const closedSchools = new Set((termDays.get(dateStr) ?? []).map((s) => s.schoolIndex))
+    return totalSchoolCount === 0 || closedSchools.size < totalSchoolCount
+  }, [termDays, totalSchoolCount])
+
+  // ownerLookup: 'prev' for before-school (who had them overnight), 'same'
+  // for after-school (who has them that evening).
+  function buildEligibleMap(ownerLookup) {
     const map = new Map() // dateStr -> 'parent_a' | 'parent_b'
-    if (!morningFeatureEnabled.parent_a && !morningFeatureEnabled.parent_b) return map
+    if (!schoolCoverageEnabled.parent_a && !schoolCoverageEnabled.parent_b) return map
     for (const day of calendarDays) {
       const weekday = day.date.getDay()
       if (weekday === 0 || weekday === 6) continue
 
-      const prevDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate() - 1)
-      const prevDay = dayByDateStr.get(formatDate(prevDate))
-      const role = prevDay?.owner
-      if (!role || !morningFeatureEnabled[role]) continue
-
-      const closedSchools = new Set((termDays.get(day.dateStr) ?? []).map((s) => s.schoolIndex))
-      const isSchoolDay = totalSchoolCount === 0 || closedSchools.size < totalSchoolCount
-      if (!isSchoolDay) continue
+      let role
+      if (ownerLookup === 'prev') {
+        const prevDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate() - 1)
+        role = dayByDateStr.get(formatDate(prevDate))?.owner
+      } else {
+        role = day.owner
+      }
+      if (!role || !schoolCoverageEnabled[role]) continue
+      if (!isSchoolDay(day.dateStr)) continue
 
       map.set(day.dateStr, role)
     }
     return map
-  }, [calendarDays, dayByDateStr, termDays, totalSchoolCount, morningFeatureEnabled.parent_a, morningFeatureEnabled.parent_b])
-  const morningNeededMap = useMemo(() => {
+  }
+  const beforeSchoolEligibleMap = useMemo(
+    () => buildEligibleMap('prev'),
+    [calendarDays, dayByDateStr, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b]
+  )
+  const afterSchoolEligibleMap = useMemo(
+    () => buildEligibleMap('same'),
+    [calendarDays, isSchoolDay, schoolCoverageEnabled.parent_a, schoolCoverageEnabled.parent_b]
+  )
+  const beforeSchoolNeededMap = useMemo(() => {
     const map = new Map()
-    for (const [dateStr, role] of morningEligibleMap) {
-      if (!excludedMorningDates.has(dateStr)) map.set(dateStr, role)
+    for (const [dateStr, role] of beforeSchoolEligibleMap) {
+      if (!excludedBeforeSchoolDates.has(dateStr)) map.set(dateStr, role)
     }
     return map
-  }, [morningEligibleMap, excludedMorningDates])
+  }, [beforeSchoolEligibleMap, excludedBeforeSchoolDates])
+  const afterSchoolNeededMap = useMemo(() => {
+    const map = new Map()
+    for (const [dateStr, role] of afterSchoolEligibleMap) {
+      if (!excludedAfterSchoolDates.has(dateStr)) map.set(dateStr, role)
+    }
+    return map
+  }, [afterSchoolEligibleMap, excludedAfterSchoolDates])
   const birthdayList = useBirthdays()
   // Build a map of dateStr → child names for the current view year
   const birthdayDates = new Map()
@@ -330,7 +357,8 @@ export default function CalendarPage() {
             eventDates={visibleEventDates}
             termDays={showSchoolDates ? termDays : null}
             birthdayDates={birthdayDates}
-            morningNeededMap={morningNeededMap}
+            beforeSchoolNeededMap={beforeSchoolNeededMap}
+            afterSchoolNeededMap={afterSchoolNeededMap}
           />
 
           {/* Inline day detail */}
@@ -342,8 +370,10 @@ export default function CalendarPage() {
               termSchools={termDays?.get(selectedDay.dateStr) ?? null}
               peNames={peDates.get(selectedDay.dateStr) ?? []}
               totalSchoolCount={totalSchoolCount}
-              morningEligibleRole={morningEligibleMap.get(selectedDay.dateStr) ?? null}
-              morningNeeded={morningNeededMap.has(selectedDay.dateStr)}
+              beforeSchoolEligibleRole={beforeSchoolEligibleMap.get(selectedDay.dateStr) ?? null}
+              beforeSchoolNeeded={beforeSchoolNeededMap.has(selectedDay.dateStr)}
+              afterSchoolEligibleRole={afterSchoolEligibleMap.get(selectedDay.dateStr) ?? null}
+              afterSchoolNeeded={afterSchoolNeededMap.has(selectedDay.dateStr)}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}

@@ -21,7 +21,12 @@ const SCHOOL_COLORS = [
   'text-orange-700 bg-orange-50 border-orange-200',
 ]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], morningEligibleRole = null, morningNeeded = false, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({
+  day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [],
+  beforeSchoolEligibleRole = null, beforeSchoolNeeded = false,
+  afterSchoolEligibleRole = null, afterSchoolNeeded = false,
+  onRequestChange, onOfferFROR, onClose, onRefetchEvents,
+}) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const regionConfig = useLocale()
   const [editingChangeover, setEditingChangeover] = useState(false)
@@ -29,7 +34,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
   const [draftLocation, setDraftLocation] = useState('')
   const [savingChangeover, setSavingChangeover] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
-  const [savingMorning, setSavingMorning] = useState(false)
+  const [savingCoverage, setSavingCoverage] = useState(null) // 'before' | 'after' | null
 
   if (!day) return null
 
@@ -38,21 +43,23 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
   const ownerLabel = ownerMember?.display_name ?? (owner === 'parent_a' ? 'Parent A' : owner === 'parent_b' ? 'Parent B' : '—')
   const isMyDay = userRole === owner
 
-  // Morning coverage veto -- only ever shown for a day the auto-rule flagged
-  // at all (morningEligibleRole), and only to the parent it's actually about
-  // (whoever opted into the feature and had the kids the night before).
-  // Toggling just adds/removes this one date from the family's exclusion
-  // list, independent of the rule re-computing it.
-  const morningRoleMember = morningEligibleRole === 'parent_a' ? parentA : parentB
-  const morningRoleLabel = morningRoleMember?.display_name
-    ?? (morningEligibleRole === 'parent_a' ? 'Parent A' : 'Parent B')
+  // School coverage veto -- only ever shown for a day the auto-rule flagged
+  // at all, and only to the parent it's actually about (whoever opted into
+  // the feature and has the relevant half of the day). Before/after are
+  // independent: a transition day can need a different parent's cover on
+  // each side, so each has its own exclusion list and its own toggle.
+  function roleLabel(role) {
+    const member = role === 'parent_a' ? parentA : parentB
+    return member?.display_name ?? (role === 'parent_a' ? 'Parent A' : 'Parent B')
+  }
 
-  async function toggleMorningException() {
-    setSavingMorning(true)
-    const current = family?.config?.morning_coverage_excluded_dates ?? []
-    const next = morningNeeded ? [...current, dateStr] : current.filter((d) => d !== dateStr)
-    await updateFamilyConfig({ morning_coverage_excluded_dates: next })
-    setSavingMorning(false)
+  async function toggleCoverageException(period, needed) {
+    setSavingCoverage(period)
+    const key = period === 'before' ? 'before_school_excluded_dates' : 'after_school_excluded_dates'
+    const current = family?.config?.[key] ?? []
+    const next = needed ? [...current, dateStr] : current.filter((d) => d !== dateStr)
+    await updateFamilyConfig({ [key]: next })
+    setSavingCoverage(null)
   }
 
   return (
@@ -134,27 +141,45 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         {type === 'offered'         && <Badge label="FROR offered"      type="offered" />}
         {type === 'offer_accepted'  && <Badge label="FROR accepted"     type="offer_accepted" />}
         {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
-        {morningEligibleRole && (
-          morningNeeded
-            ? <Badge label={`${morningRoleLabel} needs morning cover`} type="morning_needed" />
-            : <Badge label={`${morningRoleLabel} doesn't need morning cover`} type="morning_excluded" />
+        {beforeSchoolEligibleRole && (
+          beforeSchoolNeeded
+            ? <Badge label={`${roleLabel(beforeSchoolEligibleRole)} needs before-school cover`} type="morning_needed" />
+            : <Badge label={`${roleLabel(beforeSchoolEligibleRole)} doesn't need before-school cover`} type="morning_excluded" />
+        )}
+        {afterSchoolEligibleRole && (
+          afterSchoolNeeded
+            ? <Badge label={`${roleLabel(afterSchoolEligibleRole)} needs after-school cover`} type="morning_needed" />
+            : <Badge label={`${roleLabel(afterSchoolEligibleRole)} doesn't need after-school cover`} type="morning_excluded" />
         )}
       </div>
 
-      {/* Morning coverage veto — only for the day the auto-rule actually
+      {/* School coverage vetoes — only for the day the auto-rule actually
           flagged, and only to the parent it's actually about (whoever opted
-          into this feature and had the kids the night before). The other
-          parent and any carer with calendar access can still see the badge
-          above, just can't override it themselves. */}
-      {morningEligibleRole && userRole === morningEligibleRole && (
-        <button
-          onClick={toggleMorningException}
-          disabled={savingMorning}
-          className="mt-2 text-xs text-canopy-mid underline disabled:opacity-50"
-        >
-          {savingMorning ? 'Saving…' : morningNeeded ? "Mark as not needed" : "Mark as needed after all"}
-        </button>
-      )}
+          into this feature and has the relevant half of the day). The other
+          parent and any carer with calendar access can still see the badges
+          above, just can't override them. Before/after are independent
+          toggles since a transition day can need a different parent on
+          each side. */}
+      <div className="flex flex-col items-start gap-1">
+        {beforeSchoolEligibleRole && userRole === beforeSchoolEligibleRole && (
+          <button
+            onClick={() => toggleCoverageException('before', beforeSchoolNeeded)}
+            disabled={savingCoverage === 'before'}
+            className="mt-2 text-xs text-canopy-mid underline disabled:opacity-50"
+          >
+            {savingCoverage === 'before' ? 'Saving…' : beforeSchoolNeeded ? 'Mark before-school as not needed' : 'Mark before-school as needed after all'}
+          </button>
+        )}
+        {afterSchoolEligibleRole && userRole === afterSchoolEligibleRole && (
+          <button
+            onClick={() => toggleCoverageException('after', afterSchoolNeeded)}
+            disabled={savingCoverage === 'after'}
+            className="text-xs text-canopy-mid underline disabled:opacity-50"
+          >
+            {savingCoverage === 'after' ? 'Saving…' : afterSchoolNeeded ? 'Mark after-school as not needed' : 'Mark after-school as needed after all'}
+          </button>
+        )}
+      </div>
 
       {/* Changeover info */}
       {isTransition && (

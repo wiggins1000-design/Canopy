@@ -528,12 +528,12 @@ export default function ConfigPage() {
   const myMessaging    = !!myFeatures.messaging
   const myExpenses     = !!myFeatures.expenses
   const myChildcare    = !!myFeatures.childcare
-  const myMorningCoverage = !!myFeatures.morning_coverage
+  const mySchoolCoverage = !!myFeatures.school_coverage
   const otherNoticeboard = (otherFeatures.noticeboard ?? true) !== false
   const otherMessaging   = !!otherFeatures.messaging
   const otherExpenses    = !!otherFeatures.expenses
   const otherChildcare   = !!otherFeatures.childcare
-  const otherMorningCoverage = !!otherFeatures.morning_coverage
+  const otherSchoolCoverage = !!otherFeatures.school_coverage
 
   async function saveMyFeature(key, value) {
     await updateMemberFeatures({ ...myFeatures, [key]: value })
@@ -1130,10 +1130,10 @@ export default function ConfigPage() {
             onToggle={() => saveMyFeature('childcare', !myChildcare)}
           />
           <ToggleRow
-            label="Morning coverage flags"
-            description={myMorningCoverage !== otherMorningCoverage ? (myMorningCoverage ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Flag school mornings after your nights that may need childcare, on the calendar'}
-            enabled={myMorningCoverage}
-            onToggle={() => saveMyFeature('morning_coverage', !myMorningCoverage)}
+            label="School coverage flags"
+            description={mySchoolCoverage !== otherSchoolCoverage ? (mySchoolCoverage ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Flag school mornings and afternoons on the calendar that may need childcare, based on your custody nights'}
+            enabled={mySchoolCoverage}
+            onToggle={() => saveMyFeature('school_coverage', !mySchoolCoverage)}
           />
           {myExpenses && (
             <ExpenseSplitRow
