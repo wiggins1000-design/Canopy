@@ -130,7 +130,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
         {morningEligible && (
           morningNeeded
-            ? <Badge label="Needs morning cover" type="morning_needed" />
+            ? <Badge label={`${parentA?.display_name ?? 'Parent A'} needs morning cover`} type="morning_needed" />
             : <Badge label="Morning cover not needed" type="morning_excluded" />
         )}
       </div>
