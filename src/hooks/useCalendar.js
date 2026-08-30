@@ -62,6 +62,26 @@ export function useCalendar() {
     return () => supabase.removeChannel(ch)
   }, [family?.id, year, month, loadMonth])
 
+  // A native app merely backgrounded (not force-quit) keeps its whole JS
+  // context alive, including this stale in-memory `changes` state -- and the
+  // realtime websocket above routinely gets suspended by the OS while
+  // backgrounded, silently missing updates (e.g. a schedule-change auto-apply
+  // that fired hours later) with no automatic backfill on reconnect. Refetch
+  // on resume/foreground so returning to the app never shows stale state.
+  useEffect(() => {
+    if (!family?.id) return
+    let resumeHandle
+    ;(async () => {
+      const { Capacitor } = await import('@capacitor/core')
+      if (!Capacitor.isNativePlatform()) return
+      const { App } = await import('@capacitor/app')
+      resumeHandle = await App.addListener('resume', loadMonth)
+    })()
+    const onVisible = () => { if (document.visibilityState === 'visible') loadMonth() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { resumeHandle?.remove(); document.removeEventListener('visibilitychange', onVisible) }
+  }, [family?.id, loadMonth])
+
   const calendarDays = useMemo(() => {
     const config = family?.config ?? {}
     const defaultTime = config.changeover_time ?? null
