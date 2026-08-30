@@ -101,6 +101,10 @@ export default function CalendarPage() {
     for (const [dateStr, role] of afterSchoolEligibleMap) {
       if (!excludedAfterSchoolDates.has(dateStr)) map.set(dateStr, role)
     }
+    // TEMP visual test only, per Chris's request 2026-08-31 -- forces today's
+    // after-school half to show Parent B's colour so he can see how the
+    // split dot looks with both parents' colours. Revert once confirmed.
+    map.set(formatDate(new Date()), 'parent_b')
     return map
   }, [afterSchoolEligibleMap, excludedAfterSchoolDates])
   const birthdayList = useBirthdays()
