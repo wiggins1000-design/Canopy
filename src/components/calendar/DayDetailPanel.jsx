@@ -147,7 +147,6 @@ export default function DayDetailPanel({
             role={beforeSchoolEligibleRole}
             needed={beforeSchoolNeeded}
             label={roleLabel(beforeSchoolEligibleRole)}
-            sameAsOwner={beforeSchoolEligibleRole === owner}
             canToggle={userRole === beforeSchoolEligibleRole}
             saving={savingCoverage === 'before'}
             onToggle={() => toggleCoverageException('before', beforeSchoolNeeded)}
@@ -159,7 +158,6 @@ export default function DayDetailPanel({
             role={afterSchoolEligibleRole}
             needed={afterSchoolNeeded}
             label={roleLabel(afterSchoolEligibleRole)}
-            sameAsOwner={afterSchoolEligibleRole === owner}
             canToggle={userRole === afterSchoolEligibleRole}
             saving={savingCoverage === 'after'}
             onToggle={() => toggleCoverageException('after', afterSchoolNeeded)}
@@ -350,15 +348,17 @@ export default function DayDetailPanel({
 
 // School coverage badge -- doubles as the veto toggle for the parent it's
 // about (tapping it flips needed/not-needed directly, no separate link).
-// Drops the parent's name when it's the same as the day's already-shown
-// owner (the common case) to cut the "Chris needs... Chris needs..."
-// repetition; keeps it when different (a transition day needing a
-// different parent for this half than the day's overall owner).
-function CoverageBadge({ period, needed, label, sameAsOwner, canToggle, saving, onToggle }) {
+// Always names the parent explicitly -- before/after can genuinely be
+// different parents on the same day (a transition day, or simply two
+// different people each needing their own half covered), so dropping the
+// name whenever it happened to match the day's overall owner label read as
+// inconsistent the moment the OTHER badge on the same day named someone
+// different.
+function CoverageBadge({ period, needed, label, canToggle, saving, onToggle }) {
   const periodLabel = period === 'before-school' ? 'before-school' : 'after-school'
   const text = needed
-    ? (sameAsOwner ? `Needs ${periodLabel} cover` : `${label} needs ${periodLabel} cover`)
-    : (sameAsOwner ? `${periodLabel[0].toUpperCase()}${periodLabel.slice(1)} cover not needed` : `${label} doesn't need ${periodLabel} cover`)
+    ? `${label} needs ${periodLabel} cover`
+    : `${label} doesn't need ${periodLabel} cover`
   const badge = <Badge label={saving ? 'Saving…' : text} type={needed ? 'morning_needed' : 'morning_excluded'} />
 
   if (!canToggle) return badge
