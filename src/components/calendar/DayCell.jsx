@@ -95,31 +95,21 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
           corner triangle -- bottom-left for before-school, bottom-right for
           after-school -- coloured to whichever parent needs that half.
           Absent entirely on any side that isn't needed. */}
-      {/* CSS corner-triangle trick: the side/left (or side/right) edge
-          carries the colour (via the Tailwind pa/pb class below), the
-          bottom edge is forced transparent via longhand so it doesn't show
-          the browser's default border colour -- the top side has 0 width
-          either way so its colour is moot. Flipped 2026-08-31 per Chris:
-          colouring the bottom edge instead of the side edge pointed the
-          triangle the wrong way. */}
+      {/* Solid square clipped to a triangle -- far more predictable than the
+          border trick (which twice rendered as an upward notch instead of
+          a flush corner triangle). Right angle sits exactly at the cell's
+          true corner; the hypotenuse cuts from the adjacent top corner
+          down to the far bottom corner of the little square. */}
       {beforeSchoolRole && (
         <span
-          className={`absolute bottom-0 left-0 w-0 h-0 ${beforeSchoolRole === 'parent_a' ? 'border-l-pa-700' : 'border-l-pb-700'}`}
-          style={{
-            borderStyle: 'solid',
-            borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: '6px', borderLeftWidth: '6px',
-            borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent',
-          }}
+          className={`absolute bottom-0 left-0 ${beforeSchoolRole === 'parent_a' ? 'bg-pa-700' : 'bg-pb-700'}`}
+          style={{ width: '8px', height: '8px', clipPath: 'polygon(0% 0%, 0% 100%, 100% 100%)' }}
         />
       )}
       {afterSchoolRole && (
         <span
-          className={`absolute bottom-0 right-0 w-0 h-0 ${afterSchoolRole === 'parent_a' ? 'border-r-pa-700' : 'border-r-pb-700'}`}
-          style={{
-            borderStyle: 'solid',
-            borderTopWidth: 0, borderLeftWidth: 0, borderBottomWidth: '6px', borderRightWidth: '6px',
-            borderTopColor: 'transparent', borderLeftColor: 'transparent', borderBottomColor: 'transparent',
-          }}
+          className={`absolute bottom-0 right-0 ${afterSchoolRole === 'parent_a' ? 'bg-pa-700' : 'bg-pb-700'}`}
+          style={{ width: '8px', height: '8px', clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%)' }}
         />
       )}
     </button>
