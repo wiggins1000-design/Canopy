@@ -1107,31 +1107,31 @@ export default function ConfigPage() {
           </div>
           <ToggleRow
             label="Notice Board"
-            description={myNoticeboard !== otherNoticeboard ? (myNoticeboard ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            description={`${otherParentName} has this turned ${otherNoticeboard ? 'on' : 'off'}`}
             enabled={myNoticeboard}
             onToggle={() => saveMyFeature('noticeboard', !myNoticeboard)}
           />
           <ToggleRow
             label="Direct messaging"
-            description={myMessaging !== otherMessaging ? (myMessaging ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            description={`${otherParentName} has this turned ${otherMessaging ? 'on' : 'off'}`}
             enabled={myMessaging}
             onToggle={() => saveMyFeature('messaging', !myMessaging)}
           />
           <ToggleRow
             label="Expenses"
-            description={myExpenses !== otherExpenses ? (myExpenses ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : undefined}
+            description={`${otherParentName} has this turned ${otherExpenses ? 'on' : 'off'}`}
             enabled={myExpenses}
             onToggle={() => saveMyFeature('expenses', !myExpenses)}
           />
           <ToggleRow
             label="Childcare hours"
-            description={myChildcare !== otherChildcare ? (myChildcare ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Let childcare members log hours and track who pays per day'}
+            description={`${otherParentName} has this turned ${otherChildcare ? 'on' : 'off'}`}
             enabled={myChildcare}
             onToggle={() => saveMyFeature('childcare', !myChildcare)}
           />
           <ToggleRow
             label="Childcare flags"
-            description={mySchoolCoverage !== otherSchoolCoverage ? (mySchoolCoverage ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Flag school mornings and afternoons on the calendar that may need childcare, based on your custody nights'}
+            description={`${otherParentName} has this turned ${otherSchoolCoverage ? 'on' : 'off'}`}
             enabled={mySchoolCoverage}
             onToggle={() => saveMyFeature('school_coverage', !mySchoolCoverage)}
           />
