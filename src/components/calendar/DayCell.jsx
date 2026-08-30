@@ -22,7 +22,10 @@ const SCHOOL_STRIP = [
 const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
 export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, beforeSchoolRole, afterSchoolRole }) {
-  const isOffered = type === 'offered' || type === 'offer_accepted'
+  // Once accepted, the day's own colour (via `owner`) already reflects it --
+  // no separate dot/styling needed. Only a still-pending offer gets the
+  // purple treatment.
+  const isOffered = type === 'offered'
   const isPending = type === 'change_pending'
 
   const bg = owner ? OWNER_BG[owner] : 'bg-white'
@@ -81,8 +84,8 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
       <div className="absolute bottom-1 flex gap-0.5">
         {isPending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />}
         {isOffered && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
-        {type === 'change_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-        {type === 'offer_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+        {/* Accepted changes/offers deliberately have no dot -- once accepted, the day's
+            own colour already reflects it (via `owner`), no separate indicator needed. */}
         {/* School coverage: one dot, split top/bottom -- bottom half = before-school
             (whoever had them overnight), top half = after-school (whoever has them
             that evening). Either half can be a different parent's colour, or absent
