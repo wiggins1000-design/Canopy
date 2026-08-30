@@ -1130,7 +1130,7 @@ export default function ConfigPage() {
             onToggle={() => saveMyFeature('childcare', !myChildcare)}
           />
           <ToggleRow
-            label="School coverage flags"
+            label="Child care flags"
             description={mySchoolCoverage !== otherSchoolCoverage ? (mySchoolCoverage ? `${otherParentName} has this turned off` : `${otherParentName} has this turned on`) : 'Flag school mornings and afternoons on the calendar that may need childcare, based on your custody nights'}
             enabled={mySchoolCoverage}
             onToggle={() => saveMyFeature('school_coverage', !mySchoolCoverage)}
