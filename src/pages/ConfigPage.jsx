@@ -1137,8 +1137,8 @@ export default function ConfigPage() {
           />
           {mySchoolCoverage && (
             <SchoolCoverageHorizonRow
-              monthsAhead={family?.config?.school_coverage_months_ahead ?? 2}
-              onSave={(n) => updateFamilyConfig({ school_coverage_months_ahead: n })}
+              monthsAhead={myFeatures.school_coverage_months_ahead ?? 2}
+              onSave={(n) => saveMyFeature('school_coverage_months_ahead', n)}
             />
           )}
           {myExpenses && (
@@ -1579,10 +1579,10 @@ function ExpenseSplitRow({ userRole, splitPct, onSave, pa, pb }) {
   )
 }
 
-// How far ahead school coverage flags are computed at all, regardless of
-// how far either parent navigates the calendar -- a shared family setting
-// (not per-parent, unlike the feature toggle itself), since it's about
-// keeping the calendar relevant/uncluttered for everyone who sees it.
+// How far ahead this parent's own childcare flags are computed at all,
+// regardless of how far anyone navigates the calendar -- per parent, same
+// as the feature toggle itself, since each parent may want a different
+// lookahead window.
 function SchoolCoverageHorizonRow({ monthsAhead, onSave }) {
   const [saving, setSaving] = useState(null)
   const OPTIONS = [1, 2, 3]
@@ -1597,7 +1597,7 @@ function SchoolCoverageHorizonRow({ monthsAhead, onSave }) {
   return (
     <div className="px-4 py-3 space-y-2 border-t border-gray-100">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How far ahead</p>
-      <p className="text-xs text-gray-400">Coverage flags only show up to this far ahead on the calendar, for anyone viewing it.</p>
+      <p className="text-xs text-gray-400">Your childcare flags only show up to this far ahead on the calendar.</p>
       <div className="flex gap-2 pt-1">
         {OPTIONS.map((n) => (
           <button

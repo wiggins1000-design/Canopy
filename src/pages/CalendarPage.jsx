@@ -59,16 +59,21 @@ export default function CalendarPage() {
   }, [termDays, totalSchoolCount])
 
   // How far ahead these flags are allowed to show at all, regardless of how
-  // far the user navigates the calendar -- a family-wide horizon (Settings
-  // → Features), not per-parent, since it's about keeping the calendar
-  // relevant/uncluttered rather than an individual preference. Defaults to
-  // 2 months when unset.
-  const schoolCoverageMonthsAhead = family?.config?.school_coverage_months_ahead ?? 2
+  // far the user navigates the calendar -- per parent (Settings → Features),
+  // same as the on/off toggle itself, since each parent may want a
+  // different lookahead window. Defaults to 2 months when unset.
+  const schoolCoverageMonthsAhead = {
+    parent_a: parentA?.consents?.features?.school_coverage_months_ahead ?? 2,
+    parent_b: parentB?.consents?.features?.school_coverage_months_ahead ?? 2,
+  }
   const schoolCoverageCutoff = useMemo(() => {
-    const cutoff = new Date()
-    cutoff.setMonth(cutoff.getMonth() + schoolCoverageMonthsAhead)
-    return cutoff
-  }, [schoolCoverageMonthsAhead])
+    const cutoffFor = (months) => {
+      const d = new Date()
+      d.setMonth(d.getMonth() + months)
+      return d
+    }
+    return { parent_a: cutoffFor(schoolCoverageMonthsAhead.parent_a), parent_b: cutoffFor(schoolCoverageMonthsAhead.parent_b) }
+  }, [schoolCoverageMonthsAhead.parent_a, schoolCoverageMonthsAhead.parent_b])
 
   // ownerLookup: 'prev' for before-school (who had them overnight), 'same'
   // for after-school (who has them that evening).
@@ -76,8 +81,6 @@ export default function CalendarPage() {
     const map = new Map() // dateStr -> 'parent_a' | 'parent_b'
     if (!schoolCoverageEnabled.parent_a && !schoolCoverageEnabled.parent_b) return map
     for (const day of calendarDays) {
-      if (day.date > schoolCoverageCutoff) continue
-
       const weekday = day.date.getDay()
       if (weekday === 0 || weekday === 6) continue
 
@@ -89,6 +92,7 @@ export default function CalendarPage() {
         role = day.owner
       }
       if (!role || !schoolCoverageEnabled[role]) continue
+      if (day.date > schoolCoverageCutoff[role]) continue
       if (!isSchoolDay(day.dateStr)) continue
 
       map.set(day.dateStr, role)
