@@ -21,7 +21,7 @@ const SCHOOL_STRIP = [
 ]
 const STRIP_FALLBACK = { holiday: 'bg-gray-400', inset: 'bg-gray-200' }
 
-export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday }) {
+export default function DayCell({ date, dateStr, current, owner, type, change, offer, selected, onSelect, isToday, selectingEndDate, isTransition, changeoverTime, hasEvents, termSchools, isBirthday, morningNeeded }) {
   const isOffered = type === 'offered' || type === 'offer_accepted'
   const isPending = type === 'change_pending'
 
@@ -83,6 +83,7 @@ export default function DayCell({ date, dateStr, current, owner, type, change, o
         {isOffered && <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
         {type === 'change_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
         {type === 'offer_accepted' && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+        {morningNeeded && <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
         {hasEvents && <span className="w-1.5 h-1.5 rounded-full bg-canopy-mid" />}
       </div>
     </button>

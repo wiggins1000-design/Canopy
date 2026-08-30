@@ -12,6 +12,8 @@ const styles = {
   offer_declined:   'bg-red-100 text-red-700',
   parent_a:        'bg-pa-100 text-pa-700',
   parent_b:        'bg-pb-100 text-pb-700',
+  morning_needed:  'bg-blue-100 text-blue-800',
+  morning_excluded: 'bg-gray-100 text-gray-500',
 }
 
 export default function Badge({ label, type = 'pending', className = '' }) {

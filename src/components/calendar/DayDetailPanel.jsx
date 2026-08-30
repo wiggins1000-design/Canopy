@@ -21,7 +21,7 @@ const SCHOOL_COLORS = [
   'text-orange-700 bg-orange-50 border-orange-200',
 ]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], morningEligible = false, morningNeeded = false, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const regionConfig = useLocale()
   const [editingChangeover, setEditingChangeover] = useState(false)
@@ -29,6 +29,7 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
   const [draftLocation, setDraftLocation] = useState('')
   const [savingChangeover, setSavingChangeover] = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
+  const [savingMorning, setSavingMorning] = useState(false)
 
   if (!day) return null
 
@@ -36,6 +37,17 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
   const ownerMember = owner === 'parent_a' ? parentA : parentB
   const ownerLabel = ownerMember?.display_name ?? (owner === 'parent_a' ? 'Parent A' : owner === 'parent_b' ? 'Parent B' : '—')
   const isMyDay = userRole === owner
+
+  // Morning coverage veto -- only ever shown for a day the auto-rule flagged
+  // at all (morningEligible); toggling just adds/removes this one date from
+  // the family's exclusion list, independent of the rule re-computing it.
+  async function toggleMorningException() {
+    setSavingMorning(true)
+    const current = family?.config?.morning_coverage_excluded_dates ?? []
+    const next = morningNeeded ? [...current, dateStr] : current.filter((d) => d !== dateStr)
+    await updateFamilyConfig({ morning_coverage_excluded_dates: next })
+    setSavingMorning(false)
+  }
 
   return (
     <div className={`mt-3 rounded-2xl border p-4 ${owner ? OWNER_COLORS[owner] : 'bg-white border-gray-200'}`}>
@@ -116,7 +128,24 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         {type === 'offered'         && <Badge label="FROR offered"      type="offered" />}
         {type === 'offer_accepted'  && <Badge label="FROR accepted"     type="offer_accepted" />}
         {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
+        {morningEligible && (
+          morningNeeded
+            ? <Badge label="Needs morning cover" type="morning_needed" />
+            : <Badge label="Morning cover not needed" type="morning_excluded" />
+        )}
       </div>
+
+      {/* Morning coverage veto — only for the day the auto-rule actually
+          flagged (kids with Parent A overnight, before a school morning) */}
+      {morningEligible && isParent && (
+        <button
+          onClick={toggleMorningException}
+          disabled={savingMorning}
+          className="mt-2 text-xs text-canopy-mid underline disabled:opacity-50"
+        >
+          {savingMorning ? 'Saving…' : morningNeeded ? "Mark as not needed" : "Mark as needed after all"}
+        </button>
+      )}
 
       {/* Changeover info */}
       {isTransition && (

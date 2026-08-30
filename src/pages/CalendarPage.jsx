@@ -21,6 +21,7 @@ import ChildrenEventsPanel from '../components/calendar/ChildrenEventsPanel'
 export default function CalendarPage() {
   const { calendarDays, viewDate, prevMonth, nextMonth, loading } = useCalendar()
   const { family, parentA, parentB, schedule, isParent } = useFamily()
+  const dayByDateStr = useMemo(() => new Map(calendarDays.map((d) => [d.dateStr, d])), [calendarDays])
   const { events, eventDates, refetch: refetchEvents } = useFamilyEvents(viewDate.getFullYear(), viewDate.getMonth() + 1)
   const termDays = useTermDates(viewDate.getFullYear())
   const totalSchoolCount = useMemo(() => {
@@ -28,6 +29,40 @@ export default function CalendarPage() {
     for (const entries of termDays.values()) for (const s of entries) seen.add(s.schoolIndex)
     return seen.size
   }, [termDays])
+
+  // Morning coverage needed: a school-morning handoff following a night the
+  // kids spent with Parent A -- not the same as "days assigned to Parent A"
+  // in the schedule, since a day can start with Parent A overnight and still
+  // transition to Parent B later that same day. "School day" counts if ANY
+  // tracked child's school is in session (not all of them need to be, since
+  // a school run is still needed either way); falls back to every weekday
+  // when no school terms are tracked at all, rather than showing nothing.
+  const excludedMorningDates = useMemo(
+    () => new Set(family?.config?.morning_coverage_excluded_dates ?? []),
+    [family?.config?.morning_coverage_excluded_dates]
+  )
+  const morningEligibleDates = useMemo(() => {
+    const set = new Set()
+    for (const day of calendarDays) {
+      const weekday = day.date.getDay()
+      if (weekday === 0 || weekday === 6) continue
+
+      const prevDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate() - 1)
+      const prevDay = dayByDateStr.get(formatDate(prevDate))
+      if (!prevDay || prevDay.owner !== 'parent_a') continue
+
+      const closedSchools = new Set((termDays.get(day.dateStr) ?? []).map((s) => s.schoolIndex))
+      const isSchoolDay = totalSchoolCount === 0 || closedSchools.size < totalSchoolCount
+      if (!isSchoolDay) continue
+
+      set.add(day.dateStr)
+    }
+    return set
+  }, [calendarDays, dayByDateStr, termDays, totalSchoolCount])
+  const morningNeededDates = useMemo(
+    () => new Set([...morningEligibleDates].filter((d) => !excludedMorningDates.has(d))),
+    [morningEligibleDates, excludedMorningDates]
+  )
   const birthdayList = useBirthdays()
   // Build a map of dateStr → child names for the current view year
   const birthdayDates = new Map()
@@ -282,6 +317,7 @@ export default function CalendarPage() {
             eventDates={visibleEventDates}
             termDays={showSchoolDates ? termDays : null}
             birthdayDates={birthdayDates}
+            morningNeededDates={morningNeededDates}
           />
 
           {/* Inline day detail */}
@@ -293,6 +329,8 @@ export default function CalendarPage() {
               termSchools={termDays?.get(selectedDay.dateStr) ?? null}
               peNames={peDates.get(selectedDay.dateStr) ?? []}
               totalSchoolCount={totalSchoolCount}
+              morningEligible={morningEligibleDates.has(selectedDay.dateStr)}
+              morningNeeded={morningNeededDates.has(selectedDay.dateStr)}
               onRequestChange={openChangePanel}
               onOfferFROR={openFRORPanel}
               onClose={() => setSelectedDateStr(null)}
