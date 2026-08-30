@@ -142,42 +142,28 @@ export default function DayDetailPanel({
         {type === 'offer_accepted'  && <Badge label="FROR accepted"     type="offer_accepted" />}
         {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
         {beforeSchoolEligibleRole && (
-          beforeSchoolNeeded
-            ? <Badge label={`${roleLabel(beforeSchoolEligibleRole)} needs before-school cover`} type="morning_needed" />
-            : <Badge label={`${roleLabel(beforeSchoolEligibleRole)} doesn't need before-school cover`} type="morning_excluded" />
+          <CoverageBadge
+            period="before-school"
+            role={beforeSchoolEligibleRole}
+            needed={beforeSchoolNeeded}
+            label={roleLabel(beforeSchoolEligibleRole)}
+            sameAsOwner={beforeSchoolEligibleRole === owner}
+            canToggle={userRole === beforeSchoolEligibleRole}
+            saving={savingCoverage === 'before'}
+            onToggle={() => toggleCoverageException('before', beforeSchoolNeeded)}
+          />
         )}
         {afterSchoolEligibleRole && (
-          afterSchoolNeeded
-            ? <Badge label={`${roleLabel(afterSchoolEligibleRole)} needs after-school cover`} type="morning_needed" />
-            : <Badge label={`${roleLabel(afterSchoolEligibleRole)} doesn't need after-school cover`} type="morning_excluded" />
-        )}
-      </div>
-
-      {/* School coverage vetoes — only for the day the auto-rule actually
-          flagged, and only to the parent it's actually about (whoever opted
-          into this feature and has the relevant half of the day). The other
-          parent and any carer with calendar access can still see the badges
-          above, just can't override them. Before/after are independent
-          toggles since a transition day can need a different parent on
-          each side. */}
-      <div className="flex flex-col items-start gap-1">
-        {beforeSchoolEligibleRole && userRole === beforeSchoolEligibleRole && (
-          <button
-            onClick={() => toggleCoverageException('before', beforeSchoolNeeded)}
-            disabled={savingCoverage === 'before'}
-            className="mt-2 text-xs text-canopy-mid underline disabled:opacity-50"
-          >
-            {savingCoverage === 'before' ? 'Saving…' : beforeSchoolNeeded ? 'Mark before-school as not needed' : 'Mark before-school as needed after all'}
-          </button>
-        )}
-        {afterSchoolEligibleRole && userRole === afterSchoolEligibleRole && (
-          <button
-            onClick={() => toggleCoverageException('after', afterSchoolNeeded)}
-            disabled={savingCoverage === 'after'}
-            className="text-xs text-canopy-mid underline disabled:opacity-50"
-          >
-            {savingCoverage === 'after' ? 'Saving…' : afterSchoolNeeded ? 'Mark after-school as not needed' : 'Mark after-school as needed after all'}
-          </button>
+          <CoverageBadge
+            period="after-school"
+            role={afterSchoolEligibleRole}
+            needed={afterSchoolNeeded}
+            label={roleLabel(afterSchoolEligibleRole)}
+            sameAsOwner={afterSchoolEligibleRole === owner}
+            canToggle={userRole === afterSchoolEligibleRole}
+            saving={savingCoverage === 'after'}
+            onToggle={() => toggleCoverageException('after', afterSchoolNeeded)}
+          />
         )}
       </div>
 
@@ -359,6 +345,27 @@ export default function DayDetailPanel({
         onRefetch={onRefetchEvents}
       />
     </div>
+  )
+}
+
+// School coverage badge -- doubles as the veto toggle for the parent it's
+// about (tapping it flips needed/not-needed directly, no separate link).
+// Drops the parent's name when it's the same as the day's already-shown
+// owner (the common case) to cut the "Chris needs... Chris needs..."
+// repetition; keeps it when different (a transition day needing a
+// different parent for this half than the day's overall owner).
+function CoverageBadge({ period, needed, label, sameAsOwner, canToggle, saving, onToggle }) {
+  const periodLabel = period === 'before-school' ? 'before-school' : 'after-school'
+  const text = needed
+    ? (sameAsOwner ? `Needs ${periodLabel} cover` : `${label} needs ${periodLabel} cover`)
+    : (sameAsOwner ? `${periodLabel[0].toUpperCase()}${periodLabel.slice(1)} cover not needed` : `${label} doesn't need ${periodLabel} cover`)
+  const badge = <Badge label={saving ? 'Saving…' : text} type={needed ? 'morning_needed' : 'morning_excluded'} />
+
+  if (!canToggle) return badge
+  return (
+    <button onClick={onToggle} disabled={saving} className="disabled:opacity-50">
+      {badge}
+    </button>
   )
 }
 
