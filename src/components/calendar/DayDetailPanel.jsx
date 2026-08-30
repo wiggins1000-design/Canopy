@@ -21,7 +21,7 @@ const SCHOOL_COLORS = [
   'text-orange-700 bg-orange-50 border-orange-200',
 ]
 
-export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], morningEligible = false, morningNeeded = false, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
+export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = [], termSchools = null, totalSchoolCount = 0, peNames = [], morningEligibleRole = null, morningNeeded = false, onRequestChange, onOfferFROR, onClose, onRefetchEvents }) {
   const { userRole, parentA, parentB, isParent, updateFamilyConfig, family } = useFamily()
   const regionConfig = useLocale()
   const [editingChangeover, setEditingChangeover] = useState(false)
@@ -39,8 +39,14 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
   const isMyDay = userRole === owner
 
   // Morning coverage veto -- only ever shown for a day the auto-rule flagged
-  // at all (morningEligible); toggling just adds/removes this one date from
-  // the family's exclusion list, independent of the rule re-computing it.
+  // at all (morningEligibleRole), and only to the parent it's actually about
+  // (whoever opted into the feature and had the kids the night before).
+  // Toggling just adds/removes this one date from the family's exclusion
+  // list, independent of the rule re-computing it.
+  const morningRoleMember = morningEligibleRole === 'parent_a' ? parentA : parentB
+  const morningRoleLabel = morningRoleMember?.display_name
+    ?? (morningEligibleRole === 'parent_a' ? 'Parent A' : 'Parent B')
+
   async function toggleMorningException() {
     setSavingMorning(true)
     const current = family?.config?.morning_coverage_excluded_dates ?? []
@@ -128,18 +134,19 @@ export default function DayDetailPanel({ day, dayEvents = [], birthdayNames = []
         {type === 'offered'         && <Badge label="FROR offered"      type="offered" />}
         {type === 'offer_accepted'  && <Badge label="FROR accepted"     type="offer_accepted" />}
         {type === 'offer_declined'  && <Badge label="FROR declined"     type="offer_declined" />}
-        {morningEligible && (
+        {morningEligibleRole && (
           morningNeeded
-            ? <Badge label={`${parentA?.display_name ?? 'Parent A'} needs morning cover`} type="morning_needed" />
-            : <Badge label="Morning cover not needed" type="morning_excluded" />
+            ? <Badge label={`${morningRoleLabel} needs morning cover`} type="morning_needed" />
+            : <Badge label={`${morningRoleLabel} doesn't need morning cover`} type="morning_excluded" />
         )}
       </div>
 
       {/* Morning coverage veto — only for the day the auto-rule actually
-          flagged (kids with Parent A overnight, before a school morning).
-          Only Parent A (the one it's actually about) can veto it; Parent B
-          and any carer with calendar access can still see the badge above. */}
-      {morningEligible && userRole === 'parent_a' && (
+          flagged, and only to the parent it's actually about (whoever opted
+          into this feature and had the kids the night before). The other
+          parent and any carer with calendar access can still see the badge
+          above, just can't override it themselves. */}
+      {morningEligibleRole && userRole === morningEligibleRole && (
         <button
           onClick={toggleMorningException}
           disabled={savingMorning}

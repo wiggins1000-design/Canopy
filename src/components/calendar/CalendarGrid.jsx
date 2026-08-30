@@ -4,7 +4,7 @@ import { formatDate } from '../../lib/scheduleEngine'
 const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 const todayStr = formatDate(new Date())
 
-export default function CalendarGrid({ calendarDays, selectedDateStr, onSelectDay, selectingEndDate, eventDates, termDays, birthdayDates, morningNeededDates }) {
+export default function CalendarGrid({ calendarDays, selectedDateStr, onSelectDay, selectingEndDate, eventDates, termDays, birthdayDates, morningNeededMap }) {
   return (
     <div>
       {/* Day-of-week headers */}
@@ -29,7 +29,7 @@ export default function CalendarGrid({ calendarDays, selectedDateStr, onSelectDa
             hasEvents={eventDates?.has(day.dateStr) ?? false}
             termSchools={termDays?.get(day.dateStr) ?? null}
             isBirthday={birthdayDates?.has(day.dateStr) ?? false}
-            morningNeeded={morningNeededDates?.has(day.dateStr) ?? false}
+            morningNeededRole={morningNeededMap?.get(day.dateStr) ?? null}
           />
         ))}
       </div>
