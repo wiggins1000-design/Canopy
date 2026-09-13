@@ -1331,21 +1331,34 @@ function isSchoolClosedEvent(title: string, locale: string): boolean {
 async function applyTermDatesToFamily(familyId: string, termDates: any[], schoolName: string | null, calendarId: string | null): Promise<number> {
   const sourceSubject = schoolName ?? 'School term dates'
 
-  // Clean replace: wipe all existing term dates for this school before inserting the
-  // fresh extraction. Real bug this fixes: the OLD version of this cleanup matched only
-  // on the CURRENT resolved sourceSubject text, so if a re-scrape resolved a different
-  // exact name for the identical school/URL (LLM extraction isn't byte-for-byte
-  // deterministic across runs, and a site can present its name differently in different
-  // places) the previous batch under the old name was never deleted — it just sat there
-  // as a permanent, undeletable "phantom" duplicate school on the calendar. Deleting by
-  // calendar_id instead is immune to that, since it's this school's stable identity
-  // regardless of what name it resolves to on any given scrape.
+  const cutoff = new Date()
+  cutoff.setMonth(cutoff.getMonth() - 1)
+  const cutoffStr = cutoff.toISOString().split('T')[0]
+
+  // Clean replace: wipe existing term dates for this school before inserting the fresh
+  // extraction -- but only from the same cutoff forward that the insert below respects.
+  // Real bug this fixes: a school's own term-dates page eventually drops last academic
+  // year's dates once a new year starts (naturally, since they're no longer "upcoming"
+  // from the school's point of view) -- a re-scrape that no longer includes them combined
+  // with an UNCONDITIONAL delete here wiped out already-past terms with nothing to
+  // replace them, making e.g. last August's summer holiday vanish from the calendar
+  // retroactively. Past terms are a historical record, not something a fresh scrape
+  // should ever be able to erase -- only the current/future window this sync actually
+  // has fresh data for should ever be replaced.
+  //
+  // Also fixes an older bug: matching only on the CURRENT resolved sourceSubject text
+  // let a re-scrape that resolved a different exact name for the identical school/URL
+  // (LLM extraction isn't byte-for-byte deterministic across runs) leave the previous
+  // batch under the old name undeleted, sitting as a permanent "phantom" duplicate
+  // school on the calendar. Deleting by calendar_id instead is immune to that, since
+  // it's this school's stable identity regardless of what name it resolves to.
   if (calendarId) {
     await supabase.from('family_events')
       .delete()
       .eq('family_id', familyId)
       .eq('source', 'term_dates')
       .eq('school_calendar_id', calendarId)
+      .gte('event_date', cutoffStr)
   }
   // Legacy fallback: events created before this function stamped school_calendar_id (or
   // the generic fallback name used when school name wasn't detected) have no calendar_id
@@ -1357,11 +1370,9 @@ async function applyTermDatesToFamily(familyId: string, termDates: any[], school
       .eq('source', 'term_dates')
       .is('school_calendar_id', null)
       .eq('source_subject', subject)
+      .gte('event_date', cutoffStr)
   }
 
-  const cutoff = new Date()
-  cutoff.setMonth(cutoff.getMonth() - 1)
-  const cutoffStr = cutoff.toISOString().split('T')[0]
   console.log(`Applying term dates — cutoff: ${cutoffStr}, sourceSubject: ${sourceSubject}`)
 
   const afterCutoff = termDates.filter((e: any) => e.date && String(e.date) >= cutoffStr)
